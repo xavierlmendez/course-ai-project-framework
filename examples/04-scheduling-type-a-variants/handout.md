@@ -90,4 +90,4 @@ Harness choice, model choice, how the page was fetched, how many times you regen
 
 ## 10. Integrity
 
-Solutions are checked for similarity. Pairs submit one directory and both sign the ledger. The twist changes every semester. Your resource URL carries a parameter unique to you; hidden tests are generated for your parameter, so a copied solution that hard-codes someone else's g fails your tests.
+Solutions are submitted to {{SIMILARITY_TOOL}}, the institution's similarity checker, and anything it flags goes to the professor under the standard misconduct process. Pairs submit one directory and both sign the ledger. The twist changes every semester. Your resource URL carries a parameter unique to you; hidden tests are generated for your parameter, so a copied solution that hard-codes someone else's g fails your tests.

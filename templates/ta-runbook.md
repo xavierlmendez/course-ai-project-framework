@@ -330,8 +330,10 @@ PY
 ## Day 3 — Release and appeals
 
 1. Send `gradebook.csv` to the professor.
-2. After the professor releases grades, publish `tests/hidden/` and `seeds.secret.json`.
-3. **Appeals.** A student may request one additional run at the middle temperature, and only
+2. Submit the specifications (Type B) or solutions (Type A) to {{SIMILARITY_TOOL}} per the
+   course's process; the professor handles anything it flags.
+3. After the professor releases grades, publish `tests/hidden/` and `seeds.secret.json`.
+4. **Appeals.** A student may request one additional run at the middle temperature, and only
    if they show their work passes the public suite on the reference harness.
 
 **What counts as showing their work passes.** The student sends the milestone-record command's

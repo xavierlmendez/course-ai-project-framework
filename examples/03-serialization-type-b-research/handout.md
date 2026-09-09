@@ -106,7 +106,7 @@ Harness choice, model choice, how the page was fetched, the code the harness pro
 
 ## 10. Integrity
 
-Specifications are text and are checked for similarity like code. Pairs submit one directory and both sign the ledger. The twist changes every semester.
+Specifications are text and are treated like code: they are submitted to {{SIMILARITY_TOOL}}, the institution's similarity checker, and anything it flags goes to the professor under the standard misconduct process. Pairs submit one directory and both sign the ledger. The twist changes every semester.
 
 ## 11. Appeals
 

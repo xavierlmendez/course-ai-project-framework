@@ -84,14 +84,9 @@ Both types use the same published resource, twist, contract, tests, and ledger. 
 
 Both can run in the same course with the same infrastructure. The graduate section can run Type B while the undergraduate section runs Type A on the same published resource.
 
-### The Hybrid, and how the previous project maps
+### How the previous project maps
 
-The previous project submitted both `prog.prompt` and `prog.py`. In this framework that is a **Hybrid Project**: the solution is graded as Type A, and the specification is run as a Type B regeneration whose only job is to confirm the solution is reproducible. The framework supports it, with two changes from the original rubric:
-
-- The reproducibility check is a **gate, not a score**: best-of-K on the reference harness must reach the equivalence policy on the public suite. A student whose code passes but whose specification cannot reproduce it has submitted code they did not specify, which is the thing the rule "you may not edit the code directly" was trying to catch and could not.
-- The rule about not editing code is dropped, because the gate makes it moot.
-
-Choose the Hybrid when the professor wants students to own and explain running code (Type A) but still wants the specification to be real. Its cost is that TAs run both paths. If TA time is the constraint, choose Type B and stop grading the code.
+The previous project submitted both `prog.prompt` and `prog.py`, which is Type A grading plus a Type B regeneration used as a reproducibility check. The framework does not provide that combination; §15 says what building it would take. Pick the type by what you want to grade: the solution (Type A) or what the reference harness makes of the specification (Type B).
 
 **Multi-part projects.** The previous project had four parts weighted 45/35/10/10. The framework handles this as one project directory per part, each with its own contract, tests and categories, graded separately and combined with `tools/combine_parts.py`. Example 01 shows the shape.
 
@@ -190,6 +185,8 @@ The ledger cannot distinguish a harness fetch from a student typing `curl`. Don'
 
 Flat pass rate would let a canonical solution that ignores the resource collect most of the points from the non-twist cases. Weighting the twist categories is what makes reading the resource load-bearing.
 
+The rule precisely: the twist categories' weights sum to exactly half of the non-graduate weights; a part whose categories are all twist categories is allowed and the rule then applies trivially (all of the non-grad weight is twist, so the professor must either add a non-twist category or accept that the part is entirely twist, and say which in the handout). `scripts/review_checks.py` enforces it; an all-twist part passes only when `project.json` declares `"all_twist": true`.
+
 ### Equivalence policy
 
 "Functionally identical" is not a test. Every hidden category states what counts as a pass, and the category's `check.py` implements it. The policies the previous project needed, now named:
@@ -254,7 +251,7 @@ Type A solutions are code, and the hidden test runner executes them in the same 
 
 ## 12. Integrity
 
-- **Similarity detection** on specifications and solutions, standard misconduct process. A specification is text; treat it like code.
+- **Similarity detection** is the institution's existing checker, named in the handout as `{{SIMILARITY_TOOL}}`. The course submits specifications (Type B) or solutions (Type A) to it and follows the standard misconduct process; the professor handles anything it flags. A specification is text; treat it like code. The framework ships no similarity tool of its own.
 - **The twist changes every semester**, so cross-semester copying is moot. Only within-semester sharing matters.
 - **Per-student variant parameters** are an option, not the default: each student's resource URL carries a parameter (board size, grid seed, …), and hidden tests are generated per parameter. Copying then requires understanding to adapt. Cost: the runner generates tests per submission and the professor writes a generator instead of fixed cases. Example 4 shows it.
 
@@ -295,14 +292,14 @@ Things the professor chooses per project, with the framework default first:
 
 | Decision | Default | Alternatives |
 |---|---|---|
-| Project type | Type B | Type A; both in the same course; Hybrid (code graded, specification as a reproducibility gate) |
+| Project type | Type B | Type A; both in the same course. **Hybrid, not provided:** a professor who wants it builds a runner mode that grades the solution as Type A and runs the specification as a pass/fail reproducibility gate |
 | Project shape | One part | Multi-part with weights, one directory per part, combined by `tools/combine_parts.py` |
 | Interface contract | JSON on stdin/stdout | File-argument CLI with fixed stdout format (`prog.py in out depth`) |
 | Equivalence policy | `strict` per category | `estimate`, `ab`, `valid` via `check.py` |
 | Resource mode | Published resource with the twist | **Research-pointer variant**: the resource points to external documentation plus a twist; snapshot the external page, since it will change |
 | Process note | Required, ungraded | Is the written component; separately graded ~5% |
 | Ledger strength | Sign with ID + nonce | Add a second instruction the harness must follow from the page (tests instruction-following; also a prompt-injection demonstration, so explain it) |
-| Integrity | Similarity detection + semester rotation | Per-student variant parameters |
+| Integrity | The institution's similarity checker (`{{SIMILARITY_TOOL}}`) + semester rotation | Per-student variant parameters |
 | Regeneration statistic | Best of K=3 | Median (rewards robust specifications); K=5 |
 | Graduate bar | Extra category + prediction dimension | Higher threshold on the same tests |
 | Pairs | Allowed, both sign | Individual only |

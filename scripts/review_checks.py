@@ -123,8 +123,19 @@ def check_examples():
         nongrad = {c: m for c, m in cats.items() if not m.get("grad_only")}
         tw = sum(float(m.get("weight", 1)) for m in nongrad.values() if m.get("twist"))
         tot = sum(float(m.get("weight", 1)) for m in nongrad.values())
-        ok = cats and abs(tw * 2 - tot) < 1e-9
-        row("PASS" if ok else "FAIL", f"{label}: twist weights = half of non-grad weights", f"twist={tw}, total={tot}")
+        # The rule: twist weights sum to exactly half of the non-grad weights. A part whose
+        # categories are all twist categories is allowed, and the rule applies trivially there;
+        # the professor must say so by declaring "all_twist": true in project.json.
+        all_twist = bool(nongrad) and all(m.get("twist") for m in nongrad.values())
+        detail = f"twist={tw}, total={tot}"
+        if all_twist and p.get("all_twist") is True:
+            ok = True
+            detail += "; all-twist part, declared with \"all_twist\": true"
+        else:
+            ok = bool(cats) and abs(tw * 2 - tot) < 1e-9
+            if all_twist:
+                detail += "; all categories are twist categories and \"all_twist\": true is not declared"
+        row("PASS" if ok else "FAIL", f"{label}: twist weights = half of non-grad weights", detail)
         # policies
         for c, m in cats.items():
             pol = m.get("policy", "strict")

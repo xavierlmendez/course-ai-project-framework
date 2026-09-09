@@ -70,7 +70,15 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
   "hidden_tests": "tests/hidden",
   "public_tests": "tests/public",
   "hidden_points": 70, "milestone_points": 10, "written_points": 20,
-  "categories": {                       // twist categories' weights must sum to half of all non-grad weights
+  "all_twist": false,                   // set true only for a part whose categories are ALL twist
+                                        //   categories; review_checks.py then accepts it
+  "categories": {                       // the twist-half rule: the twist categories' weights sum to
+                                        //   exactly half of the non-graduate weights; a part whose
+                                        //   categories are all twist categories is allowed and the
+                                        //   rule then applies trivially (all of the non-grad weight
+                                        //   is twist, so the professor must either add a non-twist
+                                        //   category or accept that the part is entirely twist, and
+                                        //   say which in the handout)
     "basic":        {"weight": 1},
     "twist_rule":   {"weight": 2, "twist": true},
     "grad_hard":    {"weight": 1, "grad_only": true}
