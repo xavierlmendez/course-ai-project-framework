@@ -5,14 +5,19 @@ This is a focusing tool for the safety read, not a safety control. The
 sandbox is the safety control. Standard library only.
 
 Usage:
-    prescan.py SUBMISSIONS_DIR [--allow HOST ...] [--cap 1500]
+    prescan.py SUBMISSIONS_DIR [--project project.json] [--allow HOST ...] [--cap 1500]
+
+Pass --project and the allowed hosts come from the project itself, so the mandatory
+ledger line in every conforming specification is not flagged as an offsite URL.
 Prints one line per submission: FLAG|OK|OVERCAP  <id>  <reasons>
 Exit 0 always (the TA decides).
 """
 import argparse
+import json
 import os
 import re
 import sys
+import urllib.parse
 
 PATTERNS = [
     ("override", re.compile(r"ignore (all |any )?(previous|prior|above) (instructions|rules)", re.I)),
@@ -85,9 +90,28 @@ def scan_submission(path, allow, cap):
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("submissions")
-    ap.add_argument("--allow", nargs="*", default=[], help="hosts allowed in URLs (resource host, ollama host)")
+    ap.add_argument("--project", help="project.json; the resource and model hosts are taken from it")
+    ap.add_argument("--allow", nargs="*", default=[], help="extra hosts allowed in URLs")
     ap.add_argument("--cap", type=int, default=1500, help="word cap on SPEC.md + supporting files")
     a = ap.parse_args()
+    allow = list(a.allow)
+    if a.project:
+        try:
+            proj = json.load(open(a.project))
+        except OSError as e:
+            sys.exit(f"--project: {e}")
+        if proj.get("resource_host"):
+            allow.append(proj["resource_host"])
+        if proj.get("ollama_host"):
+            h = urllib.parse.urlsplit(proj["ollama_host"]).hostname
+            if h:
+                allow.append(h)
+        for e in proj.get("extra_allow_endpoints", []):
+            allow.append(e.split(":")[0])
+    if not allow:
+        print("note: no allowed hosts given, so every URL will be flagged. "
+              "Pass --project project.json.", file=sys.stderr)
+    a.allow = list(dict.fromkeys(allow))
     for sid in sorted(os.listdir(a.submissions)):
         p = os.path.join(a.submissions, sid)
         if not os.path.isdir(p):

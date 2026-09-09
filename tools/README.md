@@ -10,7 +10,7 @@ Python 3 standard library plus Docker and Ollama. A TA can read every file in on
 | `combine_parts.py` | Combines per-part gradebooks. Each part contributes only its **hidden** score, weighted; the milestone and written component are course-level and added once. |
 | `prescan.py` | Flags lines in specifications the safety read must look at closely. Not a safety control. |
 | `ledger_server.py` | Serves the published resource and the write-only ledger endpoint. Reference implementation; port the one route into an existing site if you have one. |
-| `sandbox/` | Docker image: Python, OpenCode, curl, outbound firewall allowlist. |
+| `sandbox/` | Docker image: Python, a **pinned** OpenCode, curl, and an outbound allowlist of host:port pairs. Hidden tests are staged root-only; the graded solution runs unprivileged. |
 | `../tests/` | `python3 -m unittest discover -s tests`. Every test names the finding it guards. No Docker, model or network needed. |
 | `../scripts/rehearsal.py` | Grades a fixture cohort end to end and prints the arithmetic beside the gradebook, so the totals can be checked by hand. |
 | `../scripts/review_checks.py` | The deterministic checks over the examples and the repo. |
@@ -48,7 +48,9 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
                                         //   mode: the part scores hidden marks only, and
                                         //   combine_parts.py adds milestone and written once
   "python": "python3",
-  "resource_host": "host.docker.internal",          // allowed outbound host for the published resource
+  "resource_host": "host.docker.internal",          // the published resource's host …
+  "resource_port": 8080,                            // … and its port. The sandbox allowlist is
+                                                    //   host:port pairs, never a bare host
   "ollama_host": "http://host.docker.internal:11434",
   "base_model": "qwen2.5-coder:14b",
   "k": 3,
@@ -68,7 +70,7 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
   "sandbox_image": "harness-sandbox",
   "sandbox_memory": "2g",
   "slot_prefix": "ref-morris-b-slot",   // optional; defaults to "ref-<name>-slot"
-  "extra_allow_hosts": [],              // optional; extra outbound hosts for the sandbox
+  "extra_allow_endpoints": [],          // optional; extra "host:port" pairs for the sandbox
   "variants": {                         // optional, for per-student variants
     "generator": "tests/gen_hidden.py",
     "roster": "variants.csv"            // student_id,variant. The roster decides; a
@@ -95,6 +97,26 @@ utc_timestamp    student_ids (ABC123456 or ABC123456+DEF654321)    run_tag    va
 ```
 
 Filter grading entries with `grep -P '\tgrading-k[123]\t' ledger.tsv`.
+
+## What the sandbox allows
+
+Outbound traffic is restricted to the **host and port** pairs the task needs: the published
+resource and the model server. A bare host would expose every service on the grading machine,
+including the model server's management API, which can read the secret seeds and overwrite the
+pinned slot models. DNS is allowed only to the container's own resolvers, because allowing port
+53 to any destination is a tunnel through the allowlist. IPv6 is dropped entirely.
+
+The hidden tests are mounted inside `/root`, which the graded user cannot traverse, and staged
+to a root-only copy for the test runner. `run_tests.py` runs as root there and drops to the
+unprivileged `runner` user for each solution, so a solution cannot read an expected output
+instead of computing it. That drop is the default whenever the runner is root; `--run-as root`
+opts out deliberately.
+
+The OpenCode version is pinned in the Dockerfile (`ARG OPENCODE_VERSION`). This is a correctness
+control, not hygiene: the best-of-K temperature schedule reaches the model only because this
+version sends no sampling parameters of its own. `runner.py --verify-slots` asks the model server
+what each slot's effective temperature and seed are and fails loudly if the schedule is not
+reaching it; a graded batch runs that check automatically.
 
 ## What the runner will refuse
 
@@ -127,7 +149,8 @@ docker build -t harness-sandbox tools/sandbox/
 python3 tools/runner.py --project project.json --create-slots
 python3 tools/ledger_server.py --resource resource/ --ledger ledger.tsv --nonce <NONCE> --port 8080 \
         --base-url http://host.docker.internal:8080
-python3 tools/prescan.py submissions/ --allow host.docker.internal
+python3 tools/runner.py --project project.json --verify-slots   # is the schedule reaching the model?
+python3 tools/prescan.py submissions/ --project project.json
 python3 tools/runner.py --project project.json --submissions submissions/ --status status.csv --out runs/
 python3 tools/grade.py --project project.json --runs runs/ --status status.csv --written written.csv \
         --milestone milestone.csv > gradebook.csv
