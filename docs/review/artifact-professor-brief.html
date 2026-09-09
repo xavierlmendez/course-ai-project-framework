@@ -1,0 +1,93 @@
+<title>Harness Project Brief</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,500;8..60,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400&display=swap">
+<style>
+  :root {
+    --ground: #f6f5f1; --ink: #1e2427; --muted: #5d6870; --accent: #2b5f7a;
+    --verified: #1f6f5f; --rule: #d9d6ce; --panel: #eeece6; --panel-ink: #1e2427;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --ground: #15191c; --ink: #e6e3dc; --muted: #a2aab0; --accent: #7fb3d0;
+      --verified: #6fc3ad; --rule: #2c3338; --panel: #1d2327; --panel-ink: #e6e3dc;
+    }
+  }
+  :root[data-theme="dark"] {
+    --ground: #15191c; --ink: #e6e3dc; --muted: #a2aab0; --accent: #7fb3d0;
+    --verified: #6fc3ad; --rule: #2c3338; --panel: #1d2327; --panel-ink: #e6e3dc;
+  }
+  body { background: var(--ground); color: var(--ink); font: 16px/1.55 "IBM Plex Sans", "Helvetica Neue", Arial, sans-serif; }
+  main { max-width: 68ch; margin: 0 auto; padding: 2.5rem 1.25rem 4rem; }
+  h1, h2 { font-family: "Source Serif 4", Georgia, "Times New Roman", serif; font-weight: 600; text-wrap: balance; line-height: 1.15; }
+  h1 { font-size: 2.1rem; margin: 0 0 .4rem; }
+  h2 { font-size: 1.35rem; margin: 2.4rem 0 .8rem; padding-top: 1.2rem; border-top: 1px solid var(--rule); }
+  .meta { color: var(--muted); font-size: .9rem; letter-spacing: .02em; margin: 0 0 1.5rem; }
+  .meta a, p a, li a, td a { color: var(--accent); }
+  p { margin: 0 0 1rem; }
+  code { font: .88em "IBM Plex Mono", "SFMono-Regular", Menlo, monospace; }
+  ul, ol { padding-left: 1.4rem; margin: 0 0 1rem; }
+  li { margin: .35rem 0; }
+  ol.decisions { padding-left: 0; list-style: none; counter-reset: d; }
+  ol.decisions li { counter-increment: d; display: grid; grid-template-columns: 2.2rem 1fr; gap: .6rem; margin: .8rem 0; }
+  ol.decisions li::before { content: counter(d); font-family: "Source Serif 4", Georgia, serif; font-size: 1.3rem; color: var(--accent); line-height: 1.2; }
+  ol.decisions b { font-weight: 600; }
+  .wrap { overflow-x: auto; margin: 0 0 1rem; }
+  table { border-collapse: collapse; width: 100%; font-size: .93rem; }
+  th, td { text-align: left; vertical-align: top; padding: .5rem .6rem; border-bottom: 1px solid var(--rule); }
+  th { font-weight: 600; color: var(--muted); font-size: .8rem; letter-spacing: .06em; text-transform: uppercase; }
+  td.ok::before { content: "\2713\00a0"; color: var(--verified); font-weight: 600; }
+  .panel { background: var(--panel); color: var(--panel-ink); padding: 1rem 1.1rem; border-left: 3px solid var(--accent); margin: 0 0 1.2rem; }
+  .panel p:last-child { margin-bottom: 0; }
+  .num { font-variant-numeric: tabular-nums; }
+  @media (prefers-reduced-motion: reduce) { * { transition: none !important; } }
+  a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+</style>
+<main>
+  <h1>Harness Project Brief</h1>
+  <p class="meta">Prepared 2026-09-09 by Xavier Mendez &middot; repository <a href="https://github.com/xavierlmendez/course-ai-project-framework">course-ai-project-framework</a> &middot; start with <code>framework.md</code></p>
+
+  <p>A reusable way to set a course project in which students direct an AI harness that reads a resource you publish on the web, and to grade the result fairly with two TAs. Each project is a <b>published resource</b> (the rules, on a page you control), a <b>twist</b> (a change to the textbook version that no model knows from training data), an <b>interface contract</b> (how the program is run), and <b>public and hidden tests</b> in weighted categories.</p>
+  <p>Students submit either code (<b>Type&nbsp;A</b>, graded once) or a <b>specification</b> that the course's reference harness regenerates into code (<b>Type&nbsp;B</b>, best of three runs at fixed temperatures with secret seeds). Every submission signs a write-only <b>ledger</b> on your page, proving the harness fetched the resource. Grades: 10 milestone, 70 hidden tests with the twist categories carrying half, 20 for a written page scored by decision rules. Nothing costs a student money: the reference harness is OpenCode running a local open-weights model through Ollama.</p>
+
+  <h2>What ships</h2>
+  <ul>
+    <li><code>framework.md</code>, the design and your workflow; a glossary; the design-interview transcripts.</li>
+    <li>Templates: handouts for both types, a three-day TA runbook with every command, a rubric with decision rules and worked examples, calibration and rotation checklists, a student primer.</li>
+    <li>Tools in the Python standard library only: pre-scan, resource and ledger server, sandboxed runner with a fixed schedule, grading, multi-part combination, signed milestone records, fan-out from the student layout; 234 unit tests and a rehearsal script.</li>
+    <li>Four worked examples. Example&nbsp;01 is the Spring 2026 Morris-variant project recast as Type&nbsp;B: all eight programs, each with a reference solution that reproduces the recorded outputs exactly, a canonical untwisted solution that fails the twist categories, and generated test suites.</li>
+  </ul>
+
+  <h2>What has been verified</h2>
+  <div class="wrap"><table>
+    <tr><th>Claim</th><th>Evidence</th></tr>
+    <tr><td class="ok">Grading arithmetic matches hand calculation for a fixture cohort of eight cases</td><td><code>scripts/rehearsal.py</code></td></tr>
+    <tr><td class="ok">The sandbox blocks everything but the resource page and the model server</td><td>11 sandbox tests, green on an AWS g5.xlarge</td></tr>
+    <tr><td class="ok">The reference model emits structured tool calls</td><td class="num">qwen3:14b: 5 of 5 probes. qwen2.5-coder:14b: 0 of 5, ruled out</td></tr>
+    <tr><td class="ok">A full Type&nbsp;B regeneration completes through the harness</td><td>CPU server: nine tool calls, program written, ledger signed. GPU timing below</td></tr>
+    <tr><td class="ok">Throughput on a g5.xlarge (A10G)</td><td class="num">49.5 tokens per second</td></tr>
+    <tr><td class="ok">A TA can grade from the runbook alone</td><td>seven cold runs by a fresh reader; the grading path ran clean on the seventh, the rehearsal path was fixed after it</td></tr>
+    <tr><td class="ok">A student reaches the Type&nbsp;A milestone from the handout alone</td><td>third cold walk: no guesses needed</td></tr>
+  </table></div>
+  <div class="panel"><p>Three real defects in the harness stack were found and worked around in the runner: OpenCode's five-minute provider timeout, OpenCode reading its project directory from the shell's <code>PWD</code>, and qwen3's thinking mode, which makes the model narrate its plan and end the turn without acting. The slot Modelfiles now carry a patched template that disables thinking.</p></div>
+
+  <h2>Decisions that are yours</h2>
+  <ol class="decisions">
+    <li><span><b>Should the repository stay public?</b> Example&nbsp;01 contains complete solutions and hidden tests for the live assignment. Make it private and share access, or move that example's solutions out of the public tree.</span></li>
+    <li><span><b>Reference model.</b> <code>qwen3:14b</code> with thinking off is the proven instance. Thinking on changes every timing number and has not completed a run.</span></li>
+    <li><span><b>Grading machine.</b> Timeouts and the grading-day budget are defined as measured on the grading machine. A g5.xlarge on AWS, about one dollar an hour, ran the verification; the calibration run for your reference specification should happen on whichever box will grade.</span></li>
+    <li><span><b>One written page per project.</b> For a multi-part project the student writes one <code>WRITTEN.md</code> and one <code>PROCESS.md</code> for the whole project, scored once. The sample submission ships that way.</span></li>
+    <li><span><b>All-twist programs.</b> The handout says "twist categories carry 35 of the 70". A program whose categories are all twist categories makes that false; the tools allow it if declared, but the wording for that case is yours.</span></li>
+    <li><span><b>Similarity checking.</b> The example handouts name MOSS; the templates leave a placeholder.</span></li>
+    <li><span><b>Pairs.</b> The tools accept pairs (IDs joined by <code>+</code>); whether the course allows them is your call.</span></li>
+    <li><span><b>The prior project's description.</b> <code>docs/research/prior-project-spring-2026.md</code> paraphrases the handout and grading checklist. Say if you would rather it were not public.</span></li>
+  </ol>
+
+  <h2>What happens next</h2>
+  <ul>
+    <li>You run the calibration gate on your reference specification (<code>templates/calibration-checklist.md</code>): it must clear every hidden test in at least one of the three slots before release.</li>
+    <li>A TA rehearses the runbook with the shipped samples before grading day.</li>
+    <li>Each semester: change the twist and rotate the seeds (<code>templates/rotation-checklist.md</code>).</li>
+  </ul>
+
+  <h2>Late results</h2>
+  <p id="late">GPU regeneration timing is appended here when the run finishes.</p>
+</main>

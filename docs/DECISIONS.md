@@ -124,3 +124,17 @@ still be pinned before the seeds are created and must not change mid-cohort — 
 promise in §6 covers the weights, the seed, the temperature and the wrapper prompt, and a thinking
 flag changed between slots would break it. `--create-slots` now depends on the base model being
 present on the model server, since the template is read from it.
+
+## D-009 — Calibration gate result and the model choice for grading (2026-09-09, open)
+
+**Result.** On an A10G, the example 01 reference specification clears the gate with `qwen3:14b`
+(thinking off) and with `qwen3-coder:30b`, each in one slot of three. Evidence:
+`docs/review/evidence/harness-tool-calling.md`, "Calibration on a GPU".
+
+**Choice for the professor.** `qwen3:14b` stays the reference instance because it fits a
+12 GB laptop GPU or a 16 GB Apple-silicon Mac, so students can practise locally. A course whose
+students all use the course server may prefer `qwen3-coder:30b`: it needs 21 GB of GPU memory,
+has no thinking mode to disable (`"thinking": "default"`), and grades about five times faster
+(7 minutes for three slots against 33). Whichever is chosen must be pinned before seeds are
+issued and the gate re-run on the grading box.
+

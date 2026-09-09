@@ -198,3 +198,28 @@ writes the result as a `TEMPLATE """…"""` block in every slot Modelfile after 
 lines. `--verify-slots` reads the slot's template back and reports "slot N still thinks:
 re-run --create-slots". `"thinking": "default"` leaves the template untouched, for a base
 model with no thinking mode. Recorded as D-007 in `docs/DECISIONS.md`.
+
+## Calibration on a GPU (2026-09-09, AWS g5.xlarge, A10G 24 GB)
+
+Evidence: `docs/review/evidence/gpu-run/`. Sandbox on, K=3, the example 01 Part I Opening
+reference specification.
+
+| specification | model | slot results (hidden cases passed of 20) | wall for 3 slots |
+|---|---|---|---|
+| original wording | qwen3:14b | 0, 0, 0 — fetched the page at run time inside the program (`import requests`), never signed the ledger, looped on failed `edit` calls | 391 s |
+| names the harness tools, program offline, rewrite whole file | qwen3:14b | 0, 0, 20 (one slot timed out at 1200 s) | 2008 s |
+| same | qwen3-coder:30b (no thinking mode, `thinking: default`) | 0, 20, 0 — the failing slots returned the unchanged board | 427 s |
+
+Both models pass the gate (at least one slot clears every hidden case), both at one slot in
+three. Throughput: qwen3:14b 49.5 tok/s; qwen3-coder:30b 121.6 tok/s at 21 GB of GPU memory.
+The ledger carried the correct run tag (`calib-k1`…) in every run once the specification
+said to sign it with the shell tool: `RUN_TAG` does reach the harness.
+
+Two scoring defects surfaced on the way and are fixed: the sandbox could not reach Ollama on
+a Linux host (127.0.0.1 binding), and the per-case temp directory was root-only so every
+argv-files case "crashed" (recorded 0/20 where the real score was 16/20).
+
+What the gate taught about specifications for a 14B model: say which harness tool does each
+step, say the program is offline, say to rewrite the file rather than patch it, and spell
+out output punctuation line by line — the original spec lost every slot on exactly those four
+points. The student primer's specification section carries the same four rules.

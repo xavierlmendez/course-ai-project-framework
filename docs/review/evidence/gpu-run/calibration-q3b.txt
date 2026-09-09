@@ -1,0 +1,14 @@
+calib-k1.json: entry=True exit=0 wall=701.0 tests={'evaluations_count': (0, 4), 'grad_depth4': (0, 4), 'opening_mill': (0, 6), 'opening_move': (0, 6)}
+calib-k2.json: entry=True exit=None wall=1200.0 tests={'evaluations_count': (0, 4), 'grad_depth4': (0, 4), 'opening_mill': (0, 6), 'opening_move': (0, 6)}
+calib-k3.json: entry=True exit=0 wall=102.6 tests={'evaluations_count': (4, 4), 'grad_depth4': (4, 4), 'opening_mill': (6, 6), 'opening_move': (6, 6)}
+# ledger	nonce=379AEEDCD7E2	started=2026-09-09
+# utc_timestamp	student_ids	run_tag	variant	client
+2026-09-09T13:34:15+00:00	REF000000	calib-k1		172.17.0.2
+2026-09-09T13:45:59+00:00	REF000000	calib-k2		172.17.0.2
+2026-09-09T14:06:00+00:00	REF000000	calib-k3		172.17.0.2
+-- k1 tools:
+{('read', 'completed'): 1, ('webfetch', 'completed'): 1, ('bash', 'completed'): 14, ('write', 'completed'): 13}
+-- k2 tools:
+{}
+-- k3 tools:
+{('read', 'completed'): 1, ('webfetch', 'completed'): 1, ('bash', 'completed'): 3, ('write', 'completed'): 2}
