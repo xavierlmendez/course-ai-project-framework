@@ -14,7 +14,10 @@ ledger entries to a text file. Standard library only.
                                    variant     optional
                                  Returns 200 "ok" or 400 with a plain reason.
 
-The ledger file is never served. Read it on the server.
+The ledger file is never served. Read it on the server. --ledger has no default:
+the file holds student IDs and client addresses, so the operator names its
+location deliberately, and the server refuses to write it inside a repository
+(F-48) unless --allow-in-repo says otherwise.
 
 Usage:
     ledger_server.py --project project.json [--port 8080] [--base-url URL]
@@ -29,6 +32,7 @@ import http.server
 import json
 import os
 import re
+import sys
 import urllib.parse
 
 ID_RE = re.compile(r"^[A-Z]{3}[0-9]{6}$")
@@ -120,11 +124,30 @@ def make_handler(resource_dir, ledger_path, nonce, base_url):
     return H
 
 
+def enclosing_repository(path):
+    """Return the root of the repository containing path, or None.
+
+    A ledger written inside a working tree is one `git add .` away from
+    committing student IDs and client addresses (F-48), so the caller refuses.
+    """
+    d = os.path.dirname(os.path.abspath(path))
+    while True:
+        if os.path.exists(os.path.join(d, ".git")):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            return None
+        d = parent
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--project", help="project.json; supplies resource, ledger and nonce")
     ap.add_argument("--resource")
-    ap.add_argument("--ledger")
+    ap.add_argument("--ledger",
+                    help="path to the ledger file; no default, and it may not sit inside a repository")
+    ap.add_argument("--allow-in-repo", action="store_true",
+                    help="permit a ledger path inside a repository working tree (not for grading)")
     ap.add_argument("--nonce")
     ap.add_argument("--port", type=int, default=8080)
     ap.add_argument("--bind", default="0.0.0.0")
@@ -141,6 +164,13 @@ def main():
         ap.error("missing " + ", ".join("--" + m for m in missing)
                  + " (or pass --project project.json, which supplies all three)")
     base_url = (a.base_url or f"http://localhost:{a.port}").rstrip("/")
+    repo = enclosing_repository(a.ledger)
+    if repo and not a.allow_in_repo:
+        sys.exit(
+            f"refusing to write the ledger inside a repository: {os.path.abspath(a.ledger)}\n"
+            f"  the working tree at {repo} contains a .git; ledger entries carry student IDs and\n"
+            "  client addresses, and one `git add .` would commit them. Point --ledger at a path\n"
+            "  outside any checkout (or pass --allow-in-repo if you accept the risk).")
     if not os.path.exists(a.ledger):
         with open(a.ledger, "w") as fh:
             fh.write(f"# ledger\tnonce={a.nonce}\tstarted={datetime.datetime.now(datetime.timezone.utc).date()}\n")

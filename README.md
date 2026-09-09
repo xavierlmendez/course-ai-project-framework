@@ -19,6 +19,32 @@ A reusable way to give a course project in which students direct an AI harness w
 | [docs/grill/](./docs/grill/) | The six-round design interview that produced every decision; `round-06.md` is the one-page summary |
 | [docs/adr/](./docs/adr/) | The three decisions that were hard to reverse |
 | [docs/research/](./docs/research/) | Free-harness survey, 2026-09-08; the previous project's rubric and what it left open |
+| [docs/DECISIONS.md](./docs/DECISIONS.md) | The decision log; the three hardest to reverse also have full ADRs |
+| [docs/BACKLOG.md](./docs/BACKLOG.md) | Deferred work; every `TODO(BL-nn)` in code resolves here |
+| [docs/review/](./docs/review/) | The 2026-09-08 review: findings, the fix plan and its phases, deterministic checks, evidence |
+| [CLAUDE.md](./CLAUDE.md) | Agent guide: read order, hard rules, commands |
+| [CONTRIBUTING.md](./CONTRIBUTING.md) | Branches, slices, tests, commit format |
+| [tests/](./tests/) · [scripts/](./scripts/) | The standard-library test suite; the rehearsal and the deterministic checks |
+
+## Test and check
+
+Everything here is Python 3 standard library; there is nothing to install.
+
+```
+python3 -m unittest discover -s tests -p "test_[a-r]*.py"   # fast suite: no Docker, no network
+python3 scripts/rehearsal.py                                # a fixture cohort end to end
+python3 scripts/review_checks.py --no-network --out /tmp/checks.md
+```
+
+The sandbox tests need a built image and run separately:
+
+```
+docker build -t harness-sandbox tools/sandbox/
+python3 -m unittest tests.test_sandbox
+```
+
+`review_checks.py` reports FAIL rows for example 01's Parts III and IV, which are stubs by design
+until backlog entry BL-01 lands; CI fails on any FAIL row beyond those.
 
 ## Ten-minute tour
 
