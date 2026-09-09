@@ -1,0 +1,124 @@
+EXPERIMENT 4a — verify ref-q3-nothink with the captured OpenCode body (10 tools)
+wall=980.9s finish_reason=tool_calls usage={"prompt_tokens": 6446, "prompt_tokens_details": {"cached_tokens": 0}, "completion_tokens": 29, "total_tokens": 6475}
+message keys: ['content', 'role', 'tool_calls']
+reasoning len=0 head=''
+TOOL_CALLS: [{"id": "call_xzdzgmj1", "index": 0, "type": "function", "function": {"name": "read", "arguments": "{\"filePath\":\"SPEC.md\",\"limit\":2000}"}}]
+content len=0 head=''
+VERDICT: tool_calls=True reasoning_empty=True
+
+================================================================================
+NIGHT 6 — EXPERIMENT 4: template-based no-think slot  ***THIS IS THE FIX***
+================================================================================
+Model built: ref-q3-nothink  (ollama create ref-q3-nothink -f /root/Modelfile.nothink)
+
+The stock qwen3:14b TEMPLATE already contains the no-think machinery; it is simply gated
+behind $.IsThinkSet, which Ollama's /v1 endpoint never sets. Two one-line edits to the
+template make it unconditional:
+
+  PATCH A — always append /no_think to the last user message
+    -  {{- if and $.IsThinkSet (eq $i $lastUserIdx) }}
+    -     {{- if $.Think -}}{{- " "}}/think{{- else -}}{{- " "}}/no_think{{- end -}}
+    -  {{- end }}
+    +  {{- if (eq $i $lastUserIdx) }}
+    +     {{- " "}}/no_think
+    +  {{- end }}
+
+  PATCH B — always prefill an empty think block on the assistant turn
+    -  {{ if and $.IsThinkSet (not $.Think) -}}
+    +  {{ if true -}}
+    (the body it guards is the standard  <think>\n\n</think>\n\n  prefill)
+
+Builder script: /root/mkmodel.py (pulls `ollama show --template qwen3:14b` and applies the
+two replacements, asserting both anchors are found). Modelfile: /root/Modelfile.nothink.
+
+--- 4a. VERIFICATION: the real captured OpenCode body (10 tools), non-stream ---
+  wall 980.9s (cold, cached_tokens 0)
+  finish_reason: tool_calls          <<<
+  usage: prompt_tokens 6446, completion_tokens 29, total 6475
+  message keys: ['content', 'role', 'tool_calls']   -- no 'reasoning' key at all
+  reasoning: 0 chars
+  tool_calls: [{"id":"call_xzdzgmj1","index":0,"type":"function",
+                "function":{"name":"read","arguments":"{\"filePath\":\"SPEC.md\",\"limit\":2000}"}}]
+  VERDICT: tool_calls=True, reasoning empty. 372 wasted thinking tokens -> 29 useful ones.
+
+  (Note the honest prompt count: 6446 tokens. The 2050 that experiments 1-2 reported was
+  Ollama /v1 mis-reporting on a warm prefix cache, not a truncated prompt.)
+
+--- 4b. FULL OPENCODE RUN, ref-q3-nothink, workdir /tmp/e4 ---
+  06:13:13 -> 06:40:53, wall 1660s, rc 0. THE AGENT LOOP RAN TO COMPLETION.
+  9 tool calls over 9 steps, then a terminal step-finish reason "stop":
+     1  read     SPEC.md                              completed
+     2  webfetch http://host.docker.internal:8080/    ERROR Transport error
+     3  webfetch (same)                               ERROR
+     4  webfetch (same)                               ERROR
+     5  write    /tmp/e4/MiniMaxOpening.py            completed
+     6  write    (same, identical content)            completed
+     7  write    (same)                               completed
+     8  write    (same)                               completed
+     9  text part, then step-finish reason "stop"
+  MiniMaxOpening.py EXISTS (80 bytes). Every step reports reasoning: 0.
+  reasoning parts: NONE anywhere in the session.
+
+  Content quality was poor — an 80-byte stub "# Your code here" — but that is a CONTENT
+  failure, not a harness failure: SPEC.md orders the model to fetch
+  http://host.docker.internal:8080/ before writing any code, and nothing was listening on
+  8080 in this container, so the model gave up on the spec and emitted a placeholder. It
+  also repeated the identical write four times (a 14B model looping), which is a known
+  small-model behaviour, not an OpenCode or Ollama fault.
+
+--- 4c. FAITHFUL RERUN WITH THE COURSE PAGE ACTUALLY SERVED ---
+  The framework ships the real server: /root/framework/tools/ledger_server.py, and the real
+  resource: /root/framework/examples/01-morris-type-b/{resource,part-I/project.json}.
+  Setup: echo "127.0.0.1 host.docker.internal" >> /etc/hosts
+         python3 tools/ledger_server.py --project <part-I/project.json> --port 8080
+  GET http://host.docker.internal:8080/ -> 200, 5580 bytes.
+  Started 06:42:06 with RUN_TAG=night6, model ref-q3-nothink, workdir /tmp/e4c.
+  Confirmed progress: step 1 read SPEC.md (completed), step 2 webfetch the course page
+  (COMPLETED — real page content returned).
+
+  4c RESULT: rc 124 (hit my own 5400s cap while still working), wall 5400s.
+  MiniMaxOpening.py written: 4546 bytes of REAL Python (close_mill, swap_colors,
+  generate_remove, ... — the actual spec functions, not a stub).
+  Tool sequence, all reasoning: 0, no reasoning parts anywhere:
+     1  read     SPEC.md                                    completed
+     2  webfetch http://host.docker.internal:8080/          completed (real page returned)
+     3  write    MiniMaxOpening.py  (1628 output tokens)    completed
+     4  bash     python3 MiniMaxOpening.py input.txt out 2  completed
+     5  write    input.txt = "xxxxxxxxxWxxxxxxBxxxxxx"      completed
+     6  bash     python3 MiniMaxOpening.py input.txt out 2  completed
+     ... still iterating (write/test cycle) when the cap fired.
+  AND THE LEDGER WAS SIGNED — real entry appended by the agent:
+     2026-09-09T08:10:26+00:00   ABC123456   night6      127.0.0.1
+  i.e. the model fetched the page, took the nonce, honoured RUN_TAG, and POSTed. The full
+  end-to-end course workflow ran under OpenCode on a CPU-only box.
+
+  Only limitation observed: SPEED. Turn 3 alone (writing the program) took ~55 minutes at
+  ~3.7 tok/s. A real run needs a timeout of 3-4 hours, not 90 minutes.
+
+================================================================================
+EXPERIMENT 5 (qwen3-coder:30b): NOT RUN — its precondition was "only if 3 and 4 both
+fail". Experiment 4 succeeded, so pulling an 18 GB model was unnecessary. (Disk was
+adequate: 35 GB free on /.)
+
+================================================================================
+SUMMARY TABLE
+================================================================================
+exp  configuration                                  tool call?  file?  wall
+1    slot1 (thinking on), via logging proxy         NO          NO     723s
+2a   replay, stream:false                           NO          --     230s
+2b   replay, think:false (stream)                   NO          --     229s
+2c   replay, stream:false + think:false             NO          --     231s
+3    proxy-injected think:false                     not run (precondition failed)
+4a   ref-q3-nothink, captured body, non-stream      YES         --     981s
+4b   ref-q3-nothink, full OpenCode run              YES (9)     YES    1660s (rc 0, "stop")
+4c   ref-q3-nothink + course page served            YES (6+)    YES    5400s (my cap)
+5    qwen3-coder:30b                                not run (4 succeeded)
+
+ROOT CAUSE: qwen3:14b with thinking ENABLED narrates its tool plan inside <think>, closes
+the block, and emits EOS — zero tool calls, zero content. It is not a tool-schema, context,
+streaming or timeout problem. Disabling thinking fixes it completely and is also ~13x
+cheaper per turn (372 thinking tokens -> 29 useful tokens for the same decision).
+
+WHY THE OBVIOUS FIX DOESN'T WORK: `"think": false` is dropped by Ollama's /v1 endpoint,
+and `PARAMETER think false` is rejected by Modelfiles. The template is the only lever that
+survives the /v1 path OpenCode uses.

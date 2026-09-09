@@ -1,0 +1,51 @@
+NIGHT 6 — EXPERIMENT 1: capture and replay (logging proxy on 127.0.0.1:11435)
+Date: 2026-09-09 05:29-05:41 UTC. Model: ref-morris-p1-q3-slot1 (FROM qwen3:14b).
+OpenCode 1.18.29, workdir /tmp/e1 (copy of /tmp/w5), baseURL pointed at the proxy.
+
+RESULT: no tool call, no file written. Wall 723s. rc=0.
+
+--- WHAT OPENCODE SENDS (ground truth, /tmp/cap1/proxy-req-3.json, 30972 bytes) ---
+endpoint      POST /v1/chat/completions
+stream        TRUE   (stream_options: {"include_usage": true})
+tools         10  -> bash, edit, glob, grep, read, skill, task, todowrite, webfetch, write
+tools JSON    21144 bytes
+tool_choice   "auto"
+max_tokens    32000
+temperature   0.2   seed 111   (from opencode.json model options)
+think field   ABSENT
+reasoning /
+reasoning_effort field  ABSENT
+messages      system (9564 chars, "You are opencode, an interactive CLI tool...") + user (230 chars)
+top-level keys: max_tokens, messages, model, seed, stream, stream_options, temperature,
+                tool_choice, tools
+
+OpenCode also makes a separate title-generation call first (proxy-req-2.json, 2715 bytes,
+stream true, 0 tools, 2096-char system prompt). It runs CONCURRENTLY with the main call and
+also burns a full reasoning block (~5 min of CPU here) purely to name the session.
+
+--- WHAT OLLAMA SENDS BACK (/tmp/cap1/proxy-resp-3.txt, 81293 bytes SSE) ---
+343 SSE chunks. finish_reason: "stop"
+usage: prompt_tokens 2050 (cached_tokens 2049), completion_tokens 372, total 2422
+tool_calls deltas:  0   (ZERO)
+content:            0 chars (EMPTY)
+reasoning:          1644 chars — every completion token went into delta.reasoning
+
+Ollama's /v1 streaming puts thinking in a non-standard `delta.reasoning` field; OpenCode
+does parse it (it becomes the `reasoning` part in the session db).
+
+Reasoning text (excerpt): "First, I need to use the Read tool to get the contents of
+SPEC.md. ... I'll call the Read function with that path. ... I'll use the Write tool to
+create or overwrite the file at './MiniMaxOpening.py' ... No other tools are needed here
+because the task is straightforward: read the spec, write the code, and save it as
+specified."
+
+DIAGNOSIS: the tools ARE reaching the model — it names `Read`/`Write` and the exact
+OpenCode parameter name `filePath`. The model narrates the plan inside <think>, closes the
+think block, and then emits EOS instead of a <tool_call> block. Thinking, not tool
+plumbing, is what breaks the agent loop.
+
+(Note: the prompt_tokens=2050 reported here is Ollama /v1 under-reporting; the same body
+against a fresh model reports 6446. Do not read it as prompt truncation.)
+
+OpenCode session output (/tmp/e1/out.jsonl): step-start then step-finish reason "stop",
+tokens {output: 372, reasoning: 0}. No tool part, no text part. MiniMaxOpening.py absent.

@@ -1,0 +1,5 @@
+  1: text-only: {"name": "read_file", "arguments": {"path": "SPEC.md"}}
+  2: text-only: {   "name": "read_file",   "arguments": {     "path": "SPEC.md"   } }
+  3: text-only: {   "name": "read_file",   "arguments": {     "path": "SPEC.md"   } }
+  4: text-only: {"name": "read_file", "arguments": {"path": "SPEC.md"}}
+  5: text-only: {   "name": "read_file",   "arguments": {     "path": "SPEC.md"   } }

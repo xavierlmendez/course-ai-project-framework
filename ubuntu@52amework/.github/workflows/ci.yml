@@ -1,0 +1,51 @@
+# from engineering-standards @ 1b9616e (configs/python/ci.yml), adapted: this repo is standard
+# library only (decision 20), so there is no uv, no ruff, and unittest replaces pytest.
+# Source: GitHub Actions workflow syntax; actions/setup-python README.
+name: ci
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ci:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: TODOs reference the backlog
+        run: |
+          hits=$(grep -rn '#[[:space:]]*TODO' --include='*.py' tools scripts tests \
+                   | grep -v 'TODO(BL-[0-9][0-9]*)' || true)
+          if [ -n "$hits" ]; then echo "$hits"; echo "TODO without a BL-nn id"; exit 1; fi
+
+      - name: Test (fast suite; the sandbox tests need Docker and are excluded)
+        run: python3 -m unittest discover -s tests -p "test_[a-r]*.py" -v
+
+      - name: Rehearsal (a fixture cohort end to end through the grading tools)
+        run: python3 scripts/rehearsal.py
+
+      # No FAIL row is allowed. Slice 5.4 built example 01's eight programs, so the
+      # Part III/Part IV stub rows this gate used to allow (BL-01) no longer exist.
+      - name: Deterministic checks
+        run: |
+          python3 scripts/review_checks.py --no-network --out checks.md
+          fails=$(grep -c '^| FAIL' checks.md || true)
+          echo "$fails FAIL rows"
+          grep '^| FAIL' checks.md || true
+          if [ "$fails" -gt 0 ]; then
+            echo "review_checks.py reported FAIL rows"
+            exit 1
+          fi

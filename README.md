@@ -2,7 +2,7 @@
 
 A reusable way to give a course project in which students direct an AI harness with internet access, without paid subscriptions, graded by TAs reproducibly and fairly. Abstracted from course content: the four examples cover games, search, data representation, and scheduling, and none of the machinery cares which.
 
-**Start with [framework.md](./framework.md).** It is the professor-facing document; everything else supports it. A shareable rendered version is published at https://claude.ai/code/artifact/7aa021bf-eae9-4752-aa3c-a2337e95d86d (private until shared).
+**Start with [framework.md](./framework.md).** It is the professor-facing document; everything else supports it. A rendered copy is at https://claude.ai/code/artifact/7aa021bf-eae9-4752-aa3c-a2337e95d86d (needs a claude.ai login; the GitHub rendering of framework.md is the same text).
 
 ## Map
 
@@ -22,7 +22,7 @@ A reusable way to give a course project in which students direct an AI harness w
 | [docs/DECISIONS.md](./docs/DECISIONS.md) | The decision log; the three hardest to reverse also have full ADRs |
 | [docs/BACKLOG.md](./docs/BACKLOG.md) | Deferred work; every `TODO(BL-nn)` in code resolves here |
 | [docs/review/](./docs/review/) | The 2026-09-08 review: findings, the fix plan and its phases, deterministic checks, evidence |
-| [CLAUDE.md](./CLAUDE.md) | Agent guide: read order, hard rules, commands |
+| [AGENTS.md](./AGENTS.md) | Agent guide for any coding assistant (OpenCode, Codex, Copilot, Cursor, Gemini CLI; `CLAUDE.md` imports it): read order, hard rules, commands |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Branches, slices, tests, commit format |
 | [tests/](./tests/) · [scripts/](./scripts/) | The standard-library test suite; the rehearsal, the deterministic checks, and the `cpu_verify.sh` / `gpu_verify.sh` harness probes |
 
