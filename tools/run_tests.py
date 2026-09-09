@@ -32,11 +32,40 @@ Standard library only.
 import argparse
 import json
 import os
+import pwd
 import shutil
 import subprocess
 import sys
 import tempfile
 import time
+
+
+def drop_privileges_to(user):
+    """Return a preexec_fn that becomes `user`, or None.
+
+    The test runner reads the hidden tests, so it runs as root inside the sandbox. The
+    solution must not: it runs as an unprivileged user that cannot open an expected
+    output, so a solution cannot look up the answer instead of computing it.
+    """
+    if not user:
+        return None
+    try:
+        ent = pwd.getpwnam(user)
+    except KeyError:
+        sys.exit(f"--run-as: no such user {user!r}")
+    if os.geteuid() != 0:
+        return None            # not root; nothing to drop, run as ourselves
+
+    def preexec():
+        os.setgid(ent.pw_gid)
+        try:
+            os.setgroups([ent.pw_gid])
+        except (OSError, PermissionError):
+            pass
+        os.setuid(ent.pw_uid)
+        os.environ["HOME"] = ent.pw_dir
+
+    return preexec
 
 
 def discover(tests_dir):
@@ -64,7 +93,7 @@ def discover(tests_dir):
     return cats
 
 
-def run_case_argv(solution, entry, python, in_path, args_path, timeout):
+def run_case_argv(solution, entry, python, in_path, args_path, timeout, run_as=None):
     """argv-files contract: python3 entry <args with {in}/{out} substituted>."""
     tmp = tempfile.mkdtemp(prefix="case-")
     in_tmp = os.path.join(tmp, "input.txt")
@@ -73,7 +102,8 @@ def run_case_argv(solution, entry, python, in_path, args_path, timeout):
     args = open(args_path).read().strip().replace("{in}", in_tmp).replace("{out}", out_tmp).split()
     t0 = time.time()
     try:
-        p = subprocess.run([python, entry] + args, cwd=solution, capture_output=True, timeout=timeout)
+        p = subprocess.run([python, entry] + args, cwd=solution, capture_output=True,
+                           timeout=timeout, preexec_fn=drop_privileges_to(run_as))
     except subprocess.TimeoutExpired:
         shutil.rmtree(tmp, ignore_errors=True)
         return {"status": "timeout", "wall_s": round(time.time() - t0, 3)}
@@ -118,7 +148,7 @@ def judge_argv(result, out_path, checker, in_path, python, case_dir_name):
     return True, "match"
 
 
-def run_case(solution, entry, python, in_path, timeout):
+def run_case(solution, entry, python, in_path, timeout, run_as=None):
     with open(in_path, "rb") as fh:
         stdin = fh.read()
     t0 = time.time()
@@ -126,6 +156,7 @@ def run_case(solution, entry, python, in_path, timeout):
         p = subprocess.run(
             [python, entry], cwd=solution, input=stdin,
             capture_output=True, timeout=timeout,
+            preexec_fn=drop_privileges_to(run_as),
         )
     except subprocess.TimeoutExpired:
         return {"status": "timeout", "wall_s": round(time.time() - t0, 3)}
@@ -177,7 +208,20 @@ def main():
     ap.add_argument("--timeout", type=float, default=10.0)
     ap.add_argument("--python", default=sys.executable or "python3")
     ap.add_argument("--json", action="store_true", help="print only the JSON summary")
+    ap.add_argument("--run-as", default=None,
+                    help="run each solution as this user so the graded code cannot read the "
+                         "expected outputs. Defaults to 'runner' when this process is root and "
+                         "that user exists; pass --run-as root to opt out deliberately.")
     a = ap.parse_args()
+
+    if a.run_as is None and os.geteuid() == 0:
+        try:
+            pwd.getpwnam("runner")
+            a.run_as = "runner"
+        except KeyError:
+            a.run_as = None
+    if a.run_as == "root":
+        a.run_as = None
 
     if not os.path.exists(os.path.join(a.solution, a.entry)):
         summary = {"solution_started": False, "categories": {}, "error": f"missing {a.entry}"}
@@ -193,10 +237,10 @@ def main():
             try:
                 if mode == "argv":
                     args_path = in_path[: -len(".in.txt")] + ".args"
-                    r = run_case_argv(a.solution, a.entry, a.python, in_path, args_path, a.timeout)
+                    r = run_case_argv(a.solution, a.entry, a.python, in_path, args_path, a.timeout, a.run_as)
                     ok, why = judge_argv(r, out_path, checker, in_path, a.python, cat)
                 else:
-                    r = run_case(a.solution, a.entry, a.python, in_path, a.timeout)
+                    r = run_case(a.solution, a.entry, a.python, in_path, a.timeout, a.run_as)
                     ok, why = judge(r, out_path, checker, in_path, a.python)
             except Exception as e:
                 # One broken case fails that case. It must never stop the other cases,

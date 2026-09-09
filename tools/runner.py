@@ -30,6 +30,8 @@ import subprocess
 import sys
 import tempfile
 import time
+import urllib.parse
+import urllib.request
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_WRAPPER = (
@@ -127,14 +129,62 @@ def sh(cmd, timeout=None, cwd=None, dry=False):
 
 # ---------- slot models ----------
 
+def slot_parameters(p, slot):
+    """Ask the model server what a slot model's effective parameters actually are."""
+    url = p["ollama_host"].rstrip("/") + "/api/show"
+    body = json.dumps({"name": f"{p['slot_prefix']}{slot}"}).encode()
+    req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
+    with urllib.request.urlopen(req, timeout=30) as r:
+        data = json.load(r)
+    params = {}
+    for line in (data.get("parameters") or "").splitlines():
+        bits = line.split(None, 1)
+        if len(bits) == 2:
+            params[bits[0].strip()] = bits[1].strip()
+    return params
+
+
+def verify_slots(p, seeds):
+    """Fail loudly if the best-of-K schedule is not actually reaching the model.
+
+    The schedule is pinned in each slot's Modelfile. Measurement on 2026-09-08 showed the
+    harness sends no sampling parameters of its own, so the Modelfile governs, but that is
+    a property of one harness version. If a future release starts sending a default, every
+    slot would run at the same temperature and best-of-K would be three seeds at one
+    temperature while the handout claimed 0.2 / 0.6 / 1.0. Checked before every batch.
+    """
+    problems = []
+    seen = {}
+    for i, want in enumerate(p["temperatures"], start=1):
+        try:
+            params = slot_parameters(p, i)
+        except Exception as e:
+            problems.append(f"slot {i}: could not read parameters from the model server ({e})")
+            continue
+        got_t, got_s = params.get("temperature"), params.get("seed")
+        if got_t is None:
+            problems.append(f"slot {i}: model has no temperature parameter")
+        elif abs(float(got_t) - float(want)) > 1e-6:
+            problems.append(f"slot {i}: effective temperature {got_t}, schedule says {want}")
+        if got_s is None:
+            problems.append(f"slot {i}: model has no seed parameter")
+        elif seeds and str(got_s) != str(seeds[i - 1]):
+            problems.append(f"slot {i}: effective seed does not match seeds.secret.json")
+        seen[i] = got_t
+    distinct = {v for v in seen.values() if v is not None}
+    if len(seen) > 1 and len(distinct) == 1:
+        problems.append(f"every slot reports temperature {distinct.pop()}: the schedule is not reaching the model")
+    return problems
+
+
 def create_slots(p, dry):
     seeds = load_seeds(p)
     for i, (t, s) in enumerate(zip(p["temperatures"], seeds), 1):
         name = f"{p['slot_prefix']}{i}"
         modelfile = f"FROM {p['base_model']}\nPARAMETER temperature {t}\nPARAMETER seed {s}\n"
-        print(f"creating {name}: temperature={t} seed=<secret>")
+        print(f"creating {name}: temperature={t} seed=<redacted>")
         if dry:
-            print(modelfile)
+            print(f"FROM {p['base_model']}\nPARAMETER temperature {t}\nPARAMETER seed <redacted>")
             continue
         with tempfile.NamedTemporaryFile("w", delete=False, suffix=".Modelfile") as tf:
             tf.write(modelfile)
@@ -147,16 +197,35 @@ def create_slots(p, dry):
 
 # ---------- sandbox ----------
 
-def docker_base(p, workdir, extra_env=None, network=True, tests_dir=None):
+def endpoints(p):
+    """host:port pairs the sandbox may reach. Ports matter: opening every port on the
+    grading machine would expose the model server's management API, which can read the
+    secret seeds and overwrite the pinned slot models."""
+    out = []
+    res_host, res_port = p.get("resource_host"), p.get("resource_port", 8080)
+    if res_host:
+        out.append(f"{res_host}:{res_port}")
+    o = urllib.parse.urlsplit(p["ollama_host"])
+    out.append(f"{o.hostname}:{o.port or 11434}")
+    for extra in p.get("extra_allow_endpoints", []):
+        out.append(extra)
+    return ",".join(dict.fromkeys(out))
+
+
+def docker_base(p, workdir, extra_env=None, network=True, tests_dir=None, name=None):
     cmd = ["docker", "run", "--rm", "-i",
            "-v", f"{os.path.abspath(workdir)}:/work", "-w", "/work",
            "-v", f"{HERE}:/tools:ro"]
+    if name:
+        cmd += ["--name", name]
     if tests_dir:
-        cmd += ["-v", f"{os.path.abspath(tests_dir)}:/tests:ro"]
+        # Mounted inside /root, which is 0700 and root-owned, so the unprivileged user
+        # cannot traverse to it whatever the host's permissions on the mount are. The
+        # entrypoint stages a root-only copy at /tests for the test runner itself.
+        cmd += ["-v", f"{os.path.abspath(tests_dir)}:/root/tests-src:ro"]
     if network:
-        allow = ",".join(dict.fromkeys(h for h in [p.get("resource_host"), host_of(p["ollama_host"])] + p.get("extra_allow_hosts", []) if h))
         cmd += ["--cap-add", "NET_ADMIN", "--add-host", "host.docker.internal:host-gateway",
-                "-e", f"ALLOW_HOSTS={allow}", "-e", f"OLLAMA_HOST={p['ollama_host']}"]
+                "-e", f"ALLOW_ENDPOINTS={endpoints(p)}", "-e", f"OLLAMA_HOST={p['ollama_host']}"]
     else:
         cmd += ["--network", "none"]
     for k, v in (extra_env or {}).items():
@@ -169,9 +238,20 @@ def host_of(url):
     return url.split("://", 1)[-1].split("/", 1)[0].split(":", 1)[0]
 
 
-def write_opencode_config(p, workdir, slot_model):
+def write_opencode_config(p, workdir, slot_model, temperature=None, seed=None):
     """OpenCode config so the sandbox talks to the pinned slot model with tools auto-approved.
-    Shape follows opencode.ai/docs/providers (Ollama via openai-compatible); verify during calibration."""
+
+    Temperature and seed are pinned in the Ollama Modelfile (see create_slots). They are
+    repeated here deliberately: measurement on 2026-09-08 showed OpenCode 1.18.29 sends
+    no sampling parameters, so the Modelfile governs, but a release that started sending
+    its own defaults would silently flatten the best-of-K schedule. Setting them in both
+    places means whichever wins carries the right value.
+    """
+    model_opts = {"name": slot_model}
+    if temperature is not None:
+        model_opts["options"] = {"temperature": temperature}
+        if seed is not None:
+            model_opts["options"]["seed"] = seed
     cfg = {
         "$schema": "https://opencode.ai/config.json",
         "provider": {
@@ -179,7 +259,7 @@ def write_opencode_config(p, workdir, slot_model):
                 "npm": "@ai-sdk/openai-compatible",
                 "name": "Ollama (reference)",
                 "options": {"baseURL": p["ollama_host"].rstrip("/") + "/v1"},
-                "models": {slot_model: {"name": slot_model}},
+                "models": {slot_model: model_opts},
             }
         },
         "model": f"ollama/{slot_model}",
@@ -229,8 +309,10 @@ def resolve_tests(p, sub_dir, override, dry, sid=None):
 def run_tests(p, workdir, tests_dir, sandbox, dry):
     if sandbox:
         cmd = docker_base(p, workdir, network=False, tests_dir=tests_dir) + [
+            "runtests",
             "python3", "/tools/run_tests.py", "--solution", "/work", "--tests", "/tests",
-            "--entry", p["entry"], "--timeout", str(p["test_timeout_s"]), "--json"]
+            "--entry", p["entry"], "--timeout", str(p["test_timeout_s"]),
+            "--run-as", "runner", "--json"]
     else:
         cmd = [p["python"], os.path.join(HERE, "run_tests.py"), "--solution", workdir, "--tests", tests_dir,
                "--entry", p["entry"], "--timeout", str(p["test_timeout_s"]), "--json"]
@@ -316,17 +398,22 @@ def regenerate(p, sub_dir, workdir, slot, seed, run_tag, sandbox, dry):
     elif not os.path.exists(workdir):
         os.makedirs(workdir, exist_ok=True)
     slot_model = f"{p['slot_prefix']}{slot}"
-    write_opencode_config(p, workdir, slot_model)
+    write_opencode_config(p, workdir, slot_model,
+                          temperature=p["temperatures"][slot - 1], seed=seed)
     prompt = wrapper_prompt(p)
     env = {"RUN_TAG": run_tag, "SLOT_MODEL": slot_model, "PROMPT": prompt}
+    cname = f"harness-{p.get('name','project')}-{run_tag}-{os.path.basename(os.path.dirname(workdir))}"
+    cname = re.sub(r"[^A-Za-z0-9_.-]", "-", cname)[:100]
     if sandbox:
-        cmd = docker_base(p, workdir, extra_env=env, network=True) + ["regenerate"]
+        cmd = docker_base(p, workdir, extra_env=env, network=True, name=cname) + ["regenerate"]
     else:
         cmd = ["opencode", "run", "-m", f"ollama/{slot_model}", "--format", "json", prompt]
     code, out, err, wall = sh(cmd, timeout=p["regeneration_timeout_s"], cwd=None if sandbox else workdir, dry=dry)
     timed_out = code is None
     if timed_out and sandbox and not dry:
-        subprocess.run(["docker", "ps", "-q", "--filter", f"volume={os.path.abspath(workdir)}"], capture_output=True)
+        # Killing the docker client leaves the container and the harness running, holding
+        # the model server for the rest of the batch. Kill the container by name.
+        subprocess.run(["docker", "kill", cname], capture_output=True)
     rec = {"harness_exit": code, "timed_out": timed_out, "wall_s": round(wall, 1),
            "harness_stdout_tail": out[-3000:], "harness_stderr_tail": err[-1500:],
            "entry_present": os.path.exists(os.path.join(workdir, p["entry"]))}
@@ -371,8 +458,10 @@ def process_type_b(p, sid, sub_dir, out, seeds, run_tag, slots, tests_override, 
             continue
         workdir = os.path.join(out, sid, f"{run_tag}-k{slot}-work")
         print(f"  {sid} k{slot}: temperature={p['temperatures'][slot-1]} tag={run_tag}-k{slot}")
+        # The seed value is deliberately not stored: a run record travels with an appeal
+        # packet, and the seeds are secret until grades are released.
         rec = {"submission": sid, "type": "B", "slot": slot, "temperature": p["temperatures"][slot - 1],
-               "seed": seeds[slot - 1], "run_tag": f"{run_tag}-k{slot}", "started": now(),
+               "seed_recorded": False, "run_tag": f"{run_tag}-k{slot}", "started": now(),
                "tests_dir": os.path.abspath(tests_dir) if tests_dir else None}
         try:
             rec["regeneration"] = regenerate(p, sub_dir, workdir, slot, seeds[slot - 1],
@@ -460,6 +549,10 @@ def main():
     ap.add_argument("--tests", help="override the tests directory (e.g. tests/public for a practice run)")
     ap.add_argument("--type", choices=["A", "B"])
     ap.add_argument("--create-slots", action="store_true")
+    ap.add_argument("--verify-slots", action="store_true",
+                    help="check the model server reports the scheduled temperature and seed per slot")
+    ap.add_argument("--skip-slot-check", action="store_true",
+                    help="grade without verifying the slot models (not for a graded batch)")
     ap.add_argument("--dry-run", action="store_true", help="print commands, write nothing complete")
     ap.add_argument("--no-sandbox", action="store_true", help="run on the host (practice only; never for grading)")
     a = ap.parse_args()
@@ -467,6 +560,12 @@ def main():
     p = load_project(a.project)
     if a.create_slots:
         return create_slots(p, a.dry_run)
+    if a.verify_slots:
+        problems = verify_slots(p, load_seeds(p))
+        for x in problems:
+            print("  " + x)
+        print("slot check: " + ("FAILED" if problems else "ok"))
+        return 1 if problems else 0
     ptype = a.type or p["type"]
     sandbox = not a.no_sandbox
     if not sandbox:
@@ -491,6 +590,13 @@ def main():
         slots = [a.slot]
     else:
         slots = list(range(1, p["k"] + 1))
+    if ptype == "B" and not a.dry_run and not a.skip_slot_check:
+        problems = verify_slots(p, seeds)
+        if problems:
+            for x in problems:
+                print("  " + x, file=sys.stderr)
+            sys.exit("slot check failed: the temperature schedule is not reaching the model. "
+                     "Re-run --create-slots, or pass --skip-slot-check to grade anyway.")
     print(f"{len(subs)} submissions, type {ptype}, sandbox={'on' if sandbox else 'OFF'}, out={a.out}")
     try:
         run_batch(p, subs, a.out, seeds, a.run_tag, slots, a.tests, sandbox, a.dry_run, ptype)
