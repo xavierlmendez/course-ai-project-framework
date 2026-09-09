@@ -181,15 +181,40 @@ the move under pruning, and its canonical is a fair alpha-beta on the standard b
 minimax-without-pruning. Findings closed: F-26, F-27, F-28, F-54. `review_checks.py --no-network`
 reports zero FAIL rows.
 
-### Phase 6 — Records, portfolio, and consistency · **6.1, 6.2, 6.3, 6.5 done 2026-09-09; 6.4 open** · exit when: the repo is committed, CI is green, and the site deploys · decider: Xavier
+### Phase 6 — Records, portfolio, and consistency · **6.1–6.5 done 2026-09-09** · exit when: the repo is committed, CI is green, and the site deploys · decider: Xavier
 
 | Slice | Branch | Change | Depends on | Done when |
 |---|---|---|---|---|
 | 6.1 ✅ | `chore/repo-standards` | `CLAUDE.md`, `docs/DECISIONS.md` from the existing ADRs, `docs/BACKLOG.md`, CI running the tests and checks, pre-commit | Phase 1 | F-50 addressed; CI green on a PR |
 | 6.2 ✅ | `fix/portfolio-ledger` | Volume permissions, redeploy strategy, atomic header write, client address from the socket, align validation with the reference server, decision records | — | F-23, F-51, F-55, F-56 addressed; a deploy dry-run writes an entry |
 | 6.3 ✅ | `fix/ledger-server-hardening` | Path containment by real path, ledger default outside any repository, ignore rule | — | F-47, F-48 tests pass |
-| 6.4 | `docs/consistency` | Reconcile stale numbers, the schema documentation, run-tag vocabulary, the artifact, and terminology against `CONTEXT.md` | Phases 1–5 | F-58, F-59 addressed; a fresh-context consistency judge returns PASS |
+| 6.4 ✅ | `docs/consistency` | Reconcile stale numbers, the schema documentation, run-tag vocabulary, the artifact, and terminology against `CONTEXT.md` | Phases 1–5 | F-58, F-59 addressed; a fresh-context consistency judge returns PASS |
 | 6.5 ✅ | `docs/reproducibility-statement` | State what reproducible means including the machine, and what is not fixed | Phase 2 | F-45 addressed |
+
+### 6.4 consistency judge (2026-09-09)
+
+**Verdict: PASS.** The living documents were reconciled with each other and with the tools, then
+re-read cold against `tools/*.py` and `tests/`. `CONTEXT.md` now defines every term the documents
+use — Hybrid demoted to *not provided*, the reference harness's **six** criteria, **program** vs
+**part**, milestone, practice run, dry run, run tag, slot, seed, `num_ctx`, equivalence policy,
+all-twist part, `ollama_host` vs `ollama_host_local`, environment failure vs harness error vs
+student failure, circuit breaker, similarity check, ledger (write-only, no nonce stored) and roster.
+`framework.md`, `README.md`, `tools/README.md`, `CONTRIBUTING.md`, the templates, the two published
+artifact pages and the example READMEs and handouts were corrected against them. Verification:
+150 tests OK, `tests.test_handouts` OK, `review_checks.py --no-network` 0 FAIL. F-58 and F-59 are
+closed.
+
+What could **not** be settled here, because each needs a decision from the professor or Xavier
+rather than an edit:
+
+| # | Where | The contradiction | Decides |
+|---|---|---|---|
+| 1 | `examples/01-morris-type-b/part-*/submissions/ABC123456/` vs that example's `handout.md` §6 | The shipped sample carries **eight different** `WRITTEN.md` and `PROCESS.md` files, one per program; the handout says one of each for the whole project, written once and scored once. The runbook now tells the TA to copy the one page into each part directory so the pre-scan finds it, but the fixture still models eight distinct pages. Either collapse the fixture to one page duplicated, or change the handout to one written page per program (which changes what the 20 points mean). | Professor |
+| 2 | `framework.md` §6, `templates/ta-runbook.md` "How long it takes", `docs/BACKLOG.md` BL-02/BL-03 | Both timeouts and the whole grading-day budget are defined as *measured on the grading machine*, and no grading machine has been named or measured. Every wall-clock figure in the documents (20-minute regeneration, 5–10 minutes a run, 16–32 machine-hours, example 01's 30-second test timeout) is therefore an estimate presented as a number. The documents cannot be made true by editing them. | Xavier, then the professor |
+| 3 | `framework.md` §5 · `docs/DECISIONS.md` D-007 | `qwen3`'s thinking mode is left at Ollama's default. It moves `regeneration_timeout_s`, the calibration numbers and the runbook budget whichever way it goes, and it must be pinned before the seeds are created. Recorded open; no document can state a number until it is settled. | Professor |
+| 4 | `templates/handout-type-b.md` §8 and every filled handout, vs the `all_twist` escape in `framework.md` §9 | Student-facing handouts state flatly that the twist categories carry **35** of the 70. That holds only while every program obeys the twist-half rule. A program declared `"all_twist": true` is legal and makes the sentence false, and no template says what to write in its place. | Professor |
+| 5 | `docs/adr/0001-course-owns-execution.md` vs D-006 and `framework.md` §5 | The ADR still names **five** criteria and `qwen2.5-coder:14b`. That is correct behaviour for an append-only record, and D-006 states the supersession, but a reader who opens the ADR first meets the old instance with nothing on the page saying so. Adding a superseded-by banner means editing an append-only record. | Xavier |
+| 6 | `docs/review/artifact-framework.html` vs `framework.md` | The published page is a condensed rendering with its own numbering: its §11 merges the document's §11 and §12, so its §12–§16 are offset by one. Other documents cite "`framework.md` §N", and a reader given only the artifact link cannot follow those citations. Renumbering the page, or labelling it explicitly as a summary with its own sections, is a presentation call. | Xavier |
 
 ## 6. Risks
 

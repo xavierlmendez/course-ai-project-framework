@@ -87,8 +87,8 @@ python3 ../../tools/runner.py --project project.json --submissions submissions -
 python3 ../../tools/grade.py --project project.json --runs runs/ --status status.csv
 
 # ledger server for the resource (from the framework root)
-python3 tools/ledger_server.py --resource examples/04-scheduling-type-a-variants/resource \
-    --ledger ledger.tsv --nonce <NONCE> --port 8080 --base-url http://host.docker.internal:8080
+python3 tools/ledger_server.py --project examples/04-scheduling-type-a-variants/project.json \
+    --allow-in-repo --base-url http://host.docker.internal:8083   # port 8083 and the nonce come from project.json
 ```
 
 ## Professor workflow for variants
@@ -134,9 +134,15 @@ which exercised the per-variant generator path, then `grade.py`:
 
 ```
 student_id,status,grad,best_slot,hidden_score,basic_pass,overlaps_pass,twist_cooldown_pass,twist_class_pass,grad_large_pass,milestone,written_raw,written_score,total,note
-JKL333444,graded,0,A,52.5,5/5,5/5,6/6,0/6,,,,,52.5,          # undergraduate
-JKL333444,graded,1,A,42.0,5/5,5/5,6/6,0/6,0/4,,,,42.0,       # same submission graded as graduate
+JKL333444,incomplete,0,A,52.5,5/5,5/5,6/6,0/6,,,,,,"missing: milestone, written"
+JKL333444,incomplete,1,A,42.0,5/5,5/5,6/6,0/6,0/4,,,,,"missing: milestone, written"
 ```
+
+The second line is the same submission graded as a graduate row: `grad_large` joins the denominator,
+so the hidden score falls from 52.5 to 42.0. Both rows are `incomplete` with **no total**, because no
+`written.csv` or `milestone.csv` was supplied — that is the tools working as designed: a row is
+`graded` only when every component it needs is present, and a total that silently omitted 30 of the
+100 points would be worse than none. Add the two course-level files to see a total.
 
 `prescan.py` on the submission: `OK JKL333444 words=1` (solution code does not count toward the specification cap).
 

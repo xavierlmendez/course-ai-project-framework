@@ -65,7 +65,7 @@ When a config or rule here turns out wrong in a repo, fix it there, then open a 
 
 ## This repo
 
-Two adaptations, and nothing else changes:
+Three adaptations, and nothing else changes:
 
 - **Standard library only.** There is no `uv`, no `ruff`, no `pyproject.toml`, and no lockfile: the
   tools must run on a bare lab machine (decision 20 in `docs/review/fix-plan.md`). Where the rules
@@ -75,6 +75,11 @@ Two adaptations, and nothing else changes:
   Docker image and runs separately. Fixtures are built in a temporary directory by `tests/helpers.py`
   rather than by fixture plugins. The behavioural-baseline rule applies to the grading arithmetic:
   `scripts/rehearsal.py` is the snapshot.
+- **Two files named above live upstream, not here.** `.claude/agents/testing-agent.md` (the full
+  testing standard) and `.git-blame-ignore-revs` are `engineering-standards` artifacts; this
+  repository has neither. The testing rule that binds here is the one stated above and in
+  `CLAUDE.md` — every tool change ships with a deterministic `unittest` in the same slice, and a
+  fix ships the test that fails before it.
 
 Records here are `docs/DECISIONS.md` plus an ADR under `docs/adr/` when a decision is hard to
 reverse, and `docs/BACKLOG.md`; there is no `docs/LEARNING_LOG.md`.

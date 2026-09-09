@@ -11,12 +11,12 @@ A reusable way to give a course project in which students direct an AI harness w
 | [framework.md](./framework.md) | The design, the reasoning, the professor's workflow, the options menu |
 | [CONTEXT.md](./CONTEXT.md) | Glossary. Every document uses these terms exactly |
 | [templates/](./templates/) | Handout (Type A, Type B), [student primer](./templates/student-primer.md), rubric, twist checklist, calibration checklist, TA runbook, rotation checklist, process-note prompt |
-| [tools/](./tools/) | `runner.py`, `run_tests.py`, `grade.py`, `prescan.py`, `ledger_server.py`, `sandbox/`. Python standard library + Docker + Ollama. [tools/README.md](./tools/README.md) has the `project.json` schema |
+| [tools/](./tools/) | `runner.py`, `run_tests.py`, `milestone.py`, `grade.py`, `grade_all.py`, `combine_parts.py`, `prescan.py`, `ledger_server.py`, `sandbox/`. Python standard library + Docker + Ollama. [tools/README.md](./tools/README.md) has the `project.json` schema and the command for each tool |
 | [examples/01-morris-type-b](./examples/01-morris-type-b/) | The professor's actual Spring 2026 Morris-variant project recast: Type B, eight programs in one directory each (45/35/10/10 across four parts, split evenly between each part's Opening and Game program), file-argument CLI contract, equivalence policies per category |
 | [examples/02-astar-type-a](./examples/02-astar-type-a/) | Type A, published resource, A* with a published movement twist |
 | [examples/03-serialization-type-b-research](./examples/03-serialization-type-b-research/) | Type B, research-pointer variant (external spec + twist, snapshotted) |
 | [examples/04-scheduling-type-a-variants](./examples/04-scheduling-type-a-variants/) | Type A, per-student variant parameters with generated hidden tests |
-| [docs/grill/](./docs/grill/) | The six-round design interview that produced every decision; `round-06.md` is the one-page summary |
+| [docs/grill/](./docs/grill/) | The six-round design interview that produced every decision, plus the round-07 amendment that corrected the account of the previous project; `round-06.md` is the one-page summary |
 | [docs/adr/](./docs/adr/) | The three decisions that were hard to reverse |
 | [docs/research/](./docs/research/) | Free-harness survey, 2026-09-08; the previous project's rubric and what it left open |
 | [docs/DECISIONS.md](./docs/DECISIONS.md) | The decision log; the three hardest to reverse also have full ADRs |
@@ -24,7 +24,7 @@ A reusable way to give a course project in which students direct an AI harness w
 | [docs/review/](./docs/review/) | The 2026-09-08 review: findings, the fix plan and its phases, deterministic checks, evidence |
 | [CLAUDE.md](./CLAUDE.md) | Agent guide: read order, hard rules, commands |
 | [CONTRIBUTING.md](./CONTRIBUTING.md) | Branches, slices, tests, commit format |
-| [tests/](./tests/) · [scripts/](./scripts/) | The standard-library test suite; the rehearsal and the deterministic checks |
+| [tests/](./tests/) · [scripts/](./scripts/) | The standard-library test suite; the rehearsal, the deterministic checks, and the `cpu_verify.sh` / `gpu_verify.sh` harness probes |
 
 ## Test and check
 
@@ -43,8 +43,8 @@ docker build -t harness-sandbox tools/sandbox/
 python3 -m unittest tests.test_sandbox
 ```
 
-`review_checks.py` reports FAIL rows for example 01's Parts III and IV, which are stubs by design
-until backlog entry BL-01 lands; CI fails on any FAIL row beyond those.
+`review_checks.py` must report **zero FAIL rows**, and CI fails on any of them. (It reported FAIL rows
+for example 01's stub parts until backlog entry BL-01 landed; there are no stubs left.)
 
 ## Ten-minute tour
 

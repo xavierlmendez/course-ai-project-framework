@@ -23,7 +23,7 @@ It prints the nonce it is serving, writes `examples/01-morris-type-b/ledger.tsv`
 
 Your harness must fetch that page. It contains a nonce and a ledger instruction.
 
-**Each specification must tell the agent to sign the course ledger with your student ID (and your partner's, if any) and the nonce from the page.** A specification that does not produce a ledger entry has not specified the task.
+**Each specification must tell the harness to sign the course ledger with your student ID (and your partner's, if any) and the nonce from the page.** A specification that does not produce a ledger entry has not specified the task.
 
 We cannot tell whether the page was fetched by your harness or by you with `curl`, and we do not try. The ledger entry is what counts.
 
