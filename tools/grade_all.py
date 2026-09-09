@@ -2,12 +2,18 @@
 """Grade a whole project, single-part or multi-part, in one command.
 
     grade_all.py --project DIR --status status.csv \\
+                 [--submissions submissions/] \\
                  [--written written.csv] [--milestone milestone.csv] > gradebook.csv
 
 `DIR` is the project directory. If it contains `parts.json` the project is multi-part:
 each part is graded on its own (hidden score only) and the results are combined once,
 with the milestone and written component added at the course level. Otherwise `DIR` is
 graded directly.
+
+`--submissions` is the course-level submission tree, in the layout the handout asks
+students for. Given it, `fan_out.py` runs first, so the per-program submission directories
+the grading reads are refreshed from what the students actually submitted, and a layout
+problem stops the run rather than becoming a silent zero for a mislaid program.
 
 This exists because the equivalent shell loop was a reliable source of mistakes: it
 word-splits differently in bash and zsh, it silently continues past a part that was never
@@ -43,10 +49,29 @@ def main():
     ap.add_argument("--written")
     ap.add_argument("--milestone")
     ap.add_argument("--work", help="where to put per-part gradebooks (default: alongside the project)")
+    ap.add_argument("--submissions",
+                    help="the course-level submissions directory (one directory per student, in "
+                         "the handout's layout). Given this, the fan-out runs first and the "
+                         "grading stops if any student's layout is wrong.")
     a = ap.parse_args()
 
     pdir = os.path.abspath(a.project)
     parts_file = os.path.join(pdir, "parts.json")
+
+    if a.submissions:
+        if not os.path.exists(parts_file):
+            sys.exit(f"--submissions is the course-level tree of a multi-part project, but "
+                     f"{parts_file} does not exist. A single-part project is graded from its "
+                     f"own submissions directory by the runner; there is nothing to fan out.")
+        sys.path.insert(0, HERE)
+        import fan_out
+        bad = fan_out.fan_out(pdir, os.path.abspath(a.submissions), out=sys.stderr)
+        if bad:
+            sys.exit(f"\n{len(bad)} student submission(s) do not match the handout's layout "
+                     f"(listed above). Grading now would score a mislaid program as a zero, so "
+                     f"fix the layout or accept it deliberately, then run the fan-out again:\n"
+                     f"  python3 tools/fan_out.py --project {a.project} "
+                     f"--submissions {a.submissions}")
     work = a.work or pdir
     os.makedirs(work, exist_ok=True)
 

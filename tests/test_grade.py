@@ -179,5 +179,33 @@ class TestBestOfK(TempCase):
         self.assertAlmostEqual(float(row["hidden_score"]), 70.0, places=2)
 
 
+class TestIncompleteWording(TempCase):
+    """A Type A project has no slots: the student submits code and it is run once. The note
+    still said "1 slot(s) never completed", which sent a TA looking for the other slots."""
+
+    def test_type_a_says_the_run_never_completed(self):
+        self.make_project(ptype="A")
+        sid = "ABC123456"
+        self.make_record(sid, "run.json", {}, complete=False, ptype="A")
+        self.make_status([(sid, "graded", 0, "")])
+        _, out, _ = run_tool("grade.py", "--project", self.path("project.json"),
+                             "--runs", self.path("runs"), "--status", self.path("status.csv"),
+                             expect_ok=True)
+        note = parse_csv(out)[sid]["note"]
+        self.assertIn("the run never completed", note)
+        self.assertNotIn("slot(s)", note)
+
+    def test_type_b_still_counts_the_slots(self):
+        self.make_project(ptype="B")
+        sid = "ABC123456"
+        self.make_record(sid, "k1.json", {}, complete=False, slot=1)
+        self.make_record(sid, "k2.json", {}, complete=False, slot=2)
+        self.make_status([(sid, "graded", 0, "")])
+        _, out, _ = run_tool("grade.py", "--project", self.path("project.json"),
+                             "--runs", self.path("runs"), "--status", self.path("status.csv"),
+                             expect_ok=True)
+        self.assertIn("2 slot(s) never completed", parse_csv(out)[sid]["note"])
+
+
 if __name__ == "__main__":
     unittest.main()

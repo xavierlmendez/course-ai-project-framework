@@ -19,9 +19,13 @@ Two subcommands.
         **Type B**: you do not write the code, so `--solution` is the directory the harness
         wrote for you and `--regeneration` is **required**: it must be the runner record of
         a completed practice run that produced an entry point, and `--solution` must be that
-        record's own work directory (`<tag>-k<N>-work` beside `<tag>-k<N>.json`). Hand-written
-        code, a mistyped path, or a `--dry-run` record is refused. Do a practice run first,
-        then point at its working directory:
+        record's own work directory. The runner names the two after the run tag
+        (`runner.record_name` / `runner.work_dir_name`): the **grading** tag is the exception
+        and writes `k<N>.json` beside `grading-k<N>-work`, while every other tag writes
+        `<tag>-k<N>.json` beside `<tag>-k<N>-work` — so a practice run leaves
+        `practice-k<N>.json` beside `practice-k<N>-work`, which is the pair to pass here.
+        Hand-written code, a mistyped path, or a `--dry-run` record is refused. Do a practice
+        run first, then point at its working directory:
 
             python3 tools/runner.py --project project.json --submission ./my-submission \\
                     --run-tag practice --slot 1 --out ./practice --no-sandbox
