@@ -762,8 +762,19 @@ def regenerate(p, sub_dir, workdir, slot, seed, run_tag, sandbox, dry):
         # Killing the docker client leaves the container and the harness running, holding
         # the model server for the rest of the batch. Kill the container by name.
         subprocess.run(["docker", "kill", cname], capture_output=True)
+    log_path = None
+    if not dry:
+        # The full event stream, beside the work directory: the record keeps only a tail,
+        # and an appeal or a calibration failure needs the whole conversation (which tools
+        # were called, with what, and what the model said).
+        log_path = workdir.rstrip("/") + ".harness.jsonl"
+        with open(log_path, "w") as fh:
+            fh.write(out)
+            if err:
+                fh.write("\n--- stderr ---\n" + err)
     rec = {"harness_exit": code, "timed_out": timed_out, "wall_s": round(wall, 1),
            "harness_stdout_tail": out[-3000:], "harness_stderr_tail": err[-1500:],
+           "harness_log": os.path.basename(log_path) if log_path else None,
            "entry_present": os.path.exists(os.path.join(workdir, p["entry"]))}
     env_err = classify_failure(code, out, err) if not timed_out else None
     if env_err:

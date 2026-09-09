@@ -303,3 +303,26 @@ class TestStaleContainerIsRemoved(TempCase):
             except Exception:
                 pass
         self.assertTrue(any(c[:3] == ["docker", "rm", "-f"] for c in calls), calls)
+
+
+class TestFullHarnessLogIsKept(TempCase):
+    """The record keeps a 3,000-character tail; an appeal or a calibration failure needs the
+    whole event stream, so the runner writes it beside the work directory."""
+
+    def test_stream_is_written_beside_the_work_dir(self):
+        p = {"slot_prefix": "ref-x-slot", "temperatures": [0.2], "ollama_host": "http://127.0.0.1:11434",
+             "regeneration_timeout_s": 60, "entry": "solve.py", "spec": "SPEC.md", "name": "x",
+             "data_files": [], "code_ext": [".py"], "wrapper_prompt": "go {entry} {spec}"}
+        sub = self.path("submissions", "ABC123456", "SPEC.md"); open(sub, "w").write("build it")
+        work = self.path("runs", "ABC123456", "t-k1-work"); os.makedirs(work, exist_ok=True)
+        stream = '{"type":"tool","part":{"tool":"read"}}\n' * 200
+        with mock.patch.object(runner, "sh", lambda *a, **k: (0, stream, "warn", 1.0)), \
+             mock.patch.object(runner, "prepare_workdir", lambda *a, **k: None):
+            try:
+                runner.regenerate(p, os.path.dirname(sub), work, 1, 7, "t", sandbox=False, dry=False)
+            except Exception:
+                pass
+        log = work + ".harness.jsonl"
+        self.assertTrue(os.path.exists(log))
+        self.assertIn(stream[-100:], open(log).read())
+        self.assertIn("--- stderr ---", open(log).read())
