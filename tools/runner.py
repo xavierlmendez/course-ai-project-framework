@@ -149,6 +149,27 @@ def missing_tool_message(cmd):
     return MISSING_TOOL.get(exe, f"{exe or 'the command'} is not installed or not on PATH")
 
 
+def require_binary(exe):
+    """Stop before anything is written if a binary the run needs is not on PATH.
+
+    A student's practice run used to write seeds.practice.json, create three slot
+    models and print "slots ready" before the first subprocess call reported that
+    opencode was missing. The check the run depends on belongs first.
+    """
+    if shutil.which(exe) is None:
+        sys.exit(missing_tool_message([exe]))
+
+
+def require_run_binaries(ptype, sandbox):
+    """The binaries a regeneration run cannot proceed without, checked in one place."""
+    if sandbox:
+        require_binary("docker")
+        return
+    if ptype == "B":
+        require_binary("opencode")
+        require_binary("ollama")
+
+
 def sh(cmd, timeout=None, cwd=None, dry=False, env=None):
     if dry:
         print("  $ " + " ".join(cmd))
@@ -261,6 +282,9 @@ def create_slots(p, dry):
     seeds = load_seeds(p)
     num_ctx = p.get("num_ctx", 32768)
     if not dry:
+        # Both checks come before the first Modelfile is written: a missing CLI or an
+        # unreachable server used to surface halfway through creating the slots.
+        require_binary("ollama")
         require_model_server(p)
     for i, (t, s) in enumerate(zip(p["temperatures"], seeds), 1):
         name = f"{p['slot_prefix']}{i}"
@@ -820,6 +844,10 @@ def main():
         print("slot check: " + ("FAILED" if problems else "ok"))
         return 1 if problems else 0
     ptype = a.type or p["type"]
+    # Before practice_setup, which writes seeds and creates slot models: a run that
+    # cannot happen must say so before it leaves anything behind.
+    if not a.dry_run:
+        require_run_binaries(ptype, not (a.no_sandbox or a.practice))
     if a.practice:
         practice_setup(p, a, ptype)
     sandbox = not a.no_sandbox

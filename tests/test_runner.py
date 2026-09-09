@@ -270,6 +270,7 @@ class TestPracticeRun(TempCase):
                 "--submission", self.path("submissions/ABC123456"),
                 "--out", self.path("runs"), "--practice", *extra]
         with mock.patch.object(sys, "argv", argv), \
+             mock.patch.object(runner.shutil, "which", side_effect=lambda x: "/usr/bin/" + x), \
              mock.patch.object(runner, "regenerate", return_value=stub_regeneration()), \
              mock.patch.object(runner, "run_tests", side_effect=capture_tests), \
              mock.patch.object(runner, "model_server_reachable", return_value=True), \
