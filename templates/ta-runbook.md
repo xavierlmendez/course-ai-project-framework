@@ -155,12 +155,28 @@ invented ids; neither ships with the samples.
 
 ## Day 1 morning — Triage and the safety read (about half a day)
 
-**1. Pre-scan.** The project supplies the allowed hosts, so a conforming specification that
-contains the mandatory ledger line is not flagged.
+**1. Pre-scan.** [per part] The project supplies the allowed hosts, so a conforming specification
+that contains the mandatory ledger line is not flagged.
 
 ```
 python3 tools/prescan.py {{PROJECT}}/submissions/ --project {{PROJECT}}/project.json
 ```
+
+**A multi-part project has no `project.json` and no `submissions/` at its top level** — both live in
+each part directory — so run it once per part, over that part's submissions and with that part's
+project:
+
+```
+while read -r p; do
+  echo "== part $p"
+  python3 tools/prescan.py "{{PROJECT}}/part-$p/submissions/" --project "{{PROJECT}}/part-$p/project.json"
+done < parts.txt
+```
+
+The pre-scan looks for `PROCESS.md` and `WRITTEN.md` inside **every** submission directory it is
+given and reports `missing:` when one is absent. Both are course-level — one of each per student for
+the whole project — so if the handout asked for them once and you laid the submissions out per part,
+put a copy of each in every part's submission directory before running this, and score them once.
 
 **2. Read every specification.** They are capped at 1,500 words, so this is three to five
 minutes each. You are looking for instructions that are not about the task: shell commands,
@@ -201,7 +217,7 @@ multi-part project the parts usually set `"ledger": "../ledger.tsv"`, so the one
 sits beside `parts.json` and not inside the part you served. Derive it rather than typing it:
 
 ```
-# use the same project.json you gave the server in Day 0 step 4
+# use the same project.json you gave the server in Day 0 step 4 (multi-part: any part's)
 LEDGER=$(python3 -c 'import json,os,sys
 p=sys.argv[1]
 print(os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(p)),
@@ -345,6 +361,8 @@ multi-part project pass the part the handout told students to produce their reco
 made for, and `check` only accepts records for the part you name.
 
 ```
+# single-part: {{PROJECT}}/project.json
+# multi-part:  the part the handout named, e.g. {{PROJECT}}/part-I-opening/project.json
 python3 tools/milestone.py check \
   --project {{PROJECT}}/project.json \
   --records {{PROJECT}}/milestone-records/ \

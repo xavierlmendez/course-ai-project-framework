@@ -71,7 +71,7 @@ Variant projects ship no `tests/hidden/`: the generator writes one hidden suite 
 - [ ] Deterministic checks show **zero FAIL rows** for the project being calibrated.
       `python3 scripts/review_checks.py --no-network --out checks.md`
 - [ ] An **empty** specification ("write solve.py") scores near zero. Type B only.
-      `mkdir -p calibration/empty && printf 'Write solve.py.\n' > calibration/empty/SPEC.md && python3 tools/runner.py --project project.json --submission calibration/empty --out runs-calibration --run-tag calibration-empty`
+      `mkdir -p calibration/empty && printf 'Write solve.py.\n' > calibration/empty/SPEC.md && python3 tools/runner.py --project project.json --submission calibration/empty --out runs-calibration --run-tag calibration`
 - [ ] The public suite passes against the reference solution from the milestone command students will use.
       `python3 tools/run_tests.py --solution reference/solution --tests tests/public`
 

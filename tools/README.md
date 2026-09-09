@@ -46,6 +46,10 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
 
 ## `project.json`
 
+Every key the tools read is listed below, and the value shown is the default where there is one, so
+a project that omits a key behaves as written here. Keys marked *optional* have no default and are
+simply absent unless the professor sets them.
+
 ```jsonc
 {
   "name": "morris-b",                   // used to name slot models: ref-morris-b-slot1..3
@@ -242,9 +246,25 @@ python3 tools/ledger_server.py --project project.json --allow-in-repo   # practi
 python3 tools/runner.py --project project.json --submission <dir> --practice
 
 # check the tools themselves
-python3 -m unittest discover -s tests
+python3 -m unittest discover -s tests -p "test_[a-r]*.py"   # fast suite; test_sandbox needs Docker
 python3 scripts/rehearsal.py
 ```
+
+### Every flag, per tool
+
+Each tool's own `--help` is the authority; this is the same list in one place.
+
+| Tool | Flags |
+|---|---|
+| `runner.py` | `--project` (required) · `--submissions DIR` or `--submission DIR` · `--out` (default `runs`) · `--status` · `--run-tag` (default `grading`) · `--slot N` · `--tests DIR` · `--type A\|B` · `--create-slots` · `--verify-slots` · `--skip-slot-check` · `--dry-run` · `--no-sandbox` · `--practice` |
+| `run_tests.py` | `--solution` `--tests` (required) · `--entry` (default `solve.py`) · `--timeout` (default 10) · `--python` · `--json` · `--project` · `--run-as` |
+| `milestone.py record` | `--project` `--solution` `--student-id` (required) · `--regeneration` (required for Type B) · `--out` (default `milestone.json`) |
+| `milestone.py check` | `--project` `--records` (required) · `--status` |
+| `grade.py` | `--project` `--runs` (required) · `--status` · `--written` · `--milestone` · `--hidden-only` |
+| `grade_all.py` | `--project DIR` `--status` (required) · `--written` · `--milestone` · `--work` |
+| `combine_parts.py` | `--parts` (required) · `--written` · `--milestone` · `--hidden-points` (70) · `--milestone-points` (10) · `--written-points` (20) · then the per-part gradebooks, in `parts.json` order |
+| `prescan.py` | `SUBMISSIONS_DIR` (positional) · `--project` · `--allow HOST …` · `--cap` (default 1500) · `--page-cap` (default 600) |
+| `ledger_server.py` | `--project` (supplies the four below) or `--resource` `--ledger` `--nonce` · `--port` · `--bind` · `--base-url` · `--allow-in-repo` |
 
 ## Things to verify during the calibration run
 

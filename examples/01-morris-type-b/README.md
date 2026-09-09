@@ -82,7 +82,8 @@ Both perfect students total exactly 100.0, on their own denominators — the gra
 cd examples/01-morris-type-b
 cd part-I-game && python3 tests/make_tests.py && cd ..     # regenerate cases from the reference (optional)
 python3 ../../tools/run_tests.py --solution part-I-game/reference/solution --tests part-I-game/tests/public --entry MiniMaxGame.py --timeout 30
-python3 ../../tools/ledger_server.py --resource resource --ledger ledger.tsv --nonce <NONCE> --port 8080 --base-url http://host.docker.internal:8080
+python3 ../../tools/ledger_server.py --project part-I-opening/project.json --allow-in-repo \
+    --base-url http://host.docker.internal:8080     # resource dir, ledger, nonce and port all come from the project
 python3 ../../tools/runner.py --project part-I-opening/project.json --create-slots
 python3 ../../tools/runner.py --project part-I-opening/project.json --submissions part-I-opening/submissions --out part-I-opening/runs
 python3 ../../tools/grade.py --project part-I-opening/project.json --runs part-I-opening/runs > gb-I-opening.csv
@@ -90,6 +91,10 @@ python3 ../../tools/grade.py --project part-I-opening/project.json --runs part-I
 python3 ../../tools/combine_parts.py --parts parts.json --written written.csv --milestone milestone.csv \
     gb-I-opening.csv gb-I-game.csv gb-II-opening.csv gb-II-game.csv \
     gb-III-opening.csv gb-III-game.csv gb-IV-opening.csv gb-IV-game.csv > gradebook.csv
+
+# or the same thing in one command, which is what the runbook tells a TA to use:
+python3 ../../tools/grade_all.py --project . --status status.csv \
+    --written written.csv --milestone milestone.csv > gradebook.csv
 ```
 
 ## Note to the professor: rotate the twist
@@ -115,3 +120,9 @@ part-<N>-<opening|game>/         one directory per program, eight of them, each 
     submissions/ABC123456/       sample SPEC.md, PROCESS.md, WRITTEN.md
     seeds.secret.json            gitignored
 ```
+
+**One note on the sample submission.** `prescan.py` requires a `PROCESS.md` and a `WRITTEN.md` in
+**each** submission directory it is pointed at, so the shipped sample carries one of each in every
+program directory. The handout asks the student for **one** of each for the whole project, because
+both are course-level and are scored once. Whoever lays the submissions out for grading reconciles
+those two — see the consistency note in `docs/review/fix-plan.md` §6.4.
