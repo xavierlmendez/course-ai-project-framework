@@ -30,7 +30,7 @@ We cannot tell whether the page was fetched by your harness or by you with `curl
 
 | | |
 |---|---|
-| Language | Python 3.12, standard library only |
+| Language | Python 3.12 or later, standard library only |
 | Entry point | `solve.py` in the root of the generated solution |
 | Input | one JSON object on stdin: `{"value": V}` |
 | Output | one JSON object on stdout: `{"hex": H}`, nothing else |
@@ -52,6 +52,10 @@ python3 tools/run_tests.py --solution <your dir> \
   --tests examples/03-serialization-type-b-research/tests/public --entry solve.py --timeout 10
 ```
 
+**Two names used throughout this handout.** `<your dir>` is the directory holding your submission files, for example `mywork/`; use its path wherever `<your dir>` appears. `runs/` is where the runner writes: it creates `runs/<your dir's name>/` beside where you run the command, and every record and working directory named below lives inside it.
+
+`run_tests.py` prints a summary either way; `--json` prints **only** the JSON summary instead of the human-readable one, for feeding into another program.
+
 Hidden categories:
 
 | Category | Cases | Weight | Graduate only |
@@ -66,11 +70,11 @@ Hidden categories:
 
 ## 5. The reference harness
 
-Your grade comes from **OpenCode on Ollama with the model named in `examples/03-serialization-type-b-research/project.json`** (the `base_model` key), run by the TAs. Develop with whatever you like; optimizing for another tool is pointless. <!-- model: from project.json -->
+Your grade comes from **OpenCode on Ollama with the model named in `examples/03-serialization-type-b-research/project.json`** (the `base_model` key), run by the TAs. Develop with whatever you like; optimizing for another tool is pointless.
 
 Install guide: the [student primer](../../templates/student-primer.md). Read it before the milestone.
 
-If your machine cannot run the model, use the course Ollama server your instructor announces: set `ollama_host` in your own copy of `project.json` to that URL. The runner writes it into the `opencode.json` it generates, verbatim, so it must be an address the machine you are running on can reach. Exporting `OLLAMA_HOST` does not redirect OpenCode.
+**If your machine cannot run the model.** Running Ollama locally needs no edit: the `ollama_host` shipped in `project.json` is the grading container's view of the model server, and a practice run (which uses no sandbox) substitutes `127.0.0.1` for it automatically. To use the course Ollama server your instructor announces, add `"ollama_host_local"` to **your own copy** of `project.json`, set to the server URL as your machine reaches it. Leave `ollama_host` alone — it describes the grading run. Exporting `OLLAMA_HOST` does not redirect OpenCode.
 
 Run your specification the way the TAs will, from the root of the course repository:
 
@@ -93,15 +97,17 @@ Do **not** submit generated code. It is not graded.
 
 ## 7. Milestone (end of week 1, 10%)
 
-Your specification passes the public suite through the reference harness. Do the `--practice` run in §5, then produce the signed milestone record from the directory it wrote and submit that file:
+Your specification passes the public suite through the reference harness. Do the `--practice` run in §5 first — a real run, not a dry run — then build the record from what it wrote:
 
 ```
 python3 tools/milestone.py record \
   --project examples/03-serialization-type-b-research/project.json \
   --solution runs/<your dir>/practice-k1-work \
   --regeneration runs/<your dir>/practice-k1.json \
-  --student-id ABC123456 --out milestone.json
+  --student-id <your student ID> --out milestone.json
 ```
+
+This is a Type B project, so `--regeneration` is **required** and `--solution` must be that regeneration's own working directory — the `-work` directory beside the record. A record built from anything else, including a dry-run record (named `*.dry.json`), is rejected.
 
 Submit `milestone.json`. Auto-graded pass/fail.
 

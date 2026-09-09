@@ -74,7 +74,10 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
                                         //   model server is not on the docker host. A
                                         //   container-only name is translated to loopback
                                         //   automatically for host-side checks
-  "base_model": "qwen2.5-coder:14b",
+  "base_model": "qwen3:14b",
+  "num_ctx": 32768,                     // context window for the slot models; the agent loop's
+                                        //   tool schemas do not fit Ollama's 4096 default. The
+                                        //   runner writes it into each slot's Modelfile
   "k": 3,
   "temperatures": [0.2, 0.6, 1.0],
   "seeds_file": "seeds.secret.json",

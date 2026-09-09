@@ -1,15 +1,15 @@
 #!/bin/bash
 # Harness verification on a GPU box. Answers, with evidence written to ./evidence/:
-#   1. Does qwen2.5-coder:14b emit structured tool calls at num_ctx 4096 vs 32768?
+#   1. Does the reference model (qwen3:14b) emit structured tool calls at num_ctx 4096 vs 32768?
 #   2. Does a real Type B regeneration through the sandbox produce an entry point?
 #   3. What is the generation rate on this GPU?
-#   4. If (1) fails even at 32k, does qwen3:14b emit tool calls?
+#   4. If (1) fails even at 32k, does the fallback ($ALT) emit tool calls?
 # Idempotent; safe to re-run. Expects the framework repo at $REPO (default ~/framework).
 set -uo pipefail
 REPO="${REPO:-$HOME/framework}"
 EV="$REPO/evidence-gpu"; mkdir -p "$EV"
-MODEL="${MODEL:-qwen2.5-coder:14b}"
-ALT="${ALT:-qwen3:14b}"
+MODEL="${MODEL:-qwen3:14b}"
+ALT="${ALT:-qwen3:8b}"
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$EV/log.txt"; }
 
 # ---------- 0. environment ----------

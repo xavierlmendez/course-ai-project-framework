@@ -28,7 +28,7 @@ We cannot tell whether the page was fetched by your harness or by you with `curl
 
 | | |
 |---|---|
-| Language | Python 3.12 |
+| Language | Python 3.12 or later |
 | Entry point | `solve.py` in the root of your submission |
 | Input | one JSON object on stdin, with `variant` and `jobs` |
 | Output | one JSON object on stdout, `total` and `chosen`, nothing else |
@@ -52,7 +52,9 @@ python3 tools/run_tests.py --solution <your dir> \
   --tests examples/04-scheduling-type-a-variants/tests/public --entry solve.py --timeout 10
 ```
 
-Add `--json` for a machine-readable summary. The milestone (§7) runs this same suite for you and writes a signed record.
+`<your dir>` is the directory holding your submission files, for example `mywork/`; use its path wherever `<your dir>` appears below. Anything the course tools write goes under `runs/<your dir's name>/`, created beside where you run the command.
+
+The summary is printed either way; `--json` prints **only** the JSON summary instead of the human-readable one, for feeding into another program. The milestone (§7) runs this same suite for you and writes a signed record.
 
 Hidden categories (names and counts; cases released after grading):
 
@@ -66,9 +68,9 @@ Hidden categories (names and counts; cases released after grading):
 
 ## 5. AI use
 
-Use any harness you like. The course provides a free reference setup, **OpenCode on Ollama with the model named in `examples/04-scheduling-type-a-variants/project.json`** (the `base_model` key). <!-- model: from project.json --> The install guide is the [student primer](../../templates/student-primer.md).
+Use any harness you like. The course provides a free reference setup, **OpenCode on Ollama with the model named in `examples/04-scheduling-type-a-variants/project.json`** (the `base_model` key). The install guide is the [student primer](../../templates/student-primer.md).
 
-If your machine cannot run the model, use the course Ollama server your instructor announces: put its URL in `ollama_host` in your own copy of `project.json` (the shipped value is the one the grading container uses, so it will not resolve on your laptop). Exporting `OLLAMA_HOST` does not redirect OpenCode.
+**If your machine cannot run the model.** With Ollama on your own machine there is nothing to edit: the `ollama_host` shipped in `project.json` is the grading container's view of the model server, and a practice run (which uses no sandbox) substitutes `127.0.0.1` for it automatically. To use the course Ollama server your instructor announces, add `"ollama_host_local"` to **your own copy** of `project.json`, set to the server URL as your machine reaches it. Leave `ollama_host` alone — it describes the grading run. Exporting `OLLAMA_HOST` does not redirect OpenCode.
 
 Your code is graded, not your tool. You are expected to understand every line you submit; the written component asks you to explain one design decision.
 
@@ -87,7 +89,7 @@ Your solution passes the public suite (generated for the variant `demo`, not you
 
 ```
 python3 tools/milestone.py record --project examples/04-scheduling-type-a-variants/project.json \
-  --solution <your dir> --student-id ABC123456 --out milestone.json
+  --solution <your dir> --student-id <your student ID> --out milestone.json
 ```
 
 Submit `milestone.json`. Auto-graded pass/fail.

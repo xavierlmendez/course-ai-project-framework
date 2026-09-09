@@ -233,10 +233,11 @@ html{scroll-behavior:smooth}
     <li><b>Runnable headless</b> from a script, so TAs batch it.</li>
     <li><b>Temperature-settable</b>, so the schedule in §6 is real.</li>
     <li><b>Model-pinnable</b>, so the model on day 1 is the model on grading day.</li>
+    <li><b>Able to emit structured tool calls</b> through the harness's own provider path, verified before the semester by a five-attempt probe against the model server, not assumed from a capability flag.</li>
   </ol>
-  <p>Criterion 1 removes every cloud harness whose free tier can reroute or rotate models mid-semester, and removes Claude Code entirely, which has no free path. Criterion 5 is what makes appeals possible.</p>
+  <p>Criterion 1 removes every cloud harness whose free tier can reroute or rotate models mid-semester, and removes Claude Code entirely, which has no free path. Criterion 5 is what makes appeals possible. Criterion 6 was added on 2026-09-09, after a model that met the other five produced nothing: the coder model chosen on 2026-09-08 returned its tool call as ordinary text on 0 of 5 attempts at <code>num_ctx</code> 4096 and 0 of 5 at 32768, so the agent loop never began and every regeneration would have been scored as the student's failure.</p>
   <h3>This year's instance</h3>
-  <p><b>OpenCode on Ollama, model <code>qwen2.5-coder:14b</code>.</b> OpenCode is the only free open harness surveyed with web fetch and web search built in, headless JSON output, and a pinnable local model. Ollama gives pinned weights plus <code>seed</code> and <code>temperature</code> parameters; per-slot model variants are created from a Modelfile so the pin is harness-independent. 14B is the smallest size to trust with following a one-page resource and satisfying an interface contract. It needs about 9 GB of RAM; the computer lab and the SSH server are the fallback, and the runner takes the Ollama server address as a parameter so a shared server and a laptop produce comparable runs.</p>
+  <p><b>OpenCode 1.18.29 on Ollama, model <code>qwen3:14b</code>.</b> OpenCode is the only free open harness surveyed with web fetch and web search built in, headless JSON output, and a pinnable local model. Ollama gives pinned weights plus <code>seed</code> and <code>temperature</code> parameters; per-slot model variants are created from a Modelfile so the pin is harness-independent. <code>qwen3:14b</code> passes criterion 6 at 5 of 5 on the same probe its predecessor failed. Two settings come with it: <code>project.json</code> carries <code>"num_ctx": 32768</code>, because the agent loop's tool schemas do not fit Ollama's 4096-token default, and the runner writes OpenCode's <code>headerTimeout</code> and <code>chunkTimeout</code> from the regeneration budget, because the installed binary otherwise aborts any provider request that takes longer than 300 s to produce headers or its next chunk. At 32k the model occupies about 15 GB rather than 9, so a 16 GB laptop swaps; the computer lab and the SSH server are the fallback, and the runner takes the Ollama server address as a parameter so a shared server and a laptop produce comparable runs. <code>qwen3</code> also has a thinking mode, left at Ollama's default pending a measured decision by the professor.</p>
   <p>Documented alternative: Gemini CLI (Google sign-in, 1,000 requests a day, built-in search and fetch, headless, temperature settable) when a local model is not viable. Its free tier may reroute models, so regenerations are not reproducible; the handout would have to say so.</p>
   <p>Students may develop with anything. The handout says: the grade comes from the reference harness, so optimizing for a paid tool is pointless. They install it by the milestone and run the same runner script the TAs use, minus the secret seeds.</p>
 </section>
@@ -349,7 +350,7 @@ html{scroll-behavior:smooth}
     <li><b>Milestone.</b> Auto-graded from student-run runner output.</li>
     <li><b>Grade.</b> TAs follow the runbook: pre-scan, safety read, runner, written component, gradebook.</li>
     <li><b>Release hidden tests and seeds.</b> Appeals window.</li>
-    <li><b>Rotate.</b> Next semester: new twist, nonce, seeds, resource URL, hidden tests; re-verify the reference harness still meets the five criteria.</li>
+    <li><b>Rotate.</b> Next semester: new twist, nonce, seeds, resource URL, hidden tests; re-verify the reference harness still meets the six criteria.</li>
   </ol>
 </section>
 
@@ -418,7 +419,7 @@ docs/research/      free-harness survey; the previous project's rubric and what 
     <li class="done">Reference solutions pass every hidden test; canonical solutions fail the twist categories</li>
     <li class="done">Sandbox builds; tests run unprivileged; firewall blocks outside hosts and admits the resource; a ledger signature from inside the container reaches the file</li>
     <li class="done">Runner's sandboxed Type A path on examples 02 and 04, including per-variant generation</li>
-    <li>An actual OpenCode regeneration against Ollama <code>qwen2.5-coder:14b</code>. Not installed on the build machine; the calibration checklist covers exactly this</li>
+    <li>An actual OpenCode regeneration against Ollama <code>qwen3:14b</code> end to end on the grading machine. The tool-calling probe passes (5/5, 2026-09-09); the calibration checklist covers the rest</li>
   </ul>
 </section>
 

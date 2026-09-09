@@ -10,7 +10,8 @@
  "resource_port": 8080,
  "ledger": "../ledger.tsv",
  "ollama_host": "http://host.docker.internal:11434",
- "base_model": "qwen2.5-coder:14b",
+ "base_model": "qwen3:14b",
+ "num_ctx": 32768,
  "k": 3,
  "temperatures": [
   0.2,

@@ -10,7 +10,7 @@ Everything a returning professor changes before reusing a project.
 - [ ] **Hidden tests**: rewritten for the new twist; categories and weights re-checked; twist categories still sum to half.
 - [ ] **Public tests**: a fresh sample, still hinting at the twist.
 - [ ] **Seeds**: new `seeds.secret.json`.
-- [ ] **Reference harness**: re-verify it still meets the five criteria (free, web fetch, headless, temperature, pinnable). Re-run the survey if more than six months old. Re-pin the model tag.
+- [ ] **Reference harness**: re-verify it still meets the six criteria (free, web fetch, headless, temperature, pinnable, structured tool calls). Re-run the survey if more than six months old. Re-pin the model tag, and re-run the five-attempt tool-calling probe against the pinned tag before anything else — a model that does not call tools cannot be graded with.
 - [ ] **Slot models**: recreate with `--create-slots`.
 - [ ] **Calibration**: full checklist again. The model may have changed; the gate must be re-passed.
 - [ ] **Handout**: dates, URL, model, categories table, install guide link.

@@ -1,12 +1,12 @@
 #!/bin/bash
 # The interrupted harness experiment, on a CPU box with plenty of RAM (the R620).
 # Answers, with evidence written to $EV:
-#   1. Does qwen2.5-coder:14b emit structured tool calls at num_ctx 4096 vs 32768?
-#   2. If not at 32k, does qwen3:14b?
+#   1. Does the reference model (qwen3:14b) emit structured tool calls at num_ctx 4096 vs 32768?
+#   2. If not at 32k, does the fallback ($ALT) ?
 #   3. Does a real Type B regeneration (agent loop, no sandbox) produce the entry point?
 set -uo pipefail
 REPO="${REPO:-$HOME/framework}"; EV="$REPO/evidence-cpu"; mkdir -p "$EV"
-MODEL="${MODEL:-qwen2.5-coder:14b}"; ALT="${ALT:-qwen3:14b}"
+MODEL="${MODEL:-qwen3:14b}"; ALT="${ALT:-qwen3:8b}"
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$EV/log.txt"; }
 [ "${RERUN_STAGE1:-0}" = 1 ] && : > "$EV/log.txt"
 log "== host: $(nproc) cpus, $(free -g | awk '/Mem:/{print $2}') GB; ollama $(ollama --version 2>&1 | grep -o '[0-9.]*$'); opencode $(opencode --version)"

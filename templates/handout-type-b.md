@@ -22,7 +22,7 @@ We cannot tell whether the page was fetched by your harness or by you with `curl
 
 | | |
 |---|---|
-| Language | {{LANGUAGE, e.g. Python 3.12}} |
+| Language | {{LANGUAGE, e.g. Python 3.12 or later}} |
 | Entry point | `{{ENTRY, e.g. solve.py}}` in the root of the generated solution |
 | Input | one JSON object on stdin |
 | Output | one JSON object on stdout, nothing else |
@@ -40,8 +40,16 @@ $ echo '{{EXAMPLE_INPUT}}' | python3 {{ENTRY}}
 Public tests are in `tests/public/`. Run them with:
 
 ```
-python3 tools/run_tests.py --solution <dir> --tests tests/public --entry {{ENTRY}}
+python3 tools/run_tests.py --solution <your dir> --tests tests/public --entry {{ENTRY}}
 ```
+
+**Two names used throughout this handout.** `<your dir>` is the directory holding your submission
+files, for example `mywork/` — put its path wherever `<your dir>` appears. `runs/` is where the
+runner writes: it creates `runs/<your dir's name>/` beside where you run the command, and every
+record and working directory named below lives inside it.
+
+`run_tests.py` prints a summary either way. `--json` prints **only** the JSON summary instead of the
+human-readable one, for feeding into another program.
 
 Hidden tests are organized in these categories. You see the names and counts; the cases are released after grading.
 
@@ -55,7 +63,13 @@ Your grade comes from **{{HARNESS}} with the model named in `project.json` (`bas
 
 Install guide: the [student primer](./student-primer.md). Read it first: it explains what the harness does, how to run the grading setup yourself, and how to write for a small model.
 
-A shared Ollama server is at `{{OLLAMA_HOST}}` for anyone whose machine cannot run the model. To use it, set `ollama_host` in `project.json` (or in your own copy of it) to that URL; the runner writes it into the `opencode.json` it generates. Exporting `OLLAMA_HOST` does not redirect OpenCode.
+**If your machine cannot run the model.** There is nothing to edit if you run Ollama locally: the `ollama_host` shipped in `project.json` names the grading container's view of the model server, and a practice run (which uses no sandbox) automatically substitutes `127.0.0.1` for it. If instead you use the shared course server at `{{OLLAMA_HOST}}`, add one key to **your own copy** of `project.json`:
+
+```json
+"ollama_host_local": "{{OLLAMA_HOST}}"
+```
+
+That is the address *your machine* uses; the runner writes it into the `opencode.json` it generates. Leave `ollama_host` alone — it belongs to the grading run. Exporting `OLLAMA_HOST` does not redirect OpenCode.
 
 Run your specification the way the TAs will:
 
@@ -92,14 +106,16 @@ Do **not** submit generated code. It is not graded.
 
 ## 7. Milestone ({{MILESTONE_DATE}}, 10%)
 
-Your specification passes the public suite through the reference harness. Do the `--practice` run in §5, then produce the signed milestone record from the directory it wrote and submit that file:
+Your specification passes the public suite through the reference harness. Do the `--practice` run in §5 first — a real run, not a dry run — then build the record from what it wrote:
 
 ```
 python3 tools/milestone.py record --project project.json \
   --solution runs/<your dir>/practice-k1-work \
   --regeneration runs/<your dir>/practice-k1.json \
-  --student-id {{STUDENT_ID}} --out milestone.json
+  --student-id <your student ID> --out milestone.json
 ```
+
+On a Type B project `--regeneration` is **required**, and `--solution` must be that regeneration's own working directory (the `-work` directory beside the record). A record built from anything else — your own directory, another slot's working directory, or a dry-run record, which is named `*.dry.json` — is rejected.
 
 Submit `milestone.json`. Auto-graded pass/fail.
 
