@@ -17,6 +17,10 @@ status.csv:    student_id,status,grad,note                  (`grad` is required:
                graduate row, 0 otherwise. A file without the column is rejected, because
                defaulting it silently grades every graduate on the undergraduate bar.)
 
+The `records` column says how many complete records the row was scored from, with the
+incomplete ones in brackets (`3`, `2 (1 never completed)`). `combine_parts.py` carries it
+into the course gradebook as `<part>_records`.
+
 A row is only `graded` when every component it needs is present. A missing written or
 milestone row makes the row `incomplete` with no total, rather than a total that silently
 omits 30 of the 100 points.
@@ -114,7 +118,7 @@ def main():
                  f"For a multi-part project, each part has its own runs/ directory. A part "
                  f"that was never run has none, and it cannot be graded or combined.")
     cat_names = list(cats)
-    header = ["student_id", "status", "grad", "best_slot", "hidden_score"] + \
+    header = ["student_id", "status", "grad", "best_slot", "records", "hidden_score"] + \
              [f"{c}_pass" for c in cat_names] + ["milestone", "written_raw", "written_score", "total", "note"]
     # \n, not csv's default \r\n: the carriage returns broke every downstream text check.
     w = csv.writer(sys.stdout, lineterminator="\n")
@@ -173,7 +177,13 @@ def main():
             why = ("the run never completed" if is_type_a
                    else f"{incomplete_slots} slot(s) never completed")
             note = (note + "; " if note else "") + why
-        row = [sid, out_status, int(grad), best_slot, hidden]
+        # How many complete records this row was scored from, and how many never completed.
+        # `combine_parts.py` carries it into the course gradebook as `<part>_records`: a
+        # per-part status column was only ever a copy of the course-level one, and an appeal
+        # scoped to one part appeared to be an appeal on all of them.
+        records = str(len(recs)) + (f" ({incomplete_slots} never completed)"
+                                    if incomplete_slots else "")
+        row = [sid, out_status, int(grad), best_slot, records, hidden]
         row += [f"{best_detail[c][0]}/{best_detail[c][1]}" if c in best_detail else "" for c in cat_names]
         row += [ms_score, wr_raw, wr_score, total, note]
         w.writerow(row)

@@ -11,7 +11,7 @@ the shipped sample submissions shows the call.
 |---|---|---|
 | Milestone | 10 | `tools/milestone.py check` reads the records students submitted and writes `milestone.csv`. A record passes when its digest matches (so it was not edited after it was written), it names this project and part, its student is on the roster, every public test passed, and — on a **Type B** project — it carries harness evidence: the completed regeneration run that produced the code being measured. A pair may submit one record each; one acceptable record earns the milestone for the pair, and the output has exactly one row per `status.csv` row. |
 | Hidden tests | 70 | `tools/grade.py` from runner records. Score = Σ over applicable categories (weight × pass fraction) ÷ Σ of those weights, × 70. Twist categories carry 35. A category with no cases at all is left out of both sums, so a declared-but-unwritten category cannot cap everyone below full marks. Type B takes the best of the K complete runs; a `*.dry.json` record is never one of them. A graduate row includes the graduate-only category, so its denominator is larger. Multi-part: each program contributes its hidden score, weighted, via `tools/combine_parts.py` (or `tools/grade_all.py`, which does the whole thing in one command). |
-| Ledger (Type A) | gate | No entry for the student's ID → status `incomplete`, not graded until resolved. Entries carry no nonce; match on the student ID and the run tag. |
+| Ledger | gate (Type A) / evidence (Type B) | Entries carry no nonce; match on the student ID, never the hyphenated pair key. **Type A:** no entry for the student's ID → status `incomplete`, not graded until resolved; the gate matches the student ID column only, whatever the run tag. **Type B:** the entries are written by the harness as the batch runs, so the check comes after it (TA runbook, Day 1 evening step 5): count entries whose run tag is `grading-k1` … `grading-k<K>` for that student. No entry across all K slots is not a status the TA sets — it is noted `no ledger entry` for the professor, evidence that the harness never fetched the resource, and the hidden score will almost always be zero or near it. A specification that does not produce a ledger entry has not specified the task. |
 
 A row is `graded` only when the hidden score, the milestone and the written component are
 all present. Otherwise the tools mark it `incomplete` and emit no total, rather than a total
@@ -94,6 +94,11 @@ The student predicted, before grades, which hidden categories they would fail an
 **Decision rule.** Count two things: **hits**, categories they predicted would fail that did; and **misses**,
 categories that failed but they did not predict. A prediction that names one real failure and
 overlooks another is not a 3.
+
+On a **multi-part** project count hits and misses over `program:category` pairs across every
+program the student submitted — `I-opening:evaluations_count` is a different prediction from
+`II-game:evaluations_count` — because the written page covers the whole project and one page
+scores once.
 
 | Score | Rule |
 |---|---|

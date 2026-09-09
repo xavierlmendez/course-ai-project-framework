@@ -11,7 +11,8 @@ import unittest
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from helpers import TempCase, run_tool, parse_csv  # noqa: E402
 
-PART_HEADER = "student_id,status,grad,best_slot,hidden_score,milestone,written_raw,written_score,total,note"
+PART_HEADER = ("student_id,status,grad,best_slot,records,hidden_score,"
+               "milestone,written_raw,written_score,total,note")
 
 
 class TestCombineParts(TempCase):
@@ -20,13 +21,13 @@ class TestCombineParts(TempCase):
         return self.write_json("parts.json",
                                {"parts": [{"name": n, "weight": w} for n, w in weights]})
 
-    def make_part_book(self, filename, rows):
+    def make_part_book(self, filename, rows, records="3"):
         """rows: (student_id, status, grad, hidden_score[, note])."""
         lines = [PART_HEADER]
         for row in rows:
             sid, status, grad, hidden = row[:4]
             note = row[4] if len(row) > 4 else ""
-            lines.append(f"{sid},{status},{grad},1,{hidden},,,,,\"{note}\"")
+            lines.append(f"{sid},{status},{grad},1,\"{records}\",{hidden},,,,,\"{note}\"")
         return self.write(filename, "\n".join(lines) + "\n")
 
     def test_perfect_student_scores_exactly_100(self):
@@ -203,6 +204,79 @@ class TestPartNotesSurvive(TempCase):
         self.make_milestone([("ABC123456", 1)])
         _, out, _ = self.combine()
         self.assertEqual(parse_csv(out)["ABC123456"]["note"], "appeal granted 2026-05-01")
+
+
+class TestPerPartRecordsColumn(TempCase):
+    """Cold run 6: the per-part `<part>_status` columns copied the course-level status, so
+    an appeal scoped to one part read `appeal` on all eight programs. The columns now say
+    what the part actually contributed: how many complete records it was scored from."""
+
+    make_parts = TestCombineParts.make_parts
+    make_part_book = TestCombineParts.make_part_book
+
+    def combine(self, *books):
+        return run_tool("combine_parts.py", "--parts", self.path("parts.json"),
+                        "--written", self.path("written.csv"),
+                        "--milestone", self.path("milestone.csv"),
+                        *[self.path(b) for b in books], expect_ok=True)
+
+    def test_there_are_no_per_part_status_columns(self):
+        self.make_parts([("I", 50), ("II", 50)])
+        self.make_part_book("gb1.csv", [("ABC123456", "appeal", 0, 70.0)])
+        self.make_part_book("gb2.csv", [("ABC123456", "appeal", 0, 70.0)])
+        self.make_written([("ABC123456", 3, 3, 3, "")])
+        self.make_milestone([("ABC123456", 1)])
+        _, out, _ = self.combine("gb1.csv", "gb2.csv")
+        header = out.splitlines()[0]
+        self.assertNotIn("I_status", header, "a per-part status column survived")
+        self.assertNotIn("II_status", header)
+        self.assertIn("I_records", header)
+        self.assertIn("II_records", header)
+        self.assertIn("status", header.split(","), "the course-level status column was lost")
+
+    def test_records_carry_the_per_part_count(self):
+        self.make_parts([("I", 50), ("II", 50)])
+        self.make_part_book("gb1.csv", [("ABC123456", "graded", 0, 70.0)], records="3")
+        self.make_part_book("gb2.csv", [("ABC123456", "graded", 0, 70.0)],
+                            records="2 (1 never completed)")
+        self.make_written([("ABC123456", 3, 3, 3, "")])
+        self.make_milestone([("ABC123456", 1)])
+        _, out, _ = self.combine("gb1.csv", "gb2.csv")
+        row = parse_csv(out)["ABC123456"]
+        self.assertEqual(row["I_records"], "3")
+        self.assertEqual(row["II_records"], "2 (1 never completed)")
+        self.assertEqual(row["status"], "graded")
+
+    def test_a_part_with_no_row_for_the_student_says_missing(self):
+        self.make_parts([("I", 50), ("II", 50)])
+        self.make_part_book("gb1.csv", [("ABC123456", "graded", 0, 70.0)])
+        self.make_part_book("gb2.csv", [("ZZZ999999", "graded", 0, 70.0)])
+        self.make_written([("ABC123456", 3, 3, 3, "")])
+        self.make_milestone([("ABC123456", 1)])
+        _, out, _ = self.combine("gb1.csv", "gb2.csv")
+        self.assertEqual(parse_csv(out)["ABC123456"]["II_records"], "missing")
+
+    def test_grade_py_counts_the_complete_records_it_scored(self):
+        """The count comes from grade.py, so it is the records actually used."""
+        self.make_project()
+        self.perfect("ABC123456", slots=(1, 2))
+        self.make_record("ABC123456", "k3.json", {}, complete=False, slot=3)
+        self.make_status([("ABC123456", "graded", 0, "")])
+        _, out, _ = run_tool("grade.py", "--project", self.path("project.json"),
+                             "--runs", self.path("runs"), "--status", self.path("status.csv"),
+                             expect_ok=True)
+        self.assertEqual(parse_csv(out)["ABC123456"]["records"], "2 (1 never completed)")
+
+    def test_a_dry_run_record_is_not_counted(self):
+        self.make_project()
+        self.perfect("ABC123456")
+        self.make_record("ABC123456", "grading-k1.dry.json", {}, complete=False, slot=1,
+                         dry_run=True)
+        self.make_status([("ABC123456", "graded", 0, "")])
+        _, out, _ = run_tool("grade.py", "--project", self.path("project.json"),
+                             "--runs", self.path("runs"), "--status", self.path("status.csv"),
+                             expect_ok=True)
+        self.assertEqual(parse_csv(out)["ABC123456"]["records"], "3")
 
 
 class TestPartMode(TempCase):

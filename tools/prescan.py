@@ -16,6 +16,16 @@ run on Day 0, before `fan_out.py` has copied anything: it checks the layout, eve
 `SPEC.md` against the same patterns and word cap, and the two course-level pages against
 the 600-word cap once each rather than once per program. It prints one row per student.
 
+`--course DIR` works on **either** shape, so the runbook has one command for both. If
+`DIR/parts.json` exists the course scan above runs; otherwise `DIR` is a single-part project
+and `DIR/submissions/` is scanned with `DIR/project.json`, printing exactly the rows the
+per-program mode prints. A single-part project has no course-level tree to fan out, so the
+submissions directory beside `project.json` *is* the layout the student submitted.
+
+A **Type A** project has no specification: the submission is code, and `variant.txt` is
+ignored. Its rows print `words=n/a` and the 1,500-word cap is not applied. `PROCESS.md` and
+`WRITTEN.md` are still counted against the 600-word page cap.
+
 Pass --project and the allowed hosts come from the project itself, so the mandatory
 ledger line in every conforming specification is not flagged as an offsite URL.
 It also checks that the student id inside the submission matches the submission directory.
@@ -154,7 +164,7 @@ def scan_submission(path, allow, cap, page_cap=600):
     return hits, words
 
 
-def scan_course_student(student_dir, programs, allow, cap, page_cap):
+def scan_course_student(student_dir, programs, allow, cap, page_cap, types=None):
     """One student's whole submission in the layout the handout asks for.
 
     Everything the per-program mode checks, but read once over the course-level tree: the
@@ -172,6 +182,11 @@ def scan_course_student(student_dir, programs, allow, cap, page_cap):
         h, w, _p, t = scan_tree(d, allow)
         hits += [f"{dirname}/{x}" for x in h]
         texts += t
+        # A Type A program has no specification to cap: the submission is code, and the
+        # only text file a Type A submission carries is the ignored `variant.txt`.
+        if (types or {}).get(name, "B") == "A":
+            words[name] = None
+            continue
         words[name] = w
         if w > cap:
             hits.append(f"{dirname}:spec-over-cap:{w}")
@@ -202,6 +217,20 @@ def course_hosts(course_dir):
     return allow
 
 
+def course_types(course_dir):
+    """{program name: "A" or "B"} from each part's project.json, for the word-cap rule."""
+    import glob
+    types = {}
+    for pj in sorted(glob.glob(os.path.join(course_dir, "part-*", "project.json"))):
+        try:
+            proj = json.load(open(pj))
+        except (OSError, ValueError):
+            continue
+        name = os.path.basename(os.path.dirname(pj))[len("part-"):]
+        types[name] = str(proj.get("type", "B")).strip().upper()
+    return types
+
+
 def hosts_from_project(proj):
     allow = []
     if proj.get("resource_host"):
@@ -225,13 +254,42 @@ def classify(hits):
     return ("FLAG" if suspicious else "INCOMPLETE" if admin else "OK"), suspicious, admin
 
 
+def scan_program_dir(submissions, allow, cap, page_cap, type_a=False):
+    """The per-program mode: one row per submission directory. Returns 0."""
+    for sid in sorted(os.listdir(submissions)):
+        p = os.path.join(submissions, sid)
+        if not os.path.isdir(p):
+            continue
+        hits, words = scan_submission(p, allow, cap, page_cap)
+        # Two different outcomes, deliberately not the same word: FLAG means a human must
+        # read it for possible misconduct; INCOMPLETE means a file or a cap problem the
+        # student can fix. The runbook assigns a different status to each.
+        admin = [h for h in hits if h.startswith("missing:") or "over-page-cap" in h]
+        suspicious = [h for h in hits if h not in admin]
+        # Type A has no specification: what a Type A submission contains is code, and its
+        # `variant.txt` is written by the student and ignored. Counting either against the
+        # specification's 1,500-word cap reports a cap on a file that is not one.
+        shown = "n/a" if type_a else str(words)
+        if not type_a and words > cap:
+            admin.append(f"spec-over-cap:{words}")
+        if suspicious:
+            status = "FLAG"
+        elif admin:
+            status = "INCOMPLETE"
+        else:
+            status = "OK"
+        print(f"{status}\t{sid}\twords={shown}\t" + " ".join(suspicious + admin))
+    return 0
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("submissions", nargs="?",
                     help="one program's submissions directory (the per-program mode)")
-    ap.add_argument("--course", help="a course directory holding parts.json: scan the "
+    ap.add_argument("--course", help="a project directory: with parts.json, scan the "
                                      "course-level submissions/ tree in the layout students "
-                                     "submit, one row per student")
+                                     "submit, one row per student; without one, scan the "
+                                     "single-part project's own submissions/ directory")
     ap.add_argument("--project", help="project.json; the resource and model hosts are taken from it")
     ap.add_argument("--allow", nargs="*", default=[], help="extra hosts allowed in URLs")
     ap.add_argument("--cap", type=int, default=1500, help="word cap on the specification + supporting files")
@@ -240,62 +298,64 @@ def main():
     a = ap.parse_args()
     if not a.submissions and not a.course:
         ap.error("give either a submissions directory (one program's) or --course DIR "
-                 "(a course directory holding parts.json)")
-    allow = list(a.allow)
-    if a.project:
+                 "(the project directory: a course holding parts.json, or a single-part "
+                 "project holding project.json)")
+
+    # --course accepts either shape, so the runbook has one command for both. A directory
+    # with no parts.json is a single-part project: its own submissions/ and project.json are
+    # what the per-program mode reads, and the rows are identical.
+    course = os.path.abspath(a.course) if a.course else None
+    multi_part = bool(course) and os.path.exists(os.path.join(course, "parts.json"))
+    project_path = a.project
+    if course and not multi_part and not project_path:
+        pj = os.path.join(course, "project.json")
+        if not os.path.exists(pj):
+            sys.exit(f"{course}: neither parts.json nor project.json.\n"
+                     f"  --course must be a project directory: a course directory holding "
+                     f"parts.json, or a single-part project holding project.json.")
+        project_path = pj
+
+    allow, type_a = list(a.allow), False
+    if project_path:
         try:
-            proj = json.load(open(a.project))
+            proj = json.load(open(project_path))
         except OSError as e:
             sys.exit(f"--project: {e}")
         allow += hosts_from_project(proj)
-    elif a.course:
+        type_a = str(proj.get("type", "B")).strip().upper() == "A"
+    elif multi_part:
         # Every part of a course points at the same resource and model hosts; taking them
         # from the parts means the course-level scan needs no --project of its own.
-        allow += course_hosts(a.course)
+        allow += course_hosts(course)
     if not allow:
         print("note: no allowed hosts given, so every URL will be flagged. "
               "Pass --project project.json.", file=sys.stderr)
     a.allow = list(dict.fromkeys(allow))
 
-    if a.course:
+    if multi_part:
         sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
         import fan_out
-        course = os.path.abspath(a.course)
         programs = fan_out.load_parts(course)
+        types = course_types(course)
         # The tree lives beside parts.json unless the TA points somewhere else, which is
         # what happens when submissions are unpacked from the dropbox into scratch space.
         root = os.path.abspath(a.submissions) if a.submissions \
             else os.path.join(course, "submissions")
         for sid in fan_out.students(root):
             hits, words = scan_course_student(os.path.join(root, sid), programs,
-                                              a.allow, a.cap, a.page_cap)
+                                              a.allow, a.cap, a.page_cap, types)
             status, suspicious, admin = classify(hits)
-            counts = ",".join(f"{n}={words[n]}" if n in words else f"{n}=-"
-                              for n, _d, _s, _f in programs)
+            counts = ",".join(
+                (f"{n}=n/a" if words[n] is None else f"{n}={words[n]}") if n in words
+                else f"{n}=-" for n, _d, _s, _f in programs)
             print(f"{status}\t{sid}\tprograms={len(words)}/{len(programs)}\twords={counts}\t"
                   + " ".join(suspicious + admin))
         return 0
 
-    for sid in sorted(os.listdir(a.submissions)):
-        p = os.path.join(a.submissions, sid)
-        if not os.path.isdir(p):
-            continue
-        hits, words = scan_submission(p, a.allow, a.cap, a.page_cap)
-        # Two different outcomes, deliberately not the same word: FLAG means a human must
-        # read it for possible misconduct; INCOMPLETE means a file or a cap problem the
-        # student can fix. The runbook assigns a different status to each.
-        admin = [h for h in hits if h.startswith("missing:") or "over-page-cap" in h]
-        suspicious = [h for h in hits if h not in admin]
-        if words > a.cap:
-            admin.append(f"spec-over-cap:{words}")
-        if suspicious:
-            status = "FLAG"
-        elif admin:
-            status = "INCOMPLETE"
-        else:
-            status = "OK"
-        print(f"{status}\t{sid}\twords={words}\t" + " ".join(suspicious + admin))
-    return 0
+    submissions = a.submissions or os.path.join(course, "submissions")
+    if not os.path.isdir(submissions):
+        sys.exit(f"submissions directory not found: {submissions}")
+    return scan_program_dir(submissions, a.allow, a.cap, a.page_cap, type_a)
 
 
 if __name__ == "__main__":

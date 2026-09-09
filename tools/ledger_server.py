@@ -197,7 +197,12 @@ def main():
             raise
         sys.exit(f"port {a.port} is already in use: another resource server is probably "
                  "still running (stop it, or pass --port to use another port)")
-    print(f"serving {a.resource} on :{a.port}; ledger -> {a.ledger}; nonce {a.nonce}", flush=True)
+    # Both paths normalised. A part's `"ledger": "../ledger.tsv"` printed as
+    # `…/part-I-opening/../ledger.tsv`, which the TA then could not match against the
+    # runbook's LEDGER= snippet — the same file, spelled two ways.
+    print(f"serving {os.path.normpath(os.path.abspath(a.resource))} on :{a.port}; "
+          f"ledger -> {os.path.normpath(os.path.abspath(a.ledger))}; nonce {a.nonce}",
+          flush=True)
     srv.serve_forever()
 
 

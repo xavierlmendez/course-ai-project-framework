@@ -6,12 +6,12 @@ Python 3 standard library plus Docker and Ollama. A TA can read every file in on
 |---|---|
 | `run_tests.py` | Runs interface-contract tests against one solution directory. Used by students (public suite), by the milestone, and by the runner inside the sandbox (hidden suite). Given `--project project.json` it enforces each category's declared equivalence policy and reports it in the summary. |
 | `runner.py` | TA batch runner. Type B: K sandboxed regenerations per submission, then hidden tests. Type A: hidden tests once. Also creates the pinned slot models (`--create-slots`), and gives students one practice command (`--practice`). Both stop with the URL they tried if the model server is unreachable, and a missing `opencode` or `docker` binary gives a sentence naming what to install, not a traceback. Resumable. |
-| `grade.py` | Turns runner records plus `status.csv`, `written.csv`, `milestone.csv` into `gradebook.csv`. Refuses a `status.csv` with no `grad` column, refuses a written dimension outside 0–3, and marks a row `incomplete` rather than emitting a total that silently omits a component. |
+| `grade.py` | Turns runner records plus `status.csv`, `written.csv`, `milestone.csv` into `gradebook.csv`. Refuses a `status.csv` with no `grad` column, refuses a written dimension outside 0–3, and marks a row `incomplete` rather than emitting a total that silently omits a component. Its `records` column says how many complete records the row was scored from, with the incomplete ones in brackets (`3`, `2 (1 never completed)`). |
 | `grade_all.py` | Grades a whole project, single-part or multi-part, in one command. Replaces the shell loop, which word-split differently in bash and zsh and silently continued past a part that was never run. Given `--submissions DIR` (the course-level submissions directory) it runs the fan-out itself first, so the per-program directories always match what the students handed in. Writes one intermediate gradebook per part, `gb-<program>.csv`, beside the project or under `--work`. |
-| `combine_parts.py` | Combines per-part gradebooks. Each part contributes only its **hidden** score, weighted; the milestone and written component are course-level and added once. |
+| `combine_parts.py` | Combines per-part gradebooks. Each part contributes only its **hidden** score, weighted; the milestone and written component are course-level and added once. Columns: `student_id`, `grad`, `<part>_hidden` and `<part>_records` per part, then `hidden_score`, `milestone`, `written_raw`, `written_score`, `total`, `status`, `note`. There is one course-level `status` and no `<part>_status`: that column copied the course-level status into every program, so an appeal scoped to one part read `appeal` on all eight. |
 | `milestone.py` | `record` (student) runs the public suite and writes a milestone record; on a Type B project it requires the runner record of a completed regeneration and embeds it as the record's `harness` block. `check` (TA) validates submitted records into `milestone.csv`, refusing a Type B record with no harness evidence. |
 | `fan_out.py` | Turns the **student layout** of a multi-part submission (`submissions/<id>/<program>/SPEC.md`, plus one `WRITTEN.md` and one `PROCESS.md` at the top) into the per-program `part-<program>/submissions/<id>/` directories the runner reads, copying the course-level pages into each. One row per student: programs present/missing, words per `SPEC.md`. Exit 1 with a named reason for any layout problem; `--check` validates without writing. |
-| `prescan.py` | Flags lines in specifications the safety read must look at closely. Not a safety control. `--course DIR` scans the course-level submissions of a multi-part project instead of one part's, one row per student, and is where the single `WRITTEN.md` and `PROCESS.md` are checked. |
+| `prescan.py` | Flags lines in specifications the safety read must look at closely. Not a safety control. `--course DIR` takes the project directory in either shape: with `parts.json` it scans the course-level submissions of a multi-part project instead of one part's, and without one it scans that single-part project's own `submissions/` with its `project.json`. One row per student either way, and it is where the single `WRITTEN.md` and `PROCESS.md` are checked. A **Type A** project has no specification, so its rows read `words=n/a` and the 1,500-word cap is not applied; the page caps still are. |
 | `ledger_server.py` | Serves the published resource and the write-only ledger endpoint. `--project project.json` takes its resource directory, ledger file, nonce and port from the project, which is the form a handout can give a student. A busy port exits with one sentence — `port N is already in use: another resource server is probably still running (stop it, or pass --port to use another port)` — not a traceback. Reference implementation; port the one route into an existing site if you have one. |
 | `sandbox/` | Docker image: Python, a **pinned** OpenCode, curl, and an outbound allowlist of host:port pairs. Hidden tests are staged root-only; the graded solution runs unprivileged. |
 | `../tests/` | `python3 -m unittest discover -s tests`. Every test names the finding it guards. No Docker, model or network needed. |
@@ -232,6 +232,51 @@ record; anything missing those is not a runner record and is refused by name.
 
 ## Records and resume
 
+### What a grading record holds
+
+One record per run, written by `runner.py`. The fields the other tools read:
+
+- `submission` — the submission directory's name, which is the gradebook key.
+- `type` — `"A"` or `"B"`: whether the record is a direct run of submitted code or a
+  regeneration through the harness. `milestone.py` and `grade.py` branch on it.
+- `slot`, `temperature` — Type B only: which of the K slots this run was, and the
+  temperature that slot's model was pinned to. `grade.py` reports the best slot.
+- `seed_recorded: false` — always false, and present to say so: the seed value is
+  deliberately **not** stored, because a record travels with an appeal packet and the
+  seeds are secret until grades are released.
+- `run_tag` — the tag **with** the slot suffix (`grading-k2`, `practice-k1`); the working
+  directory is `<run_tag>-work`.
+- `started`, `ended`, `complete`, `incomplete_reason`, `dry_run` — when it ran, whether it
+  finished, why not, and whether it was a `--dry-run` (those are also named `*.dry.json`).
+- `tests_dir` — the absolute path of the hidden suite this run was scored against, so a
+  record says which tests produced its numbers. `null` when none was resolved.
+- `regeneration` — Type B only: `entry_present`, `harness_exit`, `wall_s`, the model and
+  the command. `milestone.py` reads it as harness evidence.
+- `tests` — the hidden-suite result, below.
+
+### The `tests` block
+
+It is `run_tests.py --json`'s output, embedded verbatim (`{"dry_run": true}` for a dry run,
+or `{"solution_started": false, "categories": {}, "error": …}` if the runner could not parse
+it). `grade.py` reads only `solution_started` and `categories[*].pass` / `.total`.
+
+```jsonc
+{"solution_started": true,          // false when the entry point was missing or the
+                                    // policy check refused; then "error" says which
+ "categories": {
+   "evaluations_count": {
+     "pass": 3,                     // cases that passed
+     "total": 4,                    // cases discovered in that category
+     "policy": "strict",            // the equivalence policy in force, present only when
+                                    // run_tests.py was given --project
+     "cases": [                     // one entry per case, for reading a failure
+       {"name": "001", "pass": false, "why": "output mismatch", "wall_s": 0.12}]}}}
+```
+
+A category that exists in `project.json` but has no cases on disk does not appear here at
+all; `grade.py` then leaves it out of both sums rather than scoring it zero.
+
+
 Paths below are the **grading** layout, where the run directory is the submission's id: a grading
 run writes `runs/<id>/k<N>.json` beside its working directory `runs/<id>/grading-k<N>-work`.
 A student's own run is named after their submission directory instead — `mywork/part-I-opening`
@@ -264,8 +309,10 @@ python3 tools/ledger_server.py --project project.json \
 python3 tools/runner.py --project project.json --verify-slots   # is the schedule reaching the model?
 python3 tools/fan_out.py --project . --submissions submissions   # multi-part: student layout
                                                                  # -> part-*/submissions/<id>/
-python3 tools/prescan.py --course .                              # multi-part, one row per student
-python3 tools/prescan.py submissions/ --project project.json
+python3 tools/prescan.py --course .                              # either shape: with parts.json the
+                                                                 # course tree, without it the project's
+                                                                 # own submissions/; one row per student
+python3 tools/prescan.py submissions/ --project project.json     # one program's submissions
 python3 tools/runner.py --project project.json --submissions submissions/ --status status.csv --out runs/
 python3 tools/grade.py --project project.json --runs runs/ --status status.csv --written written.csv \
         --milestone milestone.csv > gradebook.csv

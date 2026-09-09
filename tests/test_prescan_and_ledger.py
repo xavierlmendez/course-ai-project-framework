@@ -133,6 +133,99 @@ class TestPrescanStudentId(TempCase):
         self.assertNotIn("spec-id-mismatch", self.scan())
 
 
+class TestPrescanCourseFlag(TempCase):
+    """Cold run 6: `prescan.py --course DIR` exited 1 with "parts.json not found" on a
+    single-part project, so the runbook's one course-level pre-scan command only worked on
+    half the projects it is written for."""
+
+    def make_submission(self, sid, spec="Sign the ledger, then write solve.py.\n"):
+        self.write(f"submissions/{sid}/SPEC.md", spec)
+        self.write(f"submissions/{sid}/PROCESS.md", "used opencode")
+        self.write(f"submissions/{sid}/WRITTEN.md", "explanation")
+
+    def test_course_flag_scans_a_single_part_project_directly(self):
+        self.make_project(resource_host="resource.invalid")
+        self.make_submission("ABC123456")
+        code, out, err = run_tool("prescan.py", "--course", self.dir)
+        self.assertEqual(code, 0, f"--course failed on a single-part project: {err}")
+        self.assertTrue(out.startswith("OK\tABC123456\twords="),
+                        f"expected the per-project row, got: {out!r}")
+        self.assertNotIn("parts.json not found", out + err)
+
+    def test_course_flag_still_scans_a_multi_part_course(self):
+        self.write_json("parts.json", {"parts": [{"name": "I", "weight": 100}]})
+        self.write_json("part-I/project.json",
+                        {"name": "demo-I", "type": "B", "part": "I", "spec": "SPEC.md",
+                         "resource_host": "resource.invalid", "categories": {}})
+        self.write("submissions/ABC123456/part-I/SPEC.md", "build the program\n")
+        self.write("submissions/ABC123456/WRITTEN.md", "explanation")
+        self.write("submissions/ABC123456/PROCESS.md", "used opencode")
+        code, out, err = run_tool("prescan.py", "--course", self.dir)
+        self.assertEqual(code, 0, err)
+        self.assertIn("programs=1/1", out)
+        self.assertIn("I=", out)
+
+    def test_a_directory_that_is_neither_is_refused_by_name(self):
+        code, _out, err = run_tool("prescan.py", "--course", self.dir)
+        self.assertEqual(code, 1)
+        self.assertIn("parts.json", err)
+        self.assertIn("project.json", err)
+
+
+class TestPrescanTypeA(TempCase):
+    """Cold run 6: a Type A project has no specification — the submission is code and
+    `variant.txt` is ignored — but every row printed `words=1`, counting the variant file
+    as the specification, and the 1,500-word cap was applied to source code."""
+
+    def make_type_a_submission(self, sid, code_words=3000):
+        self.write(f"submissions/{sid}/variant.txt", sid)
+        self.write(f"submissions/{sid}/notes.md", "word " * code_words)
+        self.write(f"submissions/{sid}/PROCESS.md", "used opencode")
+        self.write(f"submissions/{sid}/WRITTEN.md", "explanation")
+
+    def test_type_a_prints_n_a_and_applies_no_specification_cap(self):
+        self.make_project(ptype="A", resource_host="resource.invalid")
+        self.make_type_a_submission("JKL333444")
+        _code, out, _err = run_tool("prescan.py", self.path("submissions"),
+                                    "--project", self.path("project.json"), expect_ok=True)
+        self.assertIn("words=n/a", out, f"a Type A row still counted words: {out!r}")
+        self.assertNotIn("spec-over-cap", out,
+                         "the specification cap was applied to a project with no specification")
+        self.assertTrue(out.startswith("OK"), out)
+
+    def test_type_a_still_caps_the_two_pages(self):
+        self.make_project(ptype="A", resource_host="resource.invalid")
+        self.make_type_a_submission("JKL333444")
+        self.write("submissions/JKL333444/WRITTEN.md", "word " * 900)
+        _code, out, _err = run_tool("prescan.py", self.path("submissions"),
+                                    "--project", self.path("project.json"), expect_ok=True)
+        self.assertTrue(out.startswith("INCOMPLETE"), out)
+        self.assertIn("WRITTEN.md:over-page-cap", out)
+        self.assertIn("words=n/a", out)
+
+    def test_type_b_still_counts_and_caps_the_specification(self):
+        self.make_project(ptype="B", resource_host="resource.invalid")
+        self.write("submissions/ABC123456/SPEC.md", "word " * 2000)
+        self.write("submissions/ABC123456/PROCESS.md", "used opencode")
+        self.write("submissions/ABC123456/WRITTEN.md", "explanation")
+        _code, out, _err = run_tool("prescan.py", self.path("submissions"),
+                                    "--project", self.path("project.json"), expect_ok=True)
+        self.assertIn("spec-over-cap", out)
+        self.assertNotIn("words=n/a", out)
+
+    def test_a_type_a_part_of_a_course_prints_n_a_too(self):
+        self.write_json("parts.json", {"parts": [{"name": "I", "weight": 100}]})
+        self.write_json("part-I/project.json",
+                        {"name": "demo-I", "type": "A", "part": "I", "spec": "SPEC.md",
+                         "resource_host": "resource.invalid", "categories": {}})
+        self.write("submissions/JKL333444/part-I/SPEC.md", "word " * 2000)
+        self.write("submissions/JKL333444/WRITTEN.md", "explanation")
+        self.write("submissions/JKL333444/PROCESS.md", "used opencode")
+        _code, out, _err = run_tool("prescan.py", "--course", self.dir, expect_ok=True)
+        self.assertIn("I=n/a", out, out)
+        self.assertNotIn("spec-over-cap", out)
+
+
 class TestLedgerServer(TempCase):
     """The reference ledger server's validation and containment."""
 
@@ -275,6 +368,28 @@ class TestLedgerServerFromProject(TempCase):
             self.assertEqual(r.status, 200)
         self.assertIn("ABC123456", open(self.path("ledger.tsv")).read(),
                       "the ledger was not written beside project.json")
+
+    def test_the_start_up_line_prints_normalised_paths(self):
+        """Cold run 6: a part's `"ledger": "../ledger.tsv"` printed as
+        `…/part-I/../ledger.tsv`, which does not match the runbook's LEDGER= snippet —
+        the same file, spelled two ways, and the TA cannot tell."""
+        self.write("resource/index.md", "nonce: {{NONCE}}\n")
+        self.write_json("part-I/project.json",
+                        {"name": "demo", "resource_port": 8934,
+                         "resource_dir": "../resource", "ledger": "../ledger.tsv",
+                         "nonce": "N0NCE42"})
+        proc = subprocess.Popen(
+            [sys.executable, tool("ledger_server.py"),
+             "--project", self.path("part-I/project.json"), "--bind", "127.0.0.1"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        self.addCleanup(proc.terminate)
+        line = proc.stdout.readline()
+        self.assertIn("ledger -> ", line)
+        served, ledger = line.split("ledger -> ")[0], line.split("ledger -> ")[1].split(";")[0]
+        expected = os.path.normpath(os.path.join(self.dir, "ledger.tsv"))
+        self.assertEqual(ledger, expected,
+                         f"the ledger path was not normalised: {line!r}")
+        self.assertNotIn("/../", served, f"the resource path was not normalised: {line!r}")
 
 
 if __name__ == "__main__":
