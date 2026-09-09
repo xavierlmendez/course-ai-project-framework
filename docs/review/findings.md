@@ -662,7 +662,7 @@ Severity is from the brief: **blocker** would produce a wrong grade, break gradi
 
 ### F-48 — The ledger file defaults into the repository root and is not ignored
 
-**Where:** `/Users/xaviermendez/develop/portfolioWebsite/xavis_projects/app/lib/projectUtils/courseAiFramework/ledger.ts:15`  
+**Where:** `~/develop/portfolioWebsite/xavis_projects/app/lib/projectUtils/courseAiFramework/ledger.ts:15`  
 **Found by:** J4 (1 finding)
 
 **What breaks.** A local `npm run dev` with COURSE_LEDGER_NONCE set writes real sign-ins into the repo root; the next `git add .` commits student IDs and IPs to the site repository.

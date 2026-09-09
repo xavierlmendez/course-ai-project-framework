@@ -104,7 +104,7 @@
   "evidence": "checks WARN rows for all five files; `for f in \u2026; do [ -e ]` \u2192 all absent; every tools/*.py exceeds line length 100 (max 110\u2013147)",
   "failure": "A TA or a future Claude Code session has no stated commands, no decision index, and no gate before editing grading code; adopting uv/ruff verbatim would add a toolchain TAs must install.",
   "fix": "Write a 30-line CLAUDE.md + CONTRIBUTING adapted to stdlib (`python3 -m unittest`, `python3 -m py_compile tools/*.py`) and a CI job running those plus `scripts/review_checks.py --no-network`.",
-  "reproduction": "$ cd /Users/xaviermendez/develop/course-ai-project-framework\n$ for f in CLAUDE.md CONTRIBUTING.md .claude/agents .github/workflows .pre-commit-config.yaml pyproject.toml .github; do [ -e \"$f\" ] && echo \"PRESENT $f\" || echo \"ABSENT $f\"; done\nABSENT CLAUDE.md\nABSENT CONTRIBUTING.md\nABSENT .claude/agents\nABSENT .github/workflows\nABSENT .pre-commit-config.yaml\nABSENT pyproject.toml\nABSENT .github\n\n$ s\u2026",
+  "reproduction": "$ cd ~/develop/course-ai-project-framework\n$ for f in CLAUDE.md CONTRIBUTING.md .claude/agents .github/workflows .pre-commit-config.yaml pyproject.toml .github; do [ -e \"$f\" ] && echo \"PRESENT $f\" || echo \"ABSENT $f\"; done\nABSENT CLAUDE.md\nABSENT CONTRIBUTING.md\nABSENT .claude/agents\nABSENT .github/workflows\nABSENT .pre-commit-config.yaml\nABSENT pyproject.toml\nABSENT .github\n\n$ s\u2026",
   "reason": "verifier did not run (matters)"
  },
  {
@@ -115,7 +115,7 @@
   "claim": "The diff does two things: the course routes and an unrelated, half-staged Kafka removal.",
   "evidence": "`git status --porcelain`: `D  app/actions/kafka.js` (staged) while every other change is unstaged; package.json drops `@confluentinc/kafka-javascript`; package-lock.json -491 lines. `grep -rn actions/kafka app lib` -> no consumers; `ls app/api/kafka` -> absent at HEAD, so nothing new breaks (app/page.tsx:18-21 still links a Kafka viewer that fetches a nonexistent /api/kafka, pre-existing).",
   "failure": "`git commit` as-is commits only the Kafka deletion with none of the course work; the reviewer-agent 'one thing' check fails and the removal has no recorded reason.",
-  "reproduction": "All commands run read-only from /Users/xaviermendez/develop/portfolioWebsite (the git root; the brief's path .../portfolioWebsite/xavis_projects is a subdirectory, so repo-relative paths carry the xavis_projects/ prefix).\n\n$ git status --porcelain\n M xavis_projects/README.md\nD  xavis_projects/app/actions/kafka.js\n M xavis_projects/app/projects/page.tsx\n M xavis_projects/package-lock.json\n M xavis_\u2026",
+  "reproduction": "All commands run read-only from ~/develop/portfolioWebsite (the git root; the brief's path .../portfolioWebsite/xavis_projects is a subdirectory, so repo-relative paths carry the xavis_projects/ prefix).\n\n$ git status --porcelain\n M xavis_projects/README.md\nD  xavis_projects/app/actions/kafka.js\n M xavis_projects/app/projects/page.tsx\n M xavis_projects/package-lock.json\n M xavis_\u2026",
   "reason": "verifier did not run (matters)"
  },
  {
@@ -127,7 +127,7 @@
   "evidence": "ledger.ts:15 `path.resolve(process.env.COURSE_LEDGER_PATH ?? './course-ledger.tsv')`; .gitignore has no `course-ledger*` rule; README.md:50 warns to keep it outside the repo.",
   "failure": "Running `next dev` without COURSE_LEDGER_PATH and then `git add .` commits a file of student IDs.",
   "fix": "Add `course-ledger*.tsv` to .gitignore or default to a path outside cwd.",
-  "reproduction": "All commands run read-only except one transient empty-file creation that was removed (git status confirmed clean afterward).\n\n1) `sed -n '1,20p' /Users/xaviermendez/develop/portfolioWebsite/xavis_projects/app/lib/projectUtils/courseAiFramework/ledger.ts`\nLine 15: `  return path.resolve(process.env.COURSE_LEDGER_PATH ?? './course-ledger.tsv')`\n\n2) From the Next.js app root: `node -e \"const p=requir\u2026",
+  "reproduction": "All commands run read-only except one transient empty-file creation that was removed (git status confirmed clean afterward).\n\n1) `sed -n '1,20p' ~/develop/portfolioWebsite/xavis_projects/app/lib/projectUtils/courseAiFramework/ledger.ts`\nLine 15: `  return path.resolve(process.env.COURSE_LEDGER_PATH ?? './course-ledger.tsv')`\n\n2) From the Next.js app root: `node -e \"const p=requir\u2026",
   "reason": "verifier did not run (matters)"
  },
  {
@@ -138,7 +138,7 @@
   "claim": "Hybrid is offered as a professor option with no template, runner mode, or grading gate.",
   "evidence": "`grep -rni hybrid tools/ templates/` is empty; tools/runner.py:296 `choices=[\"A\", \"B\"]`.",
   "failure": "Professor chooses Hybrid from the options menu and has no handout, no runner invocation, and no way for grade.py to apply the public-suite reproducibility gate.",
-  "reproduction": "Ran from /Users/xaviermendez/develop/course-ai-project-framework:\n\n1. `sed -n '298p' framework.md` \u2192 `| Project type | Type B | Type A; both in the same course; Hybrid (code graded, specification as a reproducibility gate) |` \u2014 line and claim confirmed.\n\n2. `grep -rni hybrid tools/ templates/` \u2192 no output, exit=1. Repo-wide `grep -rnil hybrid .` matches only: CONTEXT.md, framework.md, docs/grill/r\u2026",
+  "reproduction": "Ran from ~/develop/course-ai-project-framework:\n\n1. `sed -n '298p' framework.md` \u2192 `| Project type | Type B | Type A; both in the same course; Hybrid (code graded, specification as a reproducibility gate) |` \u2014 line and claim confirmed.\n\n2. `grep -rni hybrid tools/ templates/` \u2192 no output, exit=1. Repo-wide `grep -rnil hybrid .` matches only: CONTEXT.md, framework.md, docs/grill/r\u2026",
   "reason": "verifier did not run (matters)"
  },
  {
@@ -149,7 +149,7 @@
   "claim": "The Type A calibration path is undefined and contradicts framework.md.",
   "evidence": "framework.md:48 'Reference specification: Your own Type B specification' for every project; checklist:12 'or reference solution (Type A)'; example 02 has no reference/SPEC.md; boxes 21 (K ledger entries), 27 (canonical specification), 28 (empty specification) have no Type A meaning; `--submission reference/` with Type A copies reference/ whose root has no solve.py (runner.py:275).",
   "failure": "Type A professor runs the line-16 command, the correct reference scores 0 (entry absent at root), and three boxes cannot be ticked although line 3 says do not release until every box is ticked.",
-  "reproduction": "All paths absolute under /Users/xaviermendez/develop/course-ai-project-framework.\n\n1) Quoted checklist (templates/calibration-checklist.md:12,16):\n   \"## Reference specification (Type B) or reference solution (Type A)\"\n   \"- [ ] `python3 tools/runner.py --project project.json --submission reference/ --run-tag calibration`\"\n\n2) Ran that command verbatim on the Type A example (examples/02-astar-type\u2026",
+  "reproduction": "All paths absolute under ~/develop/course-ai-project-framework.\n\n1) Quoted checklist (templates/calibration-checklist.md:12,16):\n   \"## Reference specification (Type B) or reference solution (Type A)\"\n   \"- [ ] `python3 tools/runner.py --project project.json --submission reference/ --run-tag calibration`\"\n\n2) Ran that command verbatim on the Type A example (examples/02-astar-type\u2026",
   "reason": "verifier did not run (matters)"
  },
  {
@@ -194,7 +194,7 @@
   "evidence": "ta-runbook.md:47 \"python3 tools/grade.py --project project.json --runs runs/ --status status.csv > gradebook.csv\"; ta-runbook.md:50 \"Enter the four (or three) dimension scores in `gradebook.csv`\"; tools/README.md:9 \"runner records plus `status.csv`, `written.csv`, `milestone.csv` into `gradebook.csv`\"; tools/grade.py:100 total = sum of hidden, ms_score, wr_score where blank inputs are skipped.",
   "failure": "TA follows Day 2 literally: gradebook.csv `total` = hidden score only (30 of 100 points missing for every student), scores typed into the CSV afterward are never summed; Day 3 sends that file to the professor.",
   "fix": "Add milestone.csv/written.csv steps and the full grade.py command from tools/README.md.",
-  "reproduction": "Read /Users/xaviermendez/develop/course-ai-project-framework/templates/ta-runbook.md, tools/grade.py, tools/README.md.\n\ngrep -rn \"written.csv\\|milestone.csv\" templates/ examples/ framework.md README.md\n  -> only hit: examples/02-astar-type-a/README.md:56 (full command). No hit in templates/ta-runbook.md.\ngrep -n \"milestone\\|written\" templates/ta-runbook.md\n  -> lines 44, 50, 52 only, all \"written\"\u2026",
+  "reproduction": "Read ~/develop/course-ai-project-framework/templates/ta-runbook.md, tools/grade.py, tools/README.md.\n\ngrep -rn \"written.csv\\|milestone.csv\" templates/ examples/ framework.md README.md\n  -> only hit: examples/02-astar-type-a/README.md:56 (full command). No hit in templates/ta-runbook.md.\ngrep -n \"milestone\\|written\" templates/ta-runbook.md\n  -> lines 44, 50, 52 only, all \"written\"\u2026",
   "reason": "blocker third refuter did not run"
  },
  {
@@ -206,7 +206,7 @@
   "evidence": "\"Your specification must tell the agent to sign the course ledger\" (handout-type-b.md:17, examples/01 handout.md:17, examples/03 handout.md:17); CONTEXT.md:41 \"_Avoid_: agent\". The grill/ADR/CONTEXT uses (\"agent loop\", \"CLI coding agent\") are legitimate; this one is drift.",
   "failure": "Students read 'agent' in the one line the ADR says must be unmistakable while every other document says 'harness'.",
   "fix": "agent \u2192 harness.",
-  "reproduction": "Read /Users/xaviermendez/develop/course-ai-project-framework/docs/review/brief.md (severity scale, settled decision 28 on fixed vocabulary).\n\n$ sed -n '17p' templates/handout-type-b.md\n**Your specification must tell the agent to sign the course ledger with your student ID (and your partner's, if any) and the nonce from the page.** A specification that does not produce a ledger entry has not specif\u2026",
+  "reproduction": "Read ~/develop/course-ai-project-framework/docs/review/brief.md (severity scale, settled decision 28 on fixed vocabulary).\n\n$ sed -n '17p' templates/handout-type-b.md\n**Your specification must tell the agent to sign the course ledger with your student ID (and your partner's, if any) and the nonce from the page.** A specification that does not produce a ledger entry has not specif\u2026",
   "reason": "verifier did not run (matters)"
  },
  {

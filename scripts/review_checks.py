@@ -20,7 +20,7 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 RUN_TESTS = os.path.join(ROOT, "tools", "run_tests.py")
 PRESCAN = os.path.join(ROOT, "tools", "prescan.py")
 FAN_OUT = os.path.join(ROOT, "tools", "fan_out.py")
-PORTFOLIO = "/Users/xaviermendez/develop/portfolioWebsite/xavis_projects"
+PORTFOLIO = os.environ.get("PORTFOLIO_DIR", os.path.expanduser("~/develop/portfolioWebsite/xavis_projects"))
 OUT = []
 
 

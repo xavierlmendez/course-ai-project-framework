@@ -31,9 +31,9 @@ class TestSlotCheckReachesTheModel(TempCase):
 
     def test_an_explicit_host_url_is_respected(self):
         self.make_project(ollama_host="http://host.docker.internal:11434",
-                          ollama_host_local="http://192.168.2.12:11434")
+                          ollama_host_local="http://10.0.0.5:11434")
         p = runner.load_project(self.path("project.json"))
-        self.assertEqual(runner.host_side_ollama(p), "http://192.168.2.12:11434")
+        self.assertEqual(runner.host_side_ollama(p), "http://10.0.0.5:11434")
 
     def test_an_ordinary_hostname_is_left_alone(self):
         self.make_project(ollama_host="http://models.example.edu:11434")
