@@ -105,6 +105,14 @@ simply absent unless the professor sets them.
                                         //   student with a local Ollama therefore edits
                                         //   nothing; a student on the course server sets this
                                         //   one key
+                                        //   On Linux, Ollama listens on 127.0.0.1 only, so the
+                                        //   sandbox cannot reach `ollama_host` even though
+                                        //   --verify-slots (which dials from the host side) says
+                                        //   ok: set OLLAMA_HOST=0.0.0.0 for the ollama service
+                                        //   (systemd override) and restart it. On Docker Desktop
+                                        //   this is automatic. --verify-slots and every
+                                        //   sandboxed batch now probe from inside the sandbox
+                                        //   and stop with that sentence
   "base_model": "qwen3:14b",
   "num_ctx": 32768,                     // context window pinned into every slot Modelfile
                                         //   (PARAMETER num_ctx). The agent loop's tool
@@ -306,6 +314,17 @@ is the form the handouts use.
 Any other run tag writes `runs/<id>/<tag>-k<N>.json` beside `runs/<id>/<tag>-k<N>-work`, so an
 **appeal** is a record of its own: it neither collides with the grading record nor is mistaken for
 one already done. `grade.py` considers every complete record and takes the best.
+
+**Type A has no slots**, so its records carry no `k<N>`: a grading run writes
+`runs/<id>/a.json` beside `runs/<id>/a-work`, any other run tag writes `runs/<id>/<tag>-a.json`
+beside `runs/<id>/<tag>-a-work` (an appeal is `appeal-a.json`), and a dry run writes
+`runs/<id>/a.dry.json` — or `<tag>-a.dry.json` — beside `a-dry-work`. The minimal fields a
+Type A record needs to be gradable are `type` (`"A"`), `run_tag`, `complete`, `dry_run` and the
+`tests` block; `slot`, `temperature` and `regeneration` are Type B only.
+
+**A multi-part project's records live under the part**: `part-<program>/runs/<id>/k<N>.json`
+(Type B) or `part-<program>/runs/<id>/a.json` (Type A), one `runs/` directory per program, since
+each part is a project of its own graded on its own.
 
 `--dry-run` prints the command lines and runs nothing. Its records are kept — they are the easiest
 way to see exactly what would be executed — but named apart: `runs/<id>/<tag>-k<N>.dry.json` beside

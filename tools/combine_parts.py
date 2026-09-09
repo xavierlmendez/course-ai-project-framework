@@ -29,8 +29,10 @@ course-level `status`. `<part>_records` is that part's count of complete records
 about the part. There is deliberately no `<part>_status`; it used to copy the course-level
 status into every program, so an appeal scoped to one part read `appeal` on all eight.
 
-A row is `graded` only when every part is graded and both course-level components are
-present. Otherwise it is `incomplete` with no total.
+A row is complete only when every part is graded and both course-level components are
+present; then its course-level `status` is the `status.csv` value the parts carry, `graded`
+or `appeal`, as `grade.py` writes it for a single-part project. Otherwise it is `incomplete`
+with no total.
 
 Every part's non-empty `note` is carried into the combined `note`, prefixed with the part
 name (`I: 1 slot(s) never completed`), because a per-part note such as "never completed" is
@@ -114,6 +116,7 @@ def main():
                 grad = True
 
         hiddens, records, combined, parts_ok = [], [], 0.0, True
+        part_statuses = []
         part_notes = []
         for p, b in zip(parts, books):
             r = b.get(sid)
@@ -131,6 +134,7 @@ def main():
             # old `<part>_status` column copied the course-level status into all eight
             # programs, so an appeal scoped to one part read `appeal` on every one of them.
             records.append(r.get("records", "") if r else "missing")
+            part_statuses.append(s)
             if h == "" or s not in ("graded", "appeal"):
                 parts_ok = False
             else:
@@ -149,7 +153,17 @@ def main():
 
         have_all = hidden_score != "" and ms_score != "" and wr_score != ""
         total = round(hidden_score + ms_score + wr_score, 2) if have_all else ""
-        status = "graded" if have_all else "incomplete"
+        # The course-level status is the status.csv value the parts carry (`graded` or
+        # `appeal`), exactly as grade.py writes it for a single-part project, and
+        # `incomplete` when the row is not complete. Hard-coding `graded` here read
+        # `graded` for a student whose status.csv row said `appeal`, so the same student
+        # was `appeal` on a single-part project and `graded` on a multi-part one.
+        if not have_all:
+            status = "incomplete"
+        elif "appeal" in part_statuses:
+            status = "appeal"
+        else:
+            status = "graded"
         pieces = merge_notes(part_notes)
         if not have_all:
             pieces.append("missing: " + ", ".join(

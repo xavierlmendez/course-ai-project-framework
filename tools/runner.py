@@ -120,9 +120,18 @@ def wrapper_prompt(p):
     return p["wrapper_prompt"].format(entry=p["entry"], spec=p["spec"])
 
 
-def load_seeds(p):
+def load_seeds(p, dry=False):
+    """The project's seeds, or placeholders under --dry-run.
+
+    A dry run prints commands and runs nothing, so it has no use for the real seeds — and
+    a rehearsal happens weeks before they arrive. Exiting "seeds file missing" before the
+    first line was printed made --dry-run useless on exactly the day it is wanted.
+    """
     path = os.path.join(p["_dir"], p["seeds_file"])
     if not os.path.exists(path):
+        if dry:
+            print(f"dry run: {os.path.basename(path)} absent, using placeholders")
+            return [0] * p["k"]
         sys.exit(f"seeds file missing: {path} (create {{\"seeds\": [s1, s2, s3]}}; keep it secret until grades are out)")
     with open(path) as fh:
         seeds = json.load(fh)["seeds"]
@@ -371,8 +380,35 @@ def require_model_server(p):
         sys.exit(unreachable_message(p))
 
 
+def sandbox_unreachable_message(p):
+    return (f"the sandbox cannot reach the model server at {p['ollama_host']}: on Linux, "
+            "Ollama listens on 127.0.0.1 only — set OLLAMA_HOST=0.0.0.0 for the ollama "
+            "service (systemd override) and restart it; on Docker Desktop this is automatic")
+
+
+def sandbox_model_server_probe(p):
+    """Dial the model server from *inside* a sandbox container, as the harness will.
+
+    `--verify-slots` dials from the host side, where a container-only name is translated
+    to loopback, so on a Linux box with Ollama bound to 127.0.0.1 it reports ok while
+    every slot then fails in about a minute with OpenCode's "Cannot connect to API".
+    The image has curl; nothing is mounted and no firewall entrypoint is needed.
+    """
+    cmd = ["docker", "run", "--rm",
+           "--add-host", "host.docker.internal:host-gateway",
+           "--entrypoint", "curl", p["sandbox_image"],
+           "-s", "-m", "5", p["ollama_host"].rstrip("/") + "/api/tags"]
+    code, out, _err, _wall = sh(cmd, timeout=60)
+    return code == 0 and "models" in (out or "")
+
+
+def require_sandbox_model_server(p):
+    if not sandbox_model_server_probe(p):
+        sys.exit(sandbox_unreachable_message(p))
+
+
 def create_slots(p, dry):
-    seeds = load_seeds(p)
+    seeds = load_seeds(p, dry)
     num_ctx = p.get("num_ctx", 32768)
     no_think = p.get("thinking", "off") == "off"
     if not dry:
@@ -938,6 +974,10 @@ def main():
     if a.create_slots:
         return create_slots(p, a.dry_run)
     if a.verify_slots:
+        # The host-side dial translates a container-only name to loopback, so it passes on a
+        # Linux box where the sandbox itself cannot reach the model server at all.
+        if not (a.no_sandbox or a.dry_run):
+            require_sandbox_model_server(p)
         problems = verify_slots(p, load_seeds(p))
         for x in problems:
             print("  " + x)
@@ -968,13 +1008,16 @@ def main():
         subs = [(s, d) for s, d in subs if status.get(s, {}).get("status") in ("graded", "appeal")]
 
     os.makedirs(a.out, exist_ok=True)
-    seeds = load_seeds(p) if ptype == "B" else None
+    seeds = load_seeds(p, a.dry_run) if ptype == "B" else None
     if a.slot is not None:
         if not 1 <= a.slot <= p["k"]:
             sys.exit(f"--slot must be between 1 and {p['k']} for this project; got {a.slot}")
         slots = [a.slot]
     else:
         slots = list(range(1, p["k"] + 1))
+    if ptype == "B" and not a.dry_run and sandbox:
+        # Every slot would otherwise fail about a minute in with "Cannot connect to API".
+        require_sandbox_model_server(p)
     if ptype == "B" and not a.dry_run and not a.skip_slot_check:
         problems = verify_slots(p, seeds)
         if problems:

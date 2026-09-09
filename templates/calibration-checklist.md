@@ -10,6 +10,8 @@ Sections are in execution order: Setup, then the gate for your type, then Sanity
       `MODEL=$(python3 -c 'import json;print(json.load(open("project.json"))["base_model"])'); bash scripts/cpu_verify.sh   # the tooltest function; expect 5/5 at num_ctx 32768`
 - [ ] The harness's provider timeouts exceed `regeneration_timeout_s`. The runner writes OpenCode's `headerTimeout` and `chunkTimeout` from it; confirm they are in the generated `opencode.json` and that no slot dies at exactly 300 s.
 - [ ] Ledger server running and reachable from inside the sandbox; the published resource served from it with the nonce visible.
+- [ ] **On Linux: the model server is reachable from inside the sandbox.** Ollama binds 127.0.0.1 by default, so the container cannot reach `host.docker.internal:11434` even though `--verify-slots` (which dials from the host side) says ok, and every slot then fails after about a minute with OpenCode's "Cannot connect to API". Set `OLLAMA_HOST=0.0.0.0` for the ollama service (systemd override) and restart it; on Docker Desktop this is automatic. `--verify-slots` and every sandboxed batch probe from inside the sandbox and stop with that sentence.
+      `docker run --rm --add-host host.docker.internal:host-gateway --entrypoint curl harness-sandbox -s -m 5 http://host.docker.internal:11434/api/tags`
 - [ ] Hidden tests in `tests/hidden/<category>/`, weights in `project.json`, twist categories summing to half the hidden weight. Variant projects generate them instead: see **Per-student variants**.
 - [ ] A canonical solution exists in `canonical/` (the textbook problem, twist ignored). It is what proves the twist is load-bearing.
 

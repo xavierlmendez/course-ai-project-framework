@@ -306,5 +306,54 @@ class TestPartMode(TempCase):
         self.assertEqual(parse_csv(out)["ABC123456"]["status"], "incomplete")
 
 
+class TestCourseStatusMatchesStatusCsv(TempCase):
+    """Cold TA run 7: a student in `appeal` read `graded` in the course gradebook, while
+    grade.py wrote `appeal` for the same row on a single-part project."""
+
+    def make_parts(self, weights):
+        return self.write_json("parts.json",
+                               {"parts": [{"name": n, "weight": w} for n, w in weights]})
+
+    def make_part_book(self, filename, rows):
+        lines = [PART_HEADER]
+        for sid, status, hidden in rows:
+            lines.append(f'{sid},{status},0,1,"3",{hidden},,,,,""')
+        return self.write(filename, "\n".join(lines) + "\n")
+
+    def combine(self):
+        _, out, _ = run_tool("combine_parts.py", "--parts", self.path("parts.json"),
+                             "--written", self.path("written.csv"),
+                             "--milestone", self.path("milestone.csv"),
+                             self.path("gb1.csv"), self.path("gb2.csv"), expect_ok=True)
+        return parse_csv(out)
+
+    def setUp(self):
+        super().setUp()
+        self.make_parts([("I", 50), ("II", 50)])
+        self.make_written([("ABC123456", 3, 3, 3, ""), ("DEF654321", 3, 3, 3, "")])
+        self.make_milestone([("ABC123456", 1), ("DEF654321", 1)])
+
+    def test_an_appeal_row_is_appeal_not_graded(self):
+        self.make_part_book("gb1.csv", [("ABC123456", "appeal", 70.0)])
+        self.make_part_book("gb2.csv", [("ABC123456", "appeal", 70.0)])
+        row = self.combine()["ABC123456"]
+        self.assertEqual(row["status"], "appeal",
+                         "a student under appeal read `graded` in the course gradebook")
+        self.assertAlmostEqual(float(row["total"]), 100.0, places=2)
+
+    def test_a_graded_row_is_still_graded(self):
+        self.make_part_book("gb1.csv", [("ABC123456", "graded", 70.0)])
+        self.make_part_book("gb2.csv", [("ABC123456", "graded", 70.0)])
+        self.assertEqual(self.combine()["ABC123456"]["status"], "graded")
+
+    def test_an_incomplete_row_is_still_incomplete(self):
+        self.make_part_book("gb1.csv", [("DEF654321", "appeal", 70.0)])
+        self.make_part_book("gb2.csv", [("DEF654321", "incomplete", "")])
+        row = self.combine()["DEF654321"]
+        self.assertEqual(row["status"], "incomplete",
+                         "a row missing a part was carried as an appeal with no total")
+        self.assertEqual(row["total"], "")
+
+
 if __name__ == "__main__":
     unittest.main()
