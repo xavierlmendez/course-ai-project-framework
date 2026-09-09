@@ -10,7 +10,12 @@ Sections are in execution order: Setup, then the gate for your type, then Sanity
       `MODEL=$(python3 -c 'import json;print(json.load(open("project.json"))["base_model"])'); bash scripts/cpu_verify.sh   # the tooltest function; expect 5/5 at num_ctx 32768`
 - [ ] The harness's provider timeouts exceed `regeneration_timeout_s`. The runner writes OpenCode's `headerTimeout` and `chunkTimeout` from it; confirm they are in the generated `opencode.json` and that no slot dies at exactly 300 s.
 - [ ] Ledger server running and reachable from inside the sandbox; the published resource served from it with the nonce visible.
-- [ ] **On Linux: the model server is reachable from inside the sandbox.** Ollama binds 127.0.0.1 by default, so the container cannot reach `host.docker.internal:11434` even though `--verify-slots` (which dials from the host side) says ok, and every slot then fails after about a minute with OpenCode's "Cannot connect to API". Set `OLLAMA_HOST=0.0.0.0` for the ollama service (systemd override) and restart it; on Docker Desktop this is automatic. `--verify-slots` and every sandboxed batch probe from inside the sandbox and stop with that sentence.
+- [ ] **On a Linux grading box: install and open up the model server, then build and test the sandbox.** Four commands, in this order; Docker Desktop on macOS needs only the pull and the build.
+      `curl -fsSL https://ollama.com/install.sh | sh`
+      `sudo mkdir -p /etc/systemd/system/ollama.service.d && printf '[Service]\nEnvironment="OLLAMA_HOST=0.0.0.0"\n' | sudo tee /etc/systemd/system/ollama.service.d/override.conf && sudo systemctl daemon-reload && sudo systemctl restart ollama`
+      `ollama pull qwen3:14b   # or the project's base_model`
+      `docker build -t harness-sandbox tools/sandbox/ && python3 -m unittest tests.test_sandbox   # 11 tests, about 25 s`
+- [ ] **On Linux: the model server is reachable from inside the sandbox.** Ollama binds 127.0.0.1 by default, so the container cannot reach `host.docker.internal:11434` even though a host-side dial says ok, and every slot then fails after about a minute with OpenCode's "Cannot connect to API". The `OLLAMA_HOST=0.0.0.0` override above is the fix; on Docker Desktop it is automatic. `--verify-slots` now also probes the model server from inside the sandbox and names this fix if that probe fails, and every sandboxed batch does the same.
       `docker run --rm --add-host host.docker.internal:host-gateway --entrypoint curl harness-sandbox -s -m 5 http://host.docker.internal:11434/api/tags`
 - [ ] Hidden tests in `tests/hidden/<category>/`, weights in `project.json`, twist categories summing to half the hidden weight. Variant projects generate them instead: see **Per-student variants**.
 - [ ] A canonical solution exists in `canonical/` (the textbook problem, twist ignored). It is what proves the twist is load-bearing.
@@ -47,6 +52,8 @@ The reference specification is written by the professor within the same caps stu
       `python3 tools/runner.py --project project.json --submission calibration/spec-only --out runs-calibration --run-tag calibration`
 - [ ] **At least one of the K runs passes every hidden test, including the graduate category.** If not: simplify the twist or clarify the resource. Do not weaken the tests to fit the model.
 - [ ] Ledger shows K entries with run tags `calibration-k1..k3` and the correct nonce.
+- [ ] **The ledger's run-tag column reads the calibration tag, not `practice`.** The runner passes `RUN_TAG` into the harness environment and the resource page's ledger line reads `run_tag=${RUN_TAG:-practice}`, so a row tagged `practice` after a calibration run means the harness's shell never saw `RUN_TAG` — seen once on a GPU run, cause not yet established, so check it every time rather than assuming it is fixed. It matters because the TA's Type B ledger check (runbook Day 1 evening step 5) greps the run-tag column for `grading-k<N>`: a batch whose entries all say `practice` reports every student as having no ledger entry. If you see it, report it to the framework maintainers with the run record.
+      `awk -F'\t' '{print $3}' <the ledger> | sort | uniq -c`
 - [ ] Wall-clock time of the slowest passing run recorded; it sets `regeneration_timeout_s` (see **Record**).
 
 ## Per-student variants (variant projects only)

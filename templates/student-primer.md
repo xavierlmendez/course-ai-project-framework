@@ -49,7 +49,11 @@ ollama run "$MODEL"       # a quick chat to confirm it works; /bye to exit
 
 Do **not** edit `ollama_host`. It describes the grading run, not yours. Setting the `OLLAMA_HOST` environment variable does **not** redirect OpenCode either: OpenCode reaches Ollama through `options.baseURL` in `opencode.json` and nothing else (https://opencode.ai/docs/providers). If you run `opencode` by hand rather than through the runner, set that `baseURL` yourself, with the `/v1` suffix.
 
-The model needs about 9 GB of RAM at Ollama's default context, and about 15 GB at the 32,768-token context the course uses (`num_ctx` in `project.json`; the agent loop's tool definitions do not fit in the 4,096-token default). A 16 GB laptop will swap. If yours does, the course server is the answer.
+**What your machine needs.** The weights are about 9 GB on disk. Running, at the 32,768-token context the course uses (`num_ctx` in `project.json`; the agent loop's tool definitions do not fit in the 4,096-token default), the model occupies **about 10 GB of GPU memory, or of RAM if there is no GPU** — measured on 9 September 2026 on the course's reference grading box, an NVIDIA A10G. What that means for you:
+
+- **A laptop GPU with 12 GB or more, or an Apple-silicon Mac with 16 GB or more of unified memory:** a practice slot takes **minutes**. This is the comfortable case.
+- **A CPU-only machine:** it works and the result is just as valid, but a practice slot takes **30 to 90 minutes**. Start one and go and do something else; do not conclude your specification is broken because nothing has happened in ten minutes.
+- **Less memory than that:** the machine will swap, and a slot may never finish. Use the shared course server instead (`ollama_host_local`, above). That is what it is for.
 
 Model tags and sizes: https://ollama.com/library. CLI reference: https://docs.ollama.com/cli.
 
@@ -124,6 +128,20 @@ python3 tools/ledger_server.py --project project.json
 ```
 
 It takes the resource directory, ledger file, nonce and port from `project.json`, and prints the nonce it serves. If your copy sits inside a git checkout, add `--allow-in-repo`: the server refuses a ledger path inside a repository so that a real ledger of student IDs is never one `git add .` from being committed, and a practice ledger is throwaway.
+
+### The slot models, and why you must not point the harness at plain `qwen3:14b`
+
+`--create-slots` (which `--practice` runs for you) writes three small models of its own, one per temperature slot, and the grading run uses the same kind. They appear in `ollama list` as **`ref-<project>-slot1`, `slot2`, `slot3`**. They are layers over the base model, not copies: they take essentially no extra disk, they share the base weights, and `ollama rm ref-<project>-slot1` removes one whenever you want the list tidy again.
+
+Each one carries a template that **disables `qwen3`'s thinking mode**, and that is the whole reason they exist besides the seed and the temperature. With thinking on, the model narrates its plan and then ends its turn having called no tool at all: nothing is fetched, nothing is written, and the run is a wasted half hour. So run the harness against a slot model — which is what the runner does — and **never against plain `ollama/qwen3:14b`**. If you run `opencode` by hand and see a long, thoughtful answer about what it is going to do, followed by no files, that is this, not your specification.
+
+### What a practice run looks like when it works
+
+- Several **tool calls** go by in the output: `read` (your `SPEC.md`), `webfetch` (the course page), `write` (the program), `bash` (running it).
+- A **ledger line** appears on the course page's server — the terminal running `ledger_server.py` shows it.
+- The **entry point exists** afterwards, at `runs/<dir name>/practice-k1-work/<the entry named in project.json>`.
+
+And when it does not: the runner exits `1` with a one-sentence reason (that is an environment problem — the model server, docker, the disk — not your grade), or it finishes and the record `runs/<dir name>/practice-k1.json` says `"entry_present": false`, meaning the harness ran and produced no program. `entry_present: false` on every slot is a setup problem to ask about; on one slot it is the ordinary bad luck best-of-three exists for.
 
 ### What the harness can do
 
