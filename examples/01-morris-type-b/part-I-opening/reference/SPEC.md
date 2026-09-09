@@ -49,8 +49,11 @@ A module-level counter `positions_evaluated = 0`.
 6. The static estimation for the opening is exactly `count('W') - count('B')`; no extra terms.
 7. `depth` is read from `sys.argv[3]` and converted to int; depth 1 means White's move followed immediately by static estimation of each child.
 8. Read the board from `sys.argv[1]` with `.strip()`. Write the chosen board to `sys.argv[2]` as one line. The output file must exist after the program exits.
-9. Print exactly three lines, in this format, each ending with a period where shown:
-   `Board Position: <board>` / `Positions evaluated by static estimation: <N>.` / `MINIMAX estimate: <V>.`
+9. Print exactly three lines. The first line has **no** trailing period; the second and third end with a period:
+   `Board Position: <board>`
+   `Positions evaluated by static estimation: <N>.`
+   `MINIMAX estimate: <V>.`
+   Printing `Board Position: <board>.` (with a period) fails every test.
 10. Do not read any file other than `sys.argv[1]`. Do not import anything outside the standard library. One file only.
 
 ## CLI
