@@ -509,6 +509,9 @@ def docker_base(p, workdir, extra_env=None, network=True, tests_dir=None, name=N
         cmd += ["--network", "none"]
     for k, v in (extra_env or {}).items():
         cmd += ["-e", f"{k}={v}"]
+    # The entrypoint runs the harness as the host user's uid so its output files are
+    # writable and owned sensibly on a Linux host (see entrypoint.sh, regenerate).
+    cmd += ["-e", f"HOST_UID={os.getuid()}", "-e", f"HOST_GID={os.getgid()}"]
     cmd += ["--memory", p.get("sandbox_memory", "2g"), "--pids-limit", "256", p["sandbox_image"]]
     return cmd
 

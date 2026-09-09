@@ -16,7 +16,7 @@ from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools"))
-from helpers import TempCase, run_tool, parse_csv  # noqa: E402
+from helpers import TempCase, run_tool, parse_csv, ROOT  # noqa: E402
 import ledger_server  # noqa: E402
 import milestone  # noqa: E402
 import runner  # noqa: E402
@@ -258,3 +258,20 @@ class TestDefaultOutIsPerProject(TypeACase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSandboxRunsAsHostUser(TempCase):
+    """On a Linux host the bind-mounted work directory belongs to the host user, and the
+    image's `runner` (uid 1001) could not write into it (g5.xlarge, 2026-09-09). The
+    runner tells the entrypoint which uid to adopt."""
+
+    def test_docker_command_carries_host_uid_and_gid(self):
+        p = {"ollama_host": "http://host.docker.internal:11434", "resource_host": "host.docker.internal",
+             "resource_port": 8080, "sandbox_image": "harness-sandbox"}
+        cmd = runner.docker_base(p, self.dir, extra_env={"RUN_TAG": "t"})
+        self.assertIn(f"HOST_UID={os.getuid()}", cmd)
+        self.assertIn(f"HOST_GID={os.getgid()}", cmd)
+
+    def test_entrypoint_adopts_the_host_uid(self):
+        text = open(os.path.join(ROOT, "tools", "sandbox", "entrypoint.sh")).read()
+        self.assertIn('usermod -u "$HOST_UID" runner', text)
