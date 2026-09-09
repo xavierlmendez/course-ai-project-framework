@@ -171,7 +171,7 @@
   "claim": "Step order requires seeds.secret.json before the checklist mentions creating it.",
   "evidence": "L8 `--create-slots` (runner.py:72 exits \"seeds file missing\"); seeds first appear at L33 under Lock. L10 \"twist categories summing to half the hidden weight\" vs tools/README.md:54 \"half of all non-grad weights\".",
   "failure": "A professor working top-down stops at Setup or invents seeds; two readers apply different twist-weight rules.",
-  "reproduction": "1. Ordering. Copied a real project.json into a clean dir and ran the Setup step verbatim:\n\n  cd /tmp/j11 && cp .../examples/01-morris-type-b/part-I/project.json .\n  python3 tools/runner.py --project project.json --create-slots\n\nOutput:\n  seeds file missing: /private/tmp/j11/seeds.secret.json (create {\"seeds\": [s1, s2, s3]}; keep it secret until grades are out)\n  EXIT=1\n\nSource: /Users/xaviermendez\u2026",
+  "reproduction": "1. Ordering. Copied a real project.json into a clean dir and ran the Setup step verbatim:\n\n  cd /tmp/j11 && cp .../examples/01-morris-type-b/part-I/project.json .\n  python3 tools/runner.py --project project.json --create-slots\n\nOutput:\n  seeds file missing: /private/tmp/j11/seeds.secret.json (create {\"seeds\": [s1, s2, s3]}; keep it secret until grades are out)\n  EXIT=1\n\nSource: ~\u2026",
   "reason": "verifier did not run (matters)"
  },
  {
