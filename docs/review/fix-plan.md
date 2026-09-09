@@ -136,6 +136,7 @@ now drops privileges by default whenever it is root, so the safe path is the def
 | 3.3 | `docs/rubric-sharpen` | A mechanical decision rule per band plus one worked example from the shipped submissions (decision 12) | 3.1 | F-44 addressed; two fresh-context graders score the same sample within one point |
 | 3.4 ✅ | `docs/cold-run-4-fixes` | cold-run 4 fixes | 3.1 | The defects the fourth cold TA run found are fixed in the runbook, the handouts and `tools/README.md` |
 | 3.5 ✅ | `docs/cold-run-5-fixes` | cold-run 5 fixes (fan-out, runbook) | 3.4 | The fifth cold TA run's defects are fixed: the grading directory is a copy outside any checkout, every server command takes its port from `resource_port`, `{{PROJECT_JSON}}` is defined once, the fan-out and the course-level pre-scan are Day 1 steps, the readiness check flags `never completed` and `missing:` notes, Type A appeals need no milestone precondition, and the rehearsal note carries the six things a rehearsal needs |
+| 3.6 ✅ | cold-run 6 fixes | single-part course pre-scan; Type B ledger check after the batch; dry-run-safe retry count; real loops for the batch commands; rehearsal note rewritten; record `tests` block documented; per-part `_records` columns | seventh cold TA run is the next check |
 
 ### Phase 4 — A student can reach the milestone from the handout and primer · **exit criterion not yet met** — cold runs 4 and 5 (TA) and walks 1 and 2 (student) each found defects, all fixed; a sixth cold TA run and third student walk are the next check · exit when: a fresh-context agent does so · decider: Xavier
 
@@ -169,6 +170,7 @@ is a runbook step against the institution's tool. 5.5 the twist-half rule is enf
 | Slice | Branch | Change | Done when |
 |---|---|---|---|
 | 5.6 ✅ | `fix/runner-opencode` | Reference model `qwen3:14b` (D-006, sixth harness criterion); OpenCode's 300 s `headerTimeout`/`chunkTimeout` lifted to the regeneration budget; the work directory named to OpenCode via `--dir` and `PWD`; `num_ctx` pinned in every slot Modelfile | evidence in `docs/review/evidence/harness-tool-calling.md`; tests in `tests/test_phase3_defects.py` |
+| 5.7 ✅ | `feat/no-think-template` | slot Modelfiles carry the base template patched to disable qwen3's thinking mode (D-007 accepted); a full Type B regeneration completed on the R620 (nine tool calls, program written, ledger signed) | `tests/test_no_think.py`; `docs/review/evidence/cpu-run/night6-*` |
 | 4.4 ✅ | Phase 4b | Type B milestone requires the harness record that produced the code and `check` verifies it; `ollama` CLI calls and the no-sandbox OpenCode baseURL use the host-side model server; missing binaries and unreachable servers give one-sentence errors; dry-run records are `*.dry.json`; handouts define `<your dir>`, drop hard-coded IDs, and the primer is runnable via `$MODEL` | 38 tests in `tests/test_phase4_defects.py`; second cold student walk |
 
 **Slices 5.4a–d result (2026-09-08).** One commit on `feat/example-01-eight-programs`. Example 01 is
