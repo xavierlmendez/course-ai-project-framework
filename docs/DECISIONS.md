@@ -155,16 +155,15 @@ and **not** fixed: in one GPU run the harness signed the ledger with `practice` 
 tag it was given, so the calibration checklist now requires the ledger's run-tag column to be checked
 after a calibration run.
 
-## D-009 — Calibration gate result and the model choice for grading (2026-09-09, open)
+## D-009 — Calibration gate result and the model choice for grading · 2026-09-09 · status: open (the professor decides)
 
-**Result.** On an A10G, the example 01 reference specification clears the gate with `qwen3:14b`
-(thinking off) and with `qwen3-coder:30b`, each in one slot of three. Evidence:
-`docs/review/evidence/harness-tool-calling.md`, "Calibration on a GPU".
+**Result.** The gate was run over all eight programs of example 01 on an A10G, K=3, sandbox on:
+**both candidate models clear every program.** Full table and the six defects the gate caught:
+`docs/review/calibration-2026-09-09.md`; raw records under `docs/review/evidence/gpu-run/`.
 
-**Choice for the professor.** `qwen3:14b` stays the reference instance because it fits a
-12 GB laptop GPU or a 16 GB Apple-silicon Mac, so students can practise locally. A course whose
-students all use the course server may prefer `qwen3-coder:30b`: it needs 21 GB of GPU memory,
-has no thinking mode to disable (`"thinking": "default"`), and grades about five times faster
-(7 minutes for three slots against 33). Whichever is chosen must be pinned before seeds are
-issued and the gate re-run on the grading box.
-
+**The choice.** `qwen3:14b` stays the reference instance in the shipped `project.json` files because
+it needs about 10 GB and therefore runs on a 12 GB laptop GPU or a 16 GB Apple-silicon Mac, so a
+student can practise locally. `qwen3-coder:30b` needs 21 GB, has no thinking mode to disable
+(`"thinking": "default"`), and grades roughly six times faster (median slot 33 s against 211 s); it
+suits a course whose students all use the shared server. Whichever is chosen must be pinned before
+seeds are issued, and the gate re-run on the machine that will grade.
