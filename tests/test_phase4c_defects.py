@@ -16,7 +16,7 @@ from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools"))
-from helpers import TempCase, run_tool, parse_csv  # noqa: E402
+from helpers import TempCase, run_tool, parse_csv, ROOT  # noqa: E402
 import ledger_server  # noqa: E402
 import milestone  # noqa: E402
 import runner  # noqa: E402
@@ -258,3 +258,71 @@ class TestDefaultOutIsPerProject(TypeACase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestSandboxRunsAsHostUser(TempCase):
+    """On a Linux host the bind-mounted work directory belongs to the host user, and the
+    image's `runner` (uid 1001) could not write into it (g5.xlarge, 2026-09-09). The
+    runner tells the entrypoint which uid to adopt."""
+
+    def test_docker_command_carries_host_uid_and_gid(self):
+        p = {"ollama_host": "http://host.docker.internal:11434", "resource_host": "host.docker.internal",
+             "resource_port": 8080, "sandbox_image": "harness-sandbox"}
+        cmd = runner.docker_base(p, self.dir, extra_env={"RUN_TAG": "t"})
+        self.assertIn(f"HOST_UID={os.getuid()}", cmd)
+        self.assertIn(f"HOST_GID={os.getgid()}", cmd)
+
+    def test_entrypoint_adopts_the_host_uid(self):
+        text = open(os.path.join(ROOT, "tools", "sandbox", "entrypoint.sh")).read()
+        self.assertIn('usermod -u "$HOST_UID" runner', text)
+
+
+class TestStaleContainerIsRemoved(TempCase):
+    """An interrupted batch can leave a container carrying the name the next run wants;
+    docker then exits 125 with a name conflict (g5.xlarge, 2026-09-09)."""
+
+    def test_regenerate_removes_a_stale_container_of_the_same_name(self):
+        p = {"slot_prefix": "ref-x-slot", "temperatures": [0.2], "ollama_host": "http://host.docker.internal:11434",
+             "resource_host": "host.docker.internal", "resource_port": 8080, "sandbox_image": "harness-sandbox",
+             "regeneration_timeout_s": 60, "entry": "solve.py", "spec": "SPEC.md", "name": "x",
+             "data_files": [], "code_ext": [".py"], "wrapper_prompt": "go {entry} {spec}"}
+        sub = self.path("submissions", "ABC123456", "SPEC.md"); open(sub, "w").write("build it")
+        work = self.path("runs", "ABC123456", "t-k1-work"); os.makedirs(work, exist_ok=True)
+        calls = []
+        real_run = runner.subprocess.run
+
+        def fake_run(cmd, *a, **k):
+            calls.append(cmd)
+            return real_run(["true"], capture_output=True)
+
+        with mock.patch.object(runner, "sh", lambda *a, **k: (1, "", "", 0.1)), \
+             mock.patch.object(runner, "prepare_workdir", lambda *a, **k: None), \
+             mock.patch.object(runner.subprocess, "run", fake_run):
+            try:
+                runner.regenerate(p, os.path.dirname(sub), work, 1, 7, "t", sandbox=True, dry=False)
+            except Exception:
+                pass
+        self.assertTrue(any(c[:3] == ["docker", "rm", "-f"] for c in calls), calls)
+
+
+class TestFullHarnessLogIsKept(TempCase):
+    """The record keeps a 3,000-character tail; an appeal or a calibration failure needs the
+    whole event stream, so the runner writes it beside the work directory."""
+
+    def test_stream_is_written_beside_the_work_dir(self):
+        p = {"slot_prefix": "ref-x-slot", "temperatures": [0.2], "ollama_host": "http://127.0.0.1:11434",
+             "regeneration_timeout_s": 60, "entry": "solve.py", "spec": "SPEC.md", "name": "x",
+             "data_files": [], "code_ext": [".py"], "wrapper_prompt": "go {entry} {spec}"}
+        sub = self.path("submissions", "ABC123456", "SPEC.md"); open(sub, "w").write("build it")
+        work = self.path("runs", "ABC123456", "t-k1-work"); os.makedirs(work, exist_ok=True)
+        stream = '{"type":"tool","part":{"tool":"read"}}\n' * 200
+        with mock.patch.object(runner, "sh", lambda *a, **k: (0, stream, "warn", 1.0)), \
+             mock.patch.object(runner, "prepare_workdir", lambda *a, **k: None):
+            try:
+                runner.regenerate(p, os.path.dirname(sub), work, 1, 7, "t", sandbox=False, dry=False)
+            except Exception:
+                pass
+        log = work + ".harness.jsonl"
+        self.assertTrue(os.path.exists(log))
+        self.assertIn(stream[-100:], open(log).read())
+        self.assertIn("--- stderr ---", open(log).read())

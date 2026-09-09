@@ -545,6 +545,9 @@ def docker_base(p, workdir, extra_env=None, network=True, tests_dir=None, name=N
         cmd += ["--network", "none"]
     for k, v in (extra_env or {}).items():
         cmd += ["-e", f"{k}={v}"]
+    # The entrypoint runs the harness as the host user's uid so its output files are
+    # writable and owned sensibly on a Linux host (see entrypoint.sh, regenerate).
+    cmd += ["-e", f"HOST_UID={os.getuid()}", "-e", f"HOST_GID={os.getgid()}"]
     cmd += ["--memory", p.get("sandbox_memory", "2g"), "--pids-limit", "256", p["sandbox_image"]]
     return cmd
 
@@ -775,6 +778,11 @@ def regenerate(p, sub_dir, workdir, slot, seed, run_tag, sandbox, dry):
     cname = re.sub(r"[^A-Za-z0-9_.-]", "-", cname)[:100]
     if sandbox:
         cmd = docker_base(p, workdir, extra_env=env, network=True, name=cname) + ["regenerate"]
+        if not dry:
+            # A container of this name may survive an interrupted batch; docker then refuses
+            # to start the new one ("Conflict. The container name ... is already in use",
+            # exit 125). Remove it first; the name is ours by construction.
+            subprocess.run(["docker", "rm", "-f", cname], capture_output=True)
         run_env = None
     else:
         # OpenCode 1.18.29 takes its project directory from the PWD variable, not from the
@@ -790,8 +798,19 @@ def regenerate(p, sub_dir, workdir, slot, seed, run_tag, sandbox, dry):
         # Killing the docker client leaves the container and the harness running, holding
         # the model server for the rest of the batch. Kill the container by name.
         subprocess.run(["docker", "kill", cname], capture_output=True)
+    log_path = None
+    if not dry:
+        # The full event stream, beside the work directory: the record keeps only a tail,
+        # and an appeal or a calibration failure needs the whole conversation (which tools
+        # were called, with what, and what the model said).
+        log_path = workdir.rstrip("/") + ".harness.jsonl"
+        with open(log_path, "w") as fh:
+            fh.write(out)
+            if err:
+                fh.write("\n--- stderr ---\n" + err)
     rec = {"harness_exit": code, "timed_out": timed_out, "wall_s": round(wall, 1),
            "harness_stdout_tail": out[-3000:], "harness_stderr_tail": err[-1500:],
+           "harness_log": os.path.basename(log_path) if log_path else None,
            "entry_present": os.path.exists(os.path.join(workdir, p["entry"]))}
     env_err = classify_failure(code, out, err) if not timed_out else None
     if env_err:
