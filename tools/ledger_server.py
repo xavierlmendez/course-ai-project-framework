@@ -14,17 +14,31 @@ ledger entries to a text file. Standard library only.
                                    variant     optional
                                  Returns 200 "ok" or 400 with a plain reason.
 
-The ledger file is never served. Read it on the server.
+The ledger file is never served. Read it on the server. --ledger has no default:
+the file holds student IDs and client addresses, so the operator names its
+location deliberately, and the server refuses to write it inside a repository
+(F-48) unless --allow-in-repo says otherwise.
 
 Usage:
+    ledger_server.py --project project.json [--port 8080] [--base-url URL]
     ledger_server.py --resource DIR --ledger FILE --nonce STRING [--port 8080]
+
+With --project the resource directory, ledger path, nonce and port are read from the
+project, so the nonce lives in exactly one place and the rotation checklist has one thing
+to change. A project without a "nonce" gets a random practice nonce, printed on startup:
+the page it serves and the entries it accepts then agree with each other, which is all a
+practice server needs. For practice inside a checkout, add --allow-in-repo; a practice
+ledger is throwaway.
 """
 import argparse
 import datetime
+import errno
 import http.server
 import json
 import os
 import re
+import secrets
+import sys
 import urllib.parse
 
 ID_RE = re.compile(r"^[A-Z]{3}[0-9]{6}$")
@@ -116,22 +130,79 @@ def make_handler(resource_dir, ledger_path, nonce, base_url):
     return H
 
 
+def enclosing_repository(path):
+    """Return the root of the repository containing path, or None.
+
+    A ledger written inside a working tree is one `git add .` away from
+    committing student IDs and client addresses (F-48), so the caller refuses.
+    """
+    d = os.path.dirname(os.path.abspath(path))
+    while True:
+        if os.path.exists(os.path.join(d, ".git")):
+            return d
+        parent = os.path.dirname(d)
+        if parent == d:
+            return None
+        d = parent
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--resource", required=True)
-    ap.add_argument("--ledger", required=True)
-    ap.add_argument("--nonce", required=True)
-    ap.add_argument("--port", type=int, default=8080)
+    ap.add_argument("--project", help="project.json; supplies resource, ledger, nonce and port")
+    ap.add_argument("--resource")
+    ap.add_argument("--ledger",
+                    help="path to the ledger file; no default, and it may not sit inside a repository")
+    ap.add_argument("--allow-in-repo", action="store_true",
+                    help="permit a ledger path inside a repository working tree (not for grading)")
+    ap.add_argument("--nonce")
+    ap.add_argument("--port", type=int, help="listen port; with --project, defaults to its resource_port")
     ap.add_argument("--bind", default="0.0.0.0")
     ap.add_argument("--base-url", help="absolute URL students/harnesses use to reach this server (substituted for {{BASE_URL}})")
     a = ap.parse_args()
+    if a.project:
+        proj = json.load(open(a.project))
+        pdir = os.path.dirname(os.path.abspath(a.project))
+        a.resource = a.resource or os.path.join(pdir, proj.get("resource_dir", "resource"))
+        a.ledger = a.ledger or os.path.join(pdir, proj.get("ledger", "ledger.tsv"))
+        # A per-semester nonce is a secret the professor sets in the project (or passes
+        # with --nonce). Without one this is a practice server, so mint a random nonce
+        # and print it: the page it serves and the entries it accepts still agree.
+        a.nonce = a.nonce or proj.get("nonce") or ("practice-" + secrets.token_hex(4))
+        if a.port is None:
+            a.port = proj.get("resource_port", 8080)
+    missing = [n for n in ("resource", "ledger", "nonce") if not getattr(a, n)]
+    if missing:
+        ap.error("missing " + ", ".join("--" + m for m in missing)
+                 + " (or pass --project project.json, which supplies all three)")
+    if a.port is None:
+        a.port = 8080
     base_url = (a.base_url or f"http://localhost:{a.port}").rstrip("/")
+    repo = enclosing_repository(a.ledger)
+    if repo and not a.allow_in_repo:
+        sys.exit(
+            f"refusing to write the ledger inside a repository: {os.path.abspath(a.ledger)}\n"
+            f"  the working tree at {repo} contains a .git; ledger entries carry student IDs and\n"
+            "  client addresses, and one `git add .` would commit them. Point --ledger at a path\n"
+            "  outside any checkout (or pass --allow-in-repo if you accept the risk).")
     if not os.path.exists(a.ledger):
         with open(a.ledger, "w") as fh:
             fh.write(f"# ledger\tnonce={a.nonce}\tstarted={datetime.datetime.now(datetime.timezone.utc).date()}\n")
             fh.write("# utc_timestamp\tstudent_ids\trun_tag\tvariant\tclient\n")
-    srv = http.server.ThreadingHTTPServer((a.bind, a.port), make_handler(os.path.abspath(a.resource), a.ledger, a.nonce, base_url))
-    print(f"serving {a.resource} on :{a.port}; ledger -> {a.ledger}")
+    try:
+        srv = http.server.ThreadingHTTPServer(
+            (a.bind, a.port), make_handler(os.path.abspath(a.resource), a.ledger, a.nonce, base_url))
+    except OSError as e:
+        # EADDRINUSE is 48 on macOS and 98 on Linux; the operator saw a raw traceback.
+        if e.errno not in (errno.EADDRINUSE, 48, 98):
+            raise
+        sys.exit(f"port {a.port} is already in use: another resource server is probably "
+                 "still running (stop it, or pass --port to use another port)")
+    # Both paths normalised. A part's `"ledger": "../ledger.tsv"` printed as
+    # `…/part-I-opening/../ledger.tsv`, which the TA then could not match against the
+    # runbook's LEDGER= snippet — the same file, spelled two ways.
+    print(f"serving {os.path.normpath(os.path.abspath(a.resource))} on :{a.port}; "
+          f"ledger -> {os.path.normpath(os.path.abspath(a.ledger))}; nonce {a.nonce}",
+          flush=True)
     srv.serve_forever()
 
 

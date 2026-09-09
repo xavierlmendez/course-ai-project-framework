@@ -1,0 +1,17 @@
+[04:12:54] == host: 16 cpus, 32 GB; ollama 0.33.3; opencode 1.18.29
+[04:12:54] == 1. tool calling, qwen2.5-coder:14b
+[04:13:56] tooltest qwen2.5-coder:14b num_ctx=4096 -> 0/5 structured tool calls
+[04:15:08] tooltest qwen2.5-coder:14b num_ctx=32768 -> 0/5 structured tool calls
+[04:15:08] == 2. skipped: qwen2.5-coder:14b calls tools at 32k
+[04:15:08] == 3. real regeneration (agent loop, no sandbox) with qwen2.5-coder:14b at num_ctx 32768
+slots ready. Do not commit seeds.secret.json.
+1 submissions, type B, sandbox=OFF, out=/tmp/runs
+  ABC123456 k1: temperature=0.2 tag=cpu-k1
+done
+[04:15:14] regeneration wall: 4s
+[04:15:14] == done
+[04:22:59] == night1: fallback model
+success [K[?25h[?2026l
+[04:28:00] tooltest qwen3:14b num_ctx=32768 -> 5/5 structured tool calls
+qwen3:14b eval_count=91 tok_per_s=3.75
+[04:28:27] == night1: OpenCode diagnosis

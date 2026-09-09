@@ -16,14 +16,30 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOOLS = os.path.join(ROOT, "tools")
 
 
+FIXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
+
+
 def tool(name):
     return os.path.join(TOOLS, name)
 
 
-def run_tool(name, *args, stdin=None, expect_ok=None):
-    """Run a tool and return (returncode, stdout, stderr)."""
+def qwen3_template():
+    """The stock qwen3:14b chat template, as `ollama show --template` prints it."""
+    with open(os.path.join(FIXTURES, "qwen3-template.txt")) as fh:
+        return fh.read()
+
+
+def run_tool(name, *args, stdin=None, expect_ok=None, env_path=None):
+    """Run a tool and return (returncode, stdout, stderr).
+
+    env_path replaces PATH in the child's environment, so a test can run a tool on a
+    machine where a binary it needs is not installed (env_path="" finds nothing).
+    """
+    env = None
+    if env_path is not None:
+        env = dict(os.environ, PATH=env_path)
     p = subprocess.run([sys.executable, tool(name), *[str(a) for a in args]],
-                       capture_output=True, text=True, input=stdin, timeout=300)
+                       capture_output=True, text=True, input=stdin, timeout=300, env=env)
     if expect_ok is True and p.returncode != 0:
         raise AssertionError(f"{name} failed ({p.returncode}):\n{p.stderr}")
     return p.returncode, p.stdout, p.stderr

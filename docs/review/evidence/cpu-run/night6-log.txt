@@ -1,0 +1,9 @@
+05:29:36 EXP1 start: capture proxy run
+05:29:40 proxy up, tags bytes=4568
+05:29:40 opencode run start
+05:41:43 opencode run done rc=0 wall=723s
+06:13:13 EXP4b start: OpenCode with ref-q3-nothink
+06:40:53 EXP4b done rc=0 wall=1660s
+06:42:06 EXP4c ledger server http=200 page_bytes=5580
+06:42:06 EXP4c opencode start
+08:12:07 EXP4c done rc=124 wall=5400s file=YES

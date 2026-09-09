@@ -1,0 +1,21 @@
+# from engineering-standards @ 1b9616e — generic hooks only: this repo is standard library
+# only (decision 20), so there is no ruff, no uv, and no formatter hook.
+# Source: pre-commit.com hook definitions, pre-commit/pre-commit-hooks README.
+repos:
+  - repo: https://github.com/pre-commit/pre-commit-hooks
+    rev: v5.0.0
+    hooks:
+      - id: trailing-whitespace
+      - id: end-of-file-fixer
+      - id: check-yaml
+      - id: check-added-large-files
+        args: ["--maxkb=1024"]
+
+  - repo: local
+    hooks:
+      - id: no-secret-seeds
+        name: no seeds.secret files staged
+        entry: bash -c 'files="$@"; hits=$(printf "%s\n" $files | grep -i "seeds\.secret" || true); if [ -n "$hits" ]; then echo "$hits"; echo "refusing to commit a secret seed file"; exit 1; fi' --
+        language: system
+        pass_filenames: true
+        always_run: false

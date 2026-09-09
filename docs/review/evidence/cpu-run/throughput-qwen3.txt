@@ -1,0 +1,1 @@
+qwen3:14b eval_count=91 tok_per_s=3.75

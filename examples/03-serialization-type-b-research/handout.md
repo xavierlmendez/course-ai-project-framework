@@ -8,13 +8,23 @@ Write a specification that makes the reference harness produce `solve.py`, an en
 
 The full task, including the rules that differ from standard bencoding, is at:
 
-**http://localhost:8080/** (from inside the grading sandbox: `http://host.docker.internal:8080/`)
+**http://localhost:8082/** (from inside the grading sandbox: `http://host.docker.internal:8082/`). 8082 is this project's `resource_port`.
+
+To practise at home, start that server yourself from the root of the course repository:
+
+```
+python3 tools/ledger_server.py --project examples/03-serialization-type-b-research/project.json --allow-in-repo
+```
+
+It listens on the project's `resource_port`, prints the nonce it is serving, and writes `examples/03-serialization-type-b-research/ledger.tsv`. `--allow-in-repo` is needed only because that path is inside a checkout: the server refuses by default so that a real ledger of student IDs is never one `git add .` from being committed, and a practice ledger is throwaway. That is your own ledger; the graded one is the course server your instructor announces.
 
 It links a snapshot of the external specification. Use the snapshot; the live page is not reachable from the sandbox.
 
 Your harness must fetch that page. It contains a nonce and a ledger instruction.
 
-**Your specification must tell the agent to sign the course ledger with your student ID (and your partner's, if any) and the nonce from the page.** A specification that does not produce a ledger entry has not specified the task.
+**Your specification must tell the harness to sign the course ledger with your student ID (and your partner's, if any) and the nonce from the page.** A specification that does not produce a ledger entry has not specified the task.
+
+**The ID format is three upper-case letters followed by six digits** — `ABC123456`. That is the only form the ledger accepts; anything else (a lower-case prefix, a different number of digits) is rejected with a message saying so. IDs are upper-cased before they are recorded, so `abc123456` is stored as `ABC123456`. A pair gives both, comma-separated: `ABC123456,DEF654321`. Write the ID into your specification in that form.
 
 We cannot tell whether the page was fetched by your harness or by you with `curl`, and we do not try. The ledger entry is what counts.
 
@@ -22,7 +32,7 @@ We cannot tell whether the page was fetched by your harness or by you with `curl
 
 | | |
 |---|---|
-| Language | Python 3.12, standard library only |
+| Language | Python 3.12 or later, standard library only |
 | Entry point | `solve.py` in the root of the generated solution |
 | Input | one JSON object on stdin: `{"value": V}` |
 | Output | one JSON object on stdout: `{"hex": H}`, nothing else |
@@ -37,11 +47,19 @@ $ echo '{"value": ["spam", "eggs"]}' | python3 solve.py
 
 ## 4. Tests
 
-Public tests are in `tests/public/`. Run them with:
+Public tests are in `examples/03-serialization-type-b-research/tests/public/`. From the root of the course repository:
 
 ```
-python3 tools/run_tests.py --solution <dir> --tests tests/public
+python3 tools/run_tests.py --solution <your dir> \
+  --tests examples/03-serialization-type-b-research/tests/public --entry solve.py --timeout 10 \
+  --project examples/03-serialization-type-b-research/project.json
 ```
+
+`--project` makes your run apply the same equivalence policy per category that grading applies, so a category graded on "equal quality, not equal output" is judged that way here too.
+
+**Two names used throughout this handout.** `<your dir>` is the directory holding your submission files, for example `mywork/`; use its path wherever `<your dir>` appears. `runs/` is where the runner writes: it creates `runs/<dir name>/` beside where you run the command, where `<dir name>` is the **last segment** of `<your dir>` — if your directory is `mywork/`, the runner writes `runs/mywork/` — and every record and working directory named below lives inside it.
+
+`--json` prints **only** the JSON summary; without it the tool prints both the human-readable lines and the JSON.
 
 Hidden categories:
 
@@ -57,31 +75,46 @@ Hidden categories:
 
 ## 5. The reference harness
 
-Your grade comes from **OpenCode with model `qwen2.5-coder:14b`** on Ollama, run by the TAs. Develop with whatever you like; optimizing for another tool is pointless.
+Your grade comes from **OpenCode on Ollama with the model named in `examples/03-serialization-type-b-research/project.json`** (the `base_model` key), run by the TAs. Develop with whatever you like; optimizing for another tool is pointless.
 
-Install guide: see `tools/README.md` in the course repository. A shared Ollama server is at `http://ollama.cs.example.edu:11434` for anyone whose machine cannot run the model.
+Install guide: the [student primer](../../templates/student-primer.md). Read it before the milestone.
 
-Run your specification the way the TAs will:
+**If your machine cannot run the model.** Running Ollama locally needs no edit: the `ollama_host` shipped in `project.json` is the grading container's view of the model server, and a practice run (which uses no sandbox) substitutes `127.0.0.1` for it automatically. To use the course Ollama server your instructor announces, add `"ollama_host_local"` to **your own copy** of `project.json`, set to the server URL as your machine reaches it. Leave `ollama_host` alone — it describes the grading run. Exporting `OLLAMA_HOST` does not redirect OpenCode.
+
+Run your specification the way the TAs will, from the root of the course repository:
 
 ```
-python3 tools/runner.py --project project.json --submission <dir> --run-tag practice --tests tests/public --no-sandbox
+python3 tools/runner.py --project examples/03-serialization-type-b-research/project.json \
+  --submission <your dir> --practice
 ```
 
-(The TA run uses secret seeds and the sandbox; yours uses the same temperatures with seeds of your choosing.)
+`--practice` needs nothing you do not have: it runs outside the grading sandbox, tags the run `practice`, runs the **public** suite, writes `seeds.practice.json` with three seeds of your own (the grading seeds are secret until grades are out), and creates the pinned per-temperature models if your Ollama has none. The TA run differs only in the seeds and the sandbox.
 
 ## 6. What to submit
 
 | File | Cap |
 |---|---|
 | `SPEC.md` | 1,500 words including any supporting files |
-| `PROCESS.md` | 1 page; required, not graded |
-| `WRITTEN.md` | 1 page; graded, see §8 |
+| `PROCESS.md` | 1 page, 600 words; required, not graded |
+| `WRITTEN.md` | 1 page, 600 words; graded, see §8 |
 
 Do **not** submit generated code. It is not graded.
 
 ## 7. Milestone (end of week 1, 10%)
 
-Your specification passes the public suite through the reference harness. Submit the runner's JSON record. Auto-graded pass/fail.
+Your specification passes the public suite through the reference harness. Do the `--practice` run in §5 first — a real run, not a dry run — then build the record from what it wrote:
+
+```
+python3 tools/milestone.py record \
+  --project examples/03-serialization-type-b-research/project.json \
+  --solution runs/<dir name>/practice-k1-work \
+  --regeneration runs/<dir name>/practice-k1.json \
+  --student-id <your student ID>
+```
+
+This is a Type B project, so `--regeneration` is **required** and `--solution` must be that regeneration's own working directory — the `-work` directory beside the record. A record built from anything else, including a dry-run record (named `*.dry.json`), is rejected.
+
+It writes `milestone-bencode-b.json` in the directory you ran it from — the name comes from the `name` key of that `project.json`, so a record for one project can never overwrite another's. Submit `milestone-bencode-b.json`. Auto-graded pass/fail.
 
 ## 8. Grading
 
@@ -106,7 +139,7 @@ Harness choice, model choice, how the page was fetched, the code the harness pro
 
 ## 10. Integrity
 
-Specifications are text and are checked for similarity like code. Pairs submit one directory and both sign the ledger. The twist changes every semester.
+Specifications are text and are treated like code: they are submitted to MOSS, the institution's similarity checker, and anything it flags goes to the professor under the standard misconduct process. Pairs submit one directory and both sign the ledger. The twist changes every semester.
 
 ## 11. Appeals
 

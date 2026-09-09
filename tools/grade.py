@@ -17,6 +17,10 @@ status.csv:    student_id,status,grad,note                  (`grad` is required:
                graduate row, 0 otherwise. A file without the column is rejected, because
                defaulting it silently grades every graduate on the undergraduate bar.)
 
+The `records` column says how many complete records the row was scored from, with the
+incomplete ones in brackets (`3`, `2 (1 never completed)`). `combine_parts.py` carries it
+into the course gradebook as `<part>_records`.
+
 A row is only `graded` when every component it needs is present. A missing written or
 milestone row makes the row `incomplete` with no total, rather than a total that silently
 omits 30 of the 100 points.
@@ -101,6 +105,7 @@ def main():
     p = json.load(open(a.project))
     cats = p["categories"]
     hidden_only = a.hidden_only or bool(p.get("part"))
+    is_type_a = str(p.get("type", "B")).strip().upper() == "A"
     hidden_pts = float(p.get("hidden_points", 70))
     milestone_pts = float(p.get("milestone_points", 10))
     written_pts = float(p.get("written_points", 20))
@@ -108,22 +113,30 @@ def main():
     written = load_csv(a.written)
     milestone = load_csv(a.milestone)
 
+    if not os.path.isdir(a.runs):
+        sys.exit(f"runs directory not found: {a.runs}\n"
+                 f"For a multi-part project, each part has its own runs/ directory. A part "
+                 f"that was never run has none, and it cannot be graded or combined.")
     cat_names = list(cats)
-    header = ["student_id", "status", "grad", "best_slot", "hidden_score"] + \
+    header = ["student_id", "status", "grad", "best_slot", "records", "hidden_score"] + \
              [f"{c}_pass" for c in cat_names] + ["milestone", "written_raw", "written_score", "total", "note"]
-    w = csv.writer(sys.stdout)
+    # \n, not csv's default \r\n: the carriage returns broke every downstream text check.
+    w = csv.writer(sys.stdout, lineterminator="\n")
     w.writerow(header)
 
     ids = sorted(set(os.listdir(a.runs)) | set(status))
     for sid in ids:
         st = status.get(sid, {"status": "graded", "grad": "0", "note": ""})
         grad = str(st.get("grad", "0")).strip() in ("1", "true", "yes", "grad")
-        recs = []
+        recs, all_recs = [], []
         for f in sorted(glob.glob(os.path.join(a.runs, sid, "*.json"))):
+            if f.endswith(".dry.json"):
+                continue          # a --dry-run record is a printed command line, not a run
             try:
                 r = json.load(open(f))
             except Exception:
                 continue
+            all_recs.append(r)
             if r.get("complete"):
                 recs.append(r)
         best, best_frac, best_detail = None, -1.0, {}
@@ -150,11 +163,29 @@ def main():
             have_all = hidden != "" and ms_score != "" and wr_score != ""
             total = round(hidden + ms_score + wr_score, 2) if eligible and have_all else ""
         out_status = st.get("status", "")
+        note = st.get("note", "")
         if eligible and not have_all:
             out_status = "incomplete"
-        row = [sid, out_status, int(grad), best_slot, hidden]
+            why = [n for n, ok in (("hidden", hidden != ""), ("milestone", ms_score != ""),
+                                   ("written", wr_score != "")) if not ok]
+            note = ("missing: " + ", ".join(why) + ("; " + note if note else "")) if why else note
+        incomplete_slots = sum(1 for r in all_recs if not r.get("complete"))
+        if incomplete_slots:
+            # Type A has no slots: the student submits code and it is run once. "1 slot(s)
+            # never completed" invited a TA to look for the other slots and to wonder which
+            # one failed, so a Type A row says what actually happened.
+            why = ("the run never completed" if is_type_a
+                   else f"{incomplete_slots} slot(s) never completed")
+            note = (note + "; " if note else "") + why
+        # How many complete records this row was scored from, and how many never completed.
+        # `combine_parts.py` carries it into the course gradebook as `<part>_records`: a
+        # per-part status column was only ever a copy of the course-level one, and an appeal
+        # scoped to one part appeared to be an appeal on all of them.
+        records = str(len(recs)) + (f" ({incomplete_slots} never completed)"
+                                    if incomplete_slots else "")
+        row = [sid, out_status, int(grad), best_slot, records, hidden]
         row += [f"{best_detail[c][0]}/{best_detail[c][1]}" if c in best_detail else "" for c in cat_names]
-        row += [ms_score, wr_raw, wr_score, total, st.get("note", "")]
+        row += [ms_score, wr_raw, wr_score, total, note]
         w.writerow(row)
 
 

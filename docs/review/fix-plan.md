@@ -127,45 +127,99 @@ The mount now lives inside `/root`, which the graded user cannot traverse. Secon
 on every caller passing `--run-as`; forgetting it silently ran the solution as root. `run_tests.py`
 now drops privileges by default whenever it is root, so the safe path is the default one.
 
-### Phase 3 — A TA can execute the runbook cold · exit when: a fresh-context agent grades example 01 and example 04 from the repo alone · decider: Xavier
+### Phase 3 — A TA can execute the runbook cold · **exit criterion not yet met** — cold runs 4 and 5 (TA) and walks 1 and 2 (student) each found defects, all fixed; a sixth cold TA run and third student walk are the next check · exit when: a fresh-context agent grades example 01 and example 04 from the repo alone · decider: Xavier
 
 | Slice | Branch | Change | Depends on | Done when |
 |---|---|---|---|---|
 | 3.1 | `docs/runbook-rewrite` | Rewrite the runbook against the fixed tools: serve the resource, create slots after seeds arrive, set `graded`, the real time budget, multi-part order, pair and variant naming, ledger gate without the nonce, the page cap in words | Phase 1, Phase 2 | F-19, F-20, F-21, F-22, F-40, F-41, F-42, F-43 addressed; every command runs as written |
 | 3.2 | `feat/milestone-tool` | The runner emits a signed milestone record; a checker validates submitted records and writes `milestone.csv` (decision 11) | 3.1 | F-39 test passes; `milestone.csv` is produced from student records, not typed |
 | 3.3 | `docs/rubric-sharpen` | A mechanical decision rule per band plus one worked example from the shipped submissions (decision 12) | 3.1 | F-44 addressed; two fresh-context graders score the same sample within one point |
+| 3.4 ✅ | `docs/cold-run-4-fixes` | cold-run 4 fixes | 3.1 | The defects the fourth cold TA run found are fixed in the runbook, the handouts and `tools/README.md` |
+| 3.5 ✅ | `docs/cold-run-5-fixes` | cold-run 5 fixes (fan-out, runbook) | 3.4 | The fifth cold TA run's defects are fixed: the grading directory is a copy outside any checkout, every server command takes its port from `resource_port`, `{{PROJECT_JSON}}` is defined once, the fan-out and the course-level pre-scan are Day 1 steps, the readiness check flags `never completed` and `missing:` notes, Type A appeals need no milestone precondition, and the rehearsal note carries the six things a rehearsal needs |
+| 3.6 ✅ | cold-run 6 fixes | single-part course pre-scan; Type B ledger check after the batch; dry-run-safe retry count; real loops for the batch commands; rehearsal note rewritten; record `tests` block documented; per-part `_records` columns | seventh cold TA run is the next check |
 
-### Phase 4 — A student can reach the milestone from the handout and primer · exit when: a fresh-context agent does so · decider: Xavier
+### Phase 4 — A student can reach the milestone from the handout and primer · **exit criterion not yet met** — cold runs 4 and 5 (TA) and walks 1 and 2 (student) each found defects, all fixed; a sixth cold TA run and third student walk are the next check · exit when: a fresh-context agent does so · decider: Xavier
 
 | Slice | Branch | Change | Depends on | Done when |
 |---|---|---|---|---|
 | 4.1 | `fix/student-commands` | One practice command that works without secret seeds or pre-created slots, defaulting to the public suite; fix the shared-server instructions to the setting OpenCode actually honours | Phase 2 | F-29, F-30, F-31 tests pass |
 | 4.2 | `docs/handout-truth` | Fill every placeholder, name only files that exist, link the primer, correct the specification filename, remove the promise of programs that do not exist | 4.1 | F-01, F-28, F-33, F-60 addressed |
 | 4.3 | `docs/primer-corrections` | Remove instructions the sandbox cannot satisfy; make the wrapper text match the project's entry point | 4.1 | F-32 addressed |
+| 4.5 ✅ | `docs/cold-walk-2-fixes` | cold student walk 2 fixes | 4.2 | The student-ID format `XXXNNNNNN` is in every handout and resource page, the `runs/<dir name>/` convention is defined once and used in the milestone commands, `--out milestone.json` is gone (the default names the file per project), the Type B public-test command passes `--project`, and Type A no longer claims to write under `runs/` |
 
-### Phase 5 — The framework's promises match what it ships · exit when: no document promises an unimplemented behaviour · decider: Xavier
-
-| Slice | Branch | Change | Depends on | Done when |
-|---|---|---|---|---|
-| 5.1 | `feat/equivalence-policy` | `policy` in the schema, consumed by the test runner and checked by `review_checks.py`; declared on every category in all four examples | Phase 1 | F-34 test passes; checks report zero policy FAILs |
-| 5.2 | `fix/calibration-gate` | Calibration runs from a directory holding only the specification; add the variants path and the Type A path (decision 21); fix the step ordering that requires seeds before creating them | Phase 1 | F-06, F-38, F-63, F-64 addressed; a gate cannot pass with the solution present |
-| 5.3 | `fix/hybrid-and-similarity` | Demote Hybrid to "not provided" in the options menu, out of settled decisions and the active glossary (decision 5); point similarity detection at the institution's tool with a runbook step (decision 6) | — | F-36, F-37 addressed; no handout promises an absent mechanism |
-| 5.4a | `feat/example-01-game-programs` | Add the Game (midgame/endgame) program to Parts I and II, so both program shapes exist under the established contract (decision 17) | 5.1 | Reference passes; canonical fails twist categories; hopping and capture paths are covered |
-| 5.4b | `feat/example-01-part-iii` | Build Part III, Opening and Game for Black (decision 17) | 5.4a | Same bar; the colour-swap contract is exercised |
-| 5.4c | `feat/example-01-part-iv` | Build Part IV, Opening and Game with the improved estimator, graded on positions where the baseline is weak (decisions 17, 18) | 5.4b | Same bar; a submission that simply copies the baseline estimator fails |
-| 5.5a | `fix/example-01-resource` | Correct the worked example that prints a wrong expected output (F-61), and the same class of error across the other resources | 5.1 | Every worked example reproduces from its reference solution |
-| 5.4c | `fix/example-01-integrity` | Correct the twist weights and claims across all four parts; re-scope Part II's twist category so it tests the board twist rather than textbook pruning, and replace its straw-man canonical | 5.4b | F-26, F-27, F-54 addressed; checks report zero weight FAILs |
-| 5.5 | `fix/twist-weight-enforcement` | Enforce the twist-half rule in `review_checks.py` and state the rule for an all-twist part | 5.4 | F-35 addressed |
-
-### Phase 6 — Records, portfolio, and consistency · exit when: the repo is committed, CI is green, and the site deploys · decider: Xavier
+### Phase 5 — The framework's promises match what it ships · **DONE 2026-09-09** · exit criteria met: every slice merged; `review_checks.py` reports 0 FAIL; the reference model was changed to one that demonstrably drives the harness (D-006) · decider: Xavier
 
 | Slice | Branch | Change | Depends on | Done when |
 |---|---|---|---|---|
-| 6.1 | `chore/repo-standards` | `CLAUDE.md`, `docs/DECISIONS.md` from the existing ADRs, `docs/BACKLOG.md`, CI running the tests and checks, pre-commit | Phase 1 | F-50 addressed; CI green on a PR |
-| 6.2 | `fix/portfolio-ledger` | Volume permissions, redeploy strategy, atomic header write, client address from the socket, align validation with the reference server, decision records | — | F-23, F-51, F-55, F-56 addressed; a deploy dry-run writes an entry |
-| 6.3 | `fix/ledger-server-hardening` | Path containment by real path, ledger default outside any repository, ignore rule | — | F-47, F-48 tests pass |
-| 6.4 | `docs/consistency` | Reconcile stale numbers, the schema documentation, run-tag vocabulary, the artifact, and terminology against `CONTEXT.md` | Phases 1–5 | F-58, F-59 addressed; a fresh-context consistency judge returns PASS |
-| 6.5 | `docs/reproducibility-statement` | State what reproducible means including the machine, and what is not fixed | Phase 2 | F-45 addressed |
+| 5.1 ✅ | `feat/equivalence-policy` | `policy` in the schema, consumed by the test runner and checked by `review_checks.py`; declared on every category in all four examples | Phase 1 | F-34 test passes; checks report zero policy FAILs |
+| 5.2 ✅ | `fix/calibration-gate` | Calibration runs from a directory holding only the specification; add the variants path and the Type A path (decision 21); fix the step ordering that requires seeds before creating them | Phase 1 | F-06, F-38, F-63, F-64 addressed; a gate cannot pass with the solution present |
+| 5.3 ✅ | `fix/hybrid-and-similarity` | Demote Hybrid to "not provided" in the options menu, out of settled decisions and the active glossary (decision 5); point similarity detection at the institution's tool with a runbook step (decision 6) | — | F-36, F-37 addressed; no handout promises an absent mechanism |
+| 5.4a ✅ | `feat/example-01-eight-programs` | Add the Game (midgame/endgame) program to Parts I and II, so both program shapes exist under the established contract (decision 17) | 5.1 | Reference passes; canonical fails twist categories; hopping and capture paths are covered |
+| 5.4b ✅ | `feat/example-01-eight-programs` | Build Part III, Opening and Game for Black (decision 17) | 5.4a | Same bar; the colour-swap contract is exercised |
+| 5.4c ✅ | `feat/example-01-eight-programs` | Build Part IV, Opening and Game with the improved estimator, graded on positions where the baseline is weak (decisions 17, 18) | 5.4b | Same bar; a submission that simply copies the baseline estimator fails |
+| 5.4d ✅ | `feat/example-01-eight-programs` | Correct the twist weights and claims across all four parts; re-scope Part II's twist category so it tests the board twist rather than textbook pruning, and replace its straw-man canonical | 5.4b | F-26, F-27, F-54 addressed; checks report zero weight FAILs |
+| 5.5a ✅ | `fix/example-01-resource` | Correct the worked example that prints a wrong expected output (F-61), and the same class of error across the other resources | 5.1 | Every worked example reproduces from its reference solution |
+| 5.5 ✅ | `fix/twist-weight-enforcement` | Enforce the twist-half rule in `review_checks.py` and state the rule for an all-twist part | 5.4 | F-35 addressed |
+
+**Slices 5.1–5.5 result (2026-09-09).** All merged into `feat/phase-3-ta`. 5.1 `policy` on every
+category, consumed by `run_tests.py --project` and checked by `review_checks.py`. 5.2 the calibration
+gate runs from a directory holding only the specification. 5.3 Hybrid demoted; similarity detection
+is a runbook step against the institution's tool. 5.5 the twist-half rule is enforced, with
+`all_twist` for a part that is entirely twist. Two further slices were added during the night:
+
+| Slice | Branch | Change | Done when |
+|---|---|---|---|
+| 5.6 ✅ | `fix/runner-opencode` | Reference model `qwen3:14b` (D-006, sixth harness criterion); OpenCode's 300 s `headerTimeout`/`chunkTimeout` lifted to the regeneration budget; the work directory named to OpenCode via `--dir` and `PWD`; `num_ctx` pinned in every slot Modelfile | evidence in `docs/review/evidence/harness-tool-calling.md`; tests in `tests/test_phase3_defects.py` |
+| 5.7 ✅ | `feat/no-think-template` | slot Modelfiles carry the base template patched to disable qwen3's thinking mode (D-007 accepted); a full Type B regeneration completed on the R620 (nine tool calls, program written, ledger signed) | `tests/test_no_think.py`; `docs/review/evidence/cpu-run/night6-*` |
+| 4.4 ✅ | Phase 4b | Type B milestone requires the harness record that produced the code and `check` verifies it; `ollama` CLI calls and the no-sandbox OpenCode baseURL use the host-side model server; missing binaries and unreachable servers give one-sentence errors; dry-run records are `*.dry.json`; handouts define `<your dir>`, drop hard-coded IDs, and the primer is runnable via `$MODEL` | 38 tests in `tests/test_phase4_defects.py`; second cold student walk |
+
+**Slices 5.4a–d result (2026-09-08).** One commit on `feat/example-01-eight-programs`. Example 01 is
+now eight program directories — `part-<N>-opening` and `part-<N>-game` for each of the four parts —
+because a project directory carries one `entry`. `parts.json` weights them 22.5/22.5/17.5/17.5/5/5/5/5,
+which is the professor's 45/35/10/10 split evenly within each part. Every program has a reference
+solution, a canonical solution, a `<1,500`-word `reference/SPEC.md`, a generated hidden and public
+suite, a sample submission and a gitignored seeds file, and every category declares a `policy`. All
+eight references reproduce the professor's own recorded outputs in `AISpring26/tests/spec.yaml`
+exactly. Every reference passes every hidden case; every canonical scores under 50% on its twist
+category. Part II's twist category is now `ab_*_mill`, positions where a diagonal-spoke mill decides
+the move under pruning, and its canonical is a fair alpha-beta on the standard board rather than
+minimax-without-pruning. Findings closed: F-26, F-27, F-28, F-54. `review_checks.py --no-network`
+reports zero FAIL rows.
+
+### Phase 6 — Records, portfolio, and consistency · **6.1–6.5 done 2026-09-09** · exit when: the repo is committed, CI is green, and the site deploys · decider: Xavier
+
+| Slice | Branch | Change | Depends on | Done when |
+|---|---|---|---|---|
+| 6.1 ✅ | `chore/repo-standards` | `CLAUDE.md`, `docs/DECISIONS.md` from the existing ADRs, `docs/BACKLOG.md`, CI running the tests and checks, pre-commit | Phase 1 | F-50 addressed; CI green on a PR |
+| 6.2 ✅ | `fix/portfolio-ledger` | Volume permissions, redeploy strategy, atomic header write, client address from the socket, align validation with the reference server, decision records | — | F-23, F-51, F-55, F-56 addressed; a deploy dry-run writes an entry |
+| 6.3 ✅ | `fix/ledger-server-hardening` | Path containment by real path, ledger default outside any repository, ignore rule | — | F-47, F-48 tests pass |
+| 6.4 ✅ | `docs/consistency` | Reconcile stale numbers, the schema documentation, run-tag vocabulary, the artifact, and terminology against `CONTEXT.md` | Phases 1–5 | F-58, F-59 addressed; a fresh-context consistency judge returns PASS |
+| 6.5 ✅ | `docs/reproducibility-statement` | State what reproducible means including the machine, and what is not fixed | Phase 2 | F-45 addressed |
+
+### 6.4 consistency judge (2026-09-09)
+
+**Verdict: PASS.** The living documents were reconciled with each other and with the tools, then
+re-read cold against `tools/*.py` and `tests/`. `CONTEXT.md` now defines every term the documents
+use — Hybrid demoted to *not provided*, the reference harness's **six** criteria, **program** vs
+**part**, milestone, practice run, dry run, run tag, slot, seed, `num_ctx`, equivalence policy,
+all-twist part, `ollama_host` vs `ollama_host_local`, environment failure vs harness error vs
+student failure, circuit breaker, similarity check, ledger (write-only, no nonce stored) and roster.
+`framework.md`, `README.md`, `tools/README.md`, `CONTRIBUTING.md`, the templates, the two published
+artifact pages and the example READMEs and handouts were corrected against them. Verification:
+150 tests OK, `tests.test_handouts` OK, `review_checks.py --no-network` 0 FAIL. F-58 and F-59 are
+closed.
+
+What could **not** be settled here, because each needs a decision from the professor or Xavier
+rather than an edit:
+
+| # | Where | The contradiction | Decides |
+|---|---|---|---|
+| 1 | `examples/01-morris-type-b/part-*/submissions/ABC123456/` vs that example's `handout.md` §6 | The shipped sample carries **eight different** `WRITTEN.md` and `PROCESS.md` files, one per program; the handout says one of each for the whole project, written once and scored once. The runbook now tells the TA to copy the one page into each part directory so the pre-scan finds it, but the fixture still models eight distinct pages. Either collapse the fixture to one page duplicated, or change the handout to one written page per program (which changes what the 20 points mean). | Professor |
+| 2 | `framework.md` §6, `templates/ta-runbook.md` "How long it takes", `docs/BACKLOG.md` BL-02/BL-03 | Both timeouts and the whole grading-day budget are defined as *measured on the grading machine*, and no grading machine has been named or measured. Every wall-clock figure in the documents (20-minute regeneration, 5–10 minutes a run, 16–32 machine-hours, example 01's 30-second test timeout) is therefore an estimate presented as a number. The documents cannot be made true by editing them. | Xavier, then the professor |
+| 3 | `framework.md` §5 · `docs/DECISIONS.md` D-007 | `qwen3`'s thinking mode is left at Ollama's default. It moves `regeneration_timeout_s`, the calibration numbers and the runbook budget whichever way it goes, and it must be pinned before the seeds are created. Recorded open; no document can state a number until it is settled. | Professor |
+| 4 | `templates/handout-type-b.md` §8 and every filled handout, vs the `all_twist` escape in `framework.md` §9 | Student-facing handouts state flatly that the twist categories carry **35** of the 70. That holds only while every program obeys the twist-half rule. A program declared `"all_twist": true` is legal and makes the sentence false, and no template says what to write in its place. | Professor |
+| 5 | `docs/adr/0001-course-owns-execution.md` vs D-006 and `framework.md` §5 | The ADR still names **five** criteria and `qwen2.5-coder:14b`. That is correct behaviour for an append-only record, and D-006 states the supersession, but a reader who opens the ADR first meets the old instance with nothing on the page saying so. Adding a superseded-by banner means editing an append-only record. | Xavier |
+| 6 | `docs/review/artifact-framework.html` vs `framework.md` | The published page is a condensed rendering with its own numbering: its §11 merges the document's §11 and §12, so its §12–§16 are offset by one. Other documents cite "`framework.md` §N", and a reader given only the artifact link cannot follow those citations. Renumbering the page, or labelling it explicitly as a summary with its own sections, is a presentation call. | Xavier |
 
 ## 6. Risks
 

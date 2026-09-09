@@ -72,7 +72,7 @@ footer{border-top:1px solid var(--rule);margin-top:24px;padding-top:16px;font-si
 <section>
   <h2><span class="n">§1</span>Chatbot, model, harness: three different things</h2>
   <div class="three">
-    <div class="card"><b>Model</b><p>The network that turns text into text. <code>qwen2.5-coder:14b</code> is a model. On its own it cannot read a file, run a program, or fetch a page.</p></div>
+    <div class="card"><b>Model</b><p>The network that turns text into text. <code>qwen3:14b</code> is a model. On its own it cannot read a file, run a program, or fetch a page.</p></div>
     <div class="card"><b>Chatbot</b><p>A model behind a text box. You paste, it answers, you paste again. Everything that touches your files goes through your hands.</p></div>
     <div class="card"><b>Harness</b><p>A program that runs a model in a loop with tools: read and write files, run shell commands, fetch URLs, feed results back until done. OpenCode is one. So are Claude Code, Gemini CLI, Codex CLI and Aider.</p></div>
   </div>
@@ -81,7 +81,7 @@ footer{border-top:1px solid var(--rule);margin-top:24px;padding-top:16px;font-si
 
 <section>
   <h2><span class="n">§2</span>What the reference harness is</h2>
-  <p>The course grades with <b>OpenCode</b> running the <b><code>qwen2.5-coder:14b</code></b> model through <b>Ollama</b> on a machine the TAs control. Three consequences:</p>
+  <p>The course grades with <b>OpenCode</b> running the model named in the project's <code>project.json</code> (the <code>base_model</code> key, this semester <b><code>qwen3:14b</code></b>) through <b>Ollama</b> on a machine the TAs control. <code>project.json</code> is the single source of truth: if it disagrees with this page, it wins. Three consequences:</p>
   <ol>
     <li><b>It is free and local.</b> Ollama runs the model on your laptop or on the shared course server. No account, no card.</li>
     <li><b>It is small.</b> A 14-billion-parameter model is far weaker than the frontier chat models you may have used. It follows precise instructions well and guesses badly. A specification that works on a frontier model and fails here has left something unsaid.</li>
@@ -94,18 +94,19 @@ footer{border-top:1px solid var(--rule);margin-top:24px;padding-top:16px;font-si
   <h2><span class="n">§3</span>Install and run it yourself</h2>
   <h3>Ollama and the model</h3>
   <p>Install Ollama from <a href="https://ollama.com/download">ollama.com/download</a> (Linux: <code>curl -fsSL https://ollama.com/install.sh | sh</code>; macOS: open the disk image; Windows: the installer). Then:</p>
-  <pre><code>ollama pull qwen2.5-coder:14b      # about 9 GB on disk
-ollama run qwen2.5-coder:14b       # a quick chat to confirm it works; /bye to exit</code></pre>
-  <p>If your machine cannot run the 14B model (it needs roughly 9 GB of free memory), use the course server and point OpenCode at it:</p>
-  <pre><code>export OLLAMA_HOST=http://&lt;course-server&gt;:11434</code></pre>
-  <p>Model tags and sizes: <a href="https://ollama.com/library/qwen2.5-coder">ollama.com/library/qwen2.5-coder</a>. CLI reference: <a href="https://docs.ollama.com/cli">docs.ollama.com/cli</a>.</p>
+  <pre><code>MODEL=$(python3 -c 'import json;print(json.load(open("project.json"))["base_model"])')   # run from the part directory
+ollama pull "$MODEL"      # about 9 GB on disk
+ollama run "$MODEL"       # a quick chat to confirm it works; /bye to exit</code></pre>
+  <p><b>If your machine cannot run the model.</b> With Ollama on your own machine there is nothing to edit: the <code>ollama_host</code> shipped in <code>project.json</code> is the grading container's view of the model server, and a practice run (no sandbox) substitutes <code>127.0.0.1</code> for it automatically. To use the course server instead, add <code>"ollama_host_local"</code> to your own copy of <code>project.json</code>, set to the server URL as your machine reaches it. Leave <code>ollama_host</code> alone, and note that exporting <code>OLLAMA_HOST</code> does <b>not</b> redirect OpenCode: it reads <code>options.baseURL</code> from <code>opencode.json</code> and nothing else.</p>
+  <p>The course runs the model at a 32,768-token context (<code>num_ctx</code> in <code>project.json</code>), because the agent loop's tool definitions do not fit Ollama's 4,096-token default; at that size the model needs about 15 GB rather than 9, so a 16 GB laptop will swap and the course server is the answer.</p>
+  <p>Model tags and sizes: <a href="https://ollama.com/library/qwen3">ollama.com/library/qwen3</a>. CLI reference: <a href="https://docs.ollama.com/cli">docs.ollama.com/cli</a>.</p>
 
   <h3>OpenCode</h3>
   <p>Install with one of these (<a href="https://opencode.ai/docs">opencode.ai/docs</a>), then check with <code>opencode --version</code>:</p>
   <pre><code>curl -fsSL https://opencode.ai/install | bash
 npm install -g opencode-ai
 brew install anomalyco/tap/opencode</code></pre>
-  <p>In the directory holding your work, create <code>opencode.json</code> so OpenCode talks to Ollama. The shape is from <a href="https://opencode.ai/docs/providers">the providers page</a> with the model changed to ours:</p>
+  <p>The runner writes <code>opencode.json</code> for you, with the model, the base URL and the timeouts already set; the block below is only for running <code>opencode</code> by hand, in the directory holding your work. The shape is from <a href="https://opencode.ai/docs/providers">the providers page</a> with the model changed to ours:</p>
   <pre><code>{
   "$schema": "https://opencode.ai/config.json",
   "provider": {
@@ -113,10 +114,10 @@ brew install anomalyco/tap/opencode</code></pre>
       "npm": "@ai-sdk/openai-compatible",
       "name": "Ollama (local)",
       "options": { "baseURL": "http://localhost:11434/v1" },
-      "models": { "qwen2.5-coder:14b": { "name": "Qwen2.5 Coder 14B" } }
+      "models": { "qwen3:14b": { "name": "Qwen3 14B" } }
     }
   },
-  "model": "ollama/qwen2.5-coder:14b",
+  "model": "ollama/qwen3:14b",
   "share": "disabled"
 }</code></pre>
   <div class="callout warn">
@@ -126,10 +127,16 @@ brew install anomalyco/tap/opencode</code></pre>
 
   <h3>Two ways to run</h3>
   <p><b>Interactive.</b> Run <code>opencode</code> in your project directory. You get a terminal UI; type a request, watch the tools it calls, ask for changes. Useful commands: <code>/models</code> to confirm the model, <code>/undo</code> to revert the last change, <code>/export</code> to save the conversation as Markdown, <code>/sessions</code> to reopen old ones (<a href="https://opencode.ai/docs/tui">TUI docs</a>).</p>
-  <p><b>Non-interactive.</b> This is how the TAs run you. The wrapper sentence is identical for every student; everything else the harness knows comes from <code>SPEC.md</code> and what it fetches.</p>
-  <pre><code>opencode run -m ollama/qwen2.5-coder:14b "Read SPEC.md in the current directory and carry out its instructions exactly. The finished program must be a file named solve.py in the current directory. Do not ask questions; make reasonable choices and finish."</code></pre>
+  <p><b>Non-interactive.</b> This is how the TAs run you. The wrapper sentence is identical for every student in a program, and it names two things from <code>project.json</code>: the specification file (<code>spec</code>) and the entry point the harness must produce (<code>entry</code>) &mdash; read both there rather than assuming <code>solve.py</code>. Everything else the harness knows comes from your specification and what it fetches.</p>
+  <pre><code>opencode run -m "ollama/$MODEL" "Read SPEC.md in the current directory and carry out its instructions exactly. The finished program must be a file named solve.py in the current directory. Do not ask questions; make reasonable choices and finish."</code></pre>
   <p>Run the course runner for the full grading shape, tests included:</p>
-  <pre><code>python3 tools/runner.py --project project.json --submission &lt;your dir&gt; --run-tag practice --no-sandbox</code></pre>
+  <pre><code>python3 tools/runner.py --project project.json --submission &lt;your dir&gt; --practice</code></pre>
+  <p><code>--practice</code> is the only runner command you need. It runs on your machine rather than in the grading sandbox, tags the run <code>practice</code> so it can never be mistaken for a graded one, runs the <b>public</b> suite (you do not have the hidden one), writes <code>seeds.practice.json</code> with three seeds of your own if the secret grading seeds are absent, and creates the pinned per-temperature models if your Ollama has none. Its slot-1 record lands at <code>runs/&lt;your dir&gt;/practice-k1.json</code> and its working directory beside it at <code>runs/&lt;your dir&gt;/practice-k1-work</code>. The milestone is built from those two:</p>
+  <pre><code>python3 tools/milestone.py record --project project.json \
+  --solution runs/&lt;your dir&gt;/practice-k1-work \
+  --regeneration runs/&lt;your dir&gt;/practice-k1.json \
+  --student-id &lt;your student ID&gt; --out milestone.json</code></pre>
+  <p>On a Type B project both flags are required and they must belong together: <code>--regeneration</code> is the record of a <b>real</b> practice run (never a dry run, whose record is named <code>*.dry.json</code>), and <code>--solution</code> must be that run's own working directory. A record built from anything else is rejected. <code>milestone.json</code> is the file you submit. (Type A: <code>--solution</code> is simply the directory you are submitting, and there is no <code>--regeneration</code>.)</p>
 
   <h3>What the harness can do</h3>
   <p>OpenCode's built-in tools (<a href="https://opencode.ai/docs/tools">docs</a>): <code>read</code>, <code>write</code>, <code>edit</code>, <code>bash</code>, <code>glob</code>, <code>grep</code>, <code>webfetch</code>, <code>websearch</code>, and a few more. In the grading run, <code>bash</code>, <code>edit</code> and <code>webfetch</code> are allowed without prompting, and the network is limited to the published resource and the model server. Your specification can say "fetch this URL", "run this command", "create this file", and the harness will. It cannot reach anything else.</p>
@@ -168,11 +175,14 @@ brew install anomalyco/tap/opencode</code></pre>
   <ul>
     <li><b>State the interface contract in full</b>, even though the resource has it. The harness reads your spec first.</li>
     <li><b>Give one worked example</b> with exact input and exact expected output. Small models anchor on examples.</li>
-    <li><b>Tell it to test.</b> "After writing solve.py, run the public tests and fix failures until they pass." The harness can run commands; use that.</li>
+    <li><b>Tell it to check its own work &mdash; against the worked example, not against course tools.</b> The harness runs in a directory holding your specification and nothing else: <code>tools/</code>, <code>tests/public/</code> and the course repository are <em>not</em> there, so "run the public tests" mandates a step that fails during grading and can burn your whole time budget. Say instead: "After writing the program, run it on the worked example from the published resource, compare its output to the expected output character for character, and fix it until they match."</li>
   </ul>
   <div class="callout">
     <span class="eyebrow">The two lines every specification must contain</span>
-    <p>Fetch the published resource at its URL. Sign the ledger with your student ID and the nonce from the page.</p>
+    <p>Fetch the published resource at its URL. Sign the ledger with your student ID and the nonce from the page &mdash; the page shows the exact call:</p>
+    <pre><code>curl -s -X POST &lt;resource URL&gt;/ledger -d student_id=&lt;XXXNNNNNN&gt;[,&lt;PARTNER&gt;] \
+  -d nonce=&lt;nonce from the page&gt; -d run_tag=${RUN_TAG:-practice}</code></pre>
+    <p>A student ID is <b>three upper-case letters followed by six digits</b> &mdash; <code>XXXNNNNNN</code>, for example <code>ABC123456</code>. IDs are upper-cased before they are recorded, so <code>abc123456</code> is stored as <code>ABC123456</code>; any other shape is rejected.</p>
   </div>
 </section>
 

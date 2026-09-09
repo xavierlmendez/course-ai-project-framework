@@ -50,7 +50,7 @@ The twist is load-bearing: the canonical solution keeps most of the base points 
 
 `tools/prescan.py submissions --allow host.docker.internal localhost www.bittorrent.org` → `OK GHI111222 words=200`. The reference specification also scans `OK`. `tools/runner.py --dry-run` prints the six sandbox commands (three regenerations, three hidden-test runs) with slot models `ref-bencode-b-slot1..3` and run tags `grading-k1..3`.
 
-**Not verified here:** an actual regeneration. OpenCode and `qwen2.5-coder:14b` are not installed on this machine. Run the calibration checklist before release.
+**Not verified here:** an actual regeneration. OpenCode and `qwen3:14b` are not installed on this machine. Run the calibration checklist before release.
 
 ## Files
 
@@ -72,8 +72,8 @@ submissions/GHI111222/        a plausible student submission (SPEC.md, PROCESS.m
 
 ```
 cd examples/03-serialization-type-b-research
-python3 ../../tools/ledger_server.py --resource resource --ledger ledger.tsv --nonce <NONCE> --port 8080 \
-        --base-url http://host.docker.internal:8080
+python3 ../../tools/ledger_server.py --project project.json --allow-in-repo \
+        --base-url http://host.docker.internal:8082   # port 8082 and the nonce come from project.json
 python3 ../../tools/runner.py --project project.json --create-slots
 python3 ../../tools/prescan.py submissions --allow host.docker.internal localhost www.bittorrent.org
 python3 ../../tools/runner.py --project project.json --submissions submissions --out runs

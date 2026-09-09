@@ -84,16 +84,13 @@ Both types use the same published resource, twist, contract, tests, and ledger. 
 
 Both can run in the same course with the same infrastructure. The graduate section can run Type B while the undergraduate section runs Type A on the same published resource.
 
-### The Hybrid, and how the previous project maps
+### How the previous project maps
 
-The previous project submitted both `prog.prompt` and `prog.py`. In this framework that is a **Hybrid Project**: the solution is graded as Type A, and the specification is run as a Type B regeneration whose only job is to confirm the solution is reproducible. The framework supports it, with two changes from the original rubric:
+The previous project submitted both `prog.prompt` and `prog.py`, which is Type A grading plus a Type B regeneration used as a reproducibility check. The framework does not provide that combination; §15 says what building it would take. Pick the type by what you want to grade: the solution (Type A) or what the reference harness makes of the specification (Type B).
 
-- The reproducibility check is a **gate, not a score**: best-of-K on the reference harness must reach the equivalence policy on the public suite. A student whose code passes but whose specification cannot reproduce it has submitted code they did not specify, which is the thing the rule "you may not edit the code directly" was trying to catch and could not.
-- The rule about not editing code is dropped, because the gate makes it moot.
+**Multi-part projects.** The previous project had four parts weighted 45/35/10/10, and each of those parts asked for two **programs**, an Opening and a Game one: eight programs in all. The framework's unit is the program, because a program is what has one entry point, one specification, one hidden suite and one weight. So a multi-part project is one project directory per program, each with its own contract, tests and categories, graded on its own and combined by weight. The professor's parts survive as the weighting: Part I's 45% is split across its two programs. Example 01 ships exactly this — eight directories, `part-I-opening/` through `part-IV-game/`, weighted 22.5/22.5/17.5/17.5/5/5/5/5.
 
-Choose the Hybrid when the professor wants students to own and explain running code (Type A) but still wants the specification to be real. Its cost is that TAs run both paths. If TA time is the constraint, choose Type B and stop grading the code.
-
-**Multi-part projects.** The previous project had four parts weighted 45/35/10/10. The framework handles this as one project directory per part, each with its own contract, tests and categories, graded separately and combined with `tools/combine_parts.py`. Example 01 shows the shape.
+**What is per-program and what is course-level.** Only the **hidden-test score** is per program. The milestone and the written component are course-level: the student writes one of each for the whole project and they are counted once, not once per program. `tools/grade_all.py` runs the whole thing in one command — it grades each program hidden-only, then combines by weight and adds the two course-level components once, so a student who is perfect everywhere scores exactly 100. A program that was never run stops the command rather than being silently dropped, because dropping one reweights the rest.
 
 ---
 
@@ -110,16 +107,20 @@ A reference harness must be:
 3. **Runnable headless** from a script, so TAs batch it.
 4. **Temperature-settable**, so the schedule in §6 is real.
 5. **Model-pinnable**, so the semester's model is the same on day 1 and on grading day.
+6. **Able to emit structured tool calls through the harness's own provider path**, so the agent loop can read a file, fetch the resource and write the entry point at all. This is a property of the *pair*, harness and model, and it is verified by measurement before the semester — a five-attempt probe against the model server with one tool definition (`scripts/cpu_verify.sh`, the `tooltest` function), requiring five structured `tool_calls` out of five. It is never inferred from Ollama's `Capabilities: … tools` flag, which describes the chat template rather than the model's behaviour.
 
-Criterion 1 removes every cloud harness whose free tier can reroute or rotate models mid-semester, and it removes Claude Code entirely (no free path at time of survey). Criterion 5 is what makes appeals possible.
+Criterion 1 removes every cloud harness whose free tier can reroute or rotate models mid-semester, and it removes Claude Code entirely (no free path at time of survey). Criterion 5 is what makes appeals possible. Criterion 6 exists because the fifth criterion was met and the loop still produced nothing: measured on 2026-09-09, the coder model chosen on 2026-09-08 returned its tool call as ordinary assistant text on 0 of 5 attempts at `num_ctx` 4096 and 0 of 5 at 32768, so every Type B regeneration wrote no entry point and would have been scored as the student's failure. Evidence: [`docs/review/evidence/harness-tool-calling.md`](docs/review/evidence/harness-tool-calling.md).
 
 ### This year's instance
 
-**OpenCode + Ollama, model `qwen2.5-coder:14b`.**
+**OpenCode 1.18.29 + Ollama, model `qwen3:14b`.**
 
 - OpenCode is the only free open harness surveyed with both web fetch and web search built in, headless JSON output (`opencode run`), and a pinnable `ollama/<tag>` model.
 - Ollama gives pinned weights, a `seed` parameter, and a `temperature` parameter. Per-slot model variants are created from a Modelfile so the pin is harness-independent.
-- 14B is the smallest model size to trust with following a one-page resource and satisfying an interface contract. It needs about 9 GB of RAM. Masters-level CS students are expected to have that hardware; the computer lab and the SSH server are the fallback, and the runner takes the Ollama server address as a parameter so a shared server and a laptop produce comparable runs.
+- `qwen3:14b` passes criterion 6: 5 of 5 structured tool calls at `num_ctx` 32768 on the same probe the model it replaces failed 0 of 5. That model was chosen from the capability flag alone; the swap was made on measurement.
+- The context window is not Ollama's default. The agent loop's system prompt and tool schemas do not fit in 4096 tokens, so `project.json` carries `"num_ctx": 32768` and the runner writes it into each slot's Modelfile. At 32k the 14B model occupies about 15 GB rather than 9, which a 16 GB laptop will swap: the computer lab and the shared course server are the fallback, and the runner takes the Ollama server address as a parameter so a shared server and a laptop produce comparable runs.
+- **The harness's provider timeouts must exceed the regeneration budget.** OpenCode 1.18.29 aborts a provider request whose response headers, or next streamed chunk, take longer than 300 s, which a 14B model on a CPU-only box exceeds before its first token. The runner therefore writes `headerTimeout` and `chunkTimeout` into the generated `opencode.json` as `regeneration_timeout_s × 1000`, so the runner's own wall-clock kill is the only bound that applies. Any harness chosen in a later semester must be checked for the same class of limit.
+- `qwen3` has a thinking mode and it is disabled, in the slot model's own chat template, because a thinking model narrates its tool plan inside `<think>` and then ends the turn without calling a tool, so the agent loop never starts (measured 2026-09-09; D-007 in [`docs/DECISIONS.md`](docs/DECISIONS.md)).
 
 ### Documented alternatives
 
@@ -128,7 +129,7 @@ Criterion 1 removes every cloud harness whose free tier can reroute or rotate mo
 
 ### Students may use anything to develop
 
-The handout says: develop with whatever you like, but the grade comes from the reference harness, so optimizing for a paid tool is pointless. Students install the reference harness by the milestone (§10) and run the same runner script the TAs use, minus the secret seeds.
+The handout says: develop with whatever you like, but the grade comes from the reference harness, so optimizing for a paid tool is pointless. Students install the reference harness by the milestone (§10) and run the same runner script the TAs use, through `runner.py --practice`: the same wrapper prompt and temperature schedule, with the public suite instead of the hidden one, seeds of their own instead of the secret ones, and no sandbox.
 
 ---
 
@@ -142,7 +143,17 @@ The handout says: develop with whatever you like, but the grade comes from the r
 - A run that times out (default 20 minutes wall clock, calibrated to twice what the reference specification needed) or produces a solution that fails to start scores zero for that run. Best-of-K absorbs it.
 - "Reproducible" means: same weights, seed, temperature, and wrapper prompt produce the same result unless a tool result or the published resource changed. It does not mean deterministic; an agent loop with web access never is. Freeze the published resource during grading.
 
-**Appeals.** A student who believes a run was unlucky gets one additional regeneration at the middle temperature, granted only if they show the specification passes the public suite on the reference harness. Best-of-K makes this rare.
+**What reproducible includes, and what it does not.** It includes the four pinned inputs — the model weights (a fixed Ollama tag, not `latest`), the per-slot seed, the per-slot temperature, and the harness version together with the wrapper prompt the runner sends. Rerun a slot with those four unchanged and you get the same run back. It does **not** include wall clock. Both timeouts in the design — the per-test `test_timeout_s` and the 20-minute `regeneration_timeout_s` — are wall-clock numbers, and wall clock is a property of the machine: a solution that finishes a large case in eight seconds on the grading box may exceed ten on a laptop, and a 14B model that regenerates in twelve minutes on a GPU may not finish in twenty on a CPU. So both timeouts are set from the calibration run **on the grading machine**, at twice the reference run's measured time, and all grading for a cohort runs on that one machine (decision 9). A timeout observed on any other machine is not evidence about the submission and is not grounds for a score; reproduce it on the grading box or discard it.
+
+**What a run leaves behind.** Every run writes one record per submission per slot, and the record is the whole audit trail: which slot and temperature it ran at, its run tag, when it started and ended, what the harness did, and the hidden-test result per category. Three properties follow from the policy above rather than from convenience.
+
+- **The seed is not in the record.** A record travels with an appeal packet and the seeds are secret until grades are released, so a record says that a seed was used, not which.
+- **A record is complete or it is not.** A slot whose regeneration hit an **environment failure** or a **harness error** is written incomplete, with the reason, and is not scored; re-running the same command retries exactly those slots, so an interrupted batch resumes with the command that started it. Only complete records are graded, and a gradebook row says how many slots never completed. Three environment failures in a row trip the **circuit breaker** and stop the batch: at that point the machine, not the cohort, is what needs fixing, and carrying on would mark everyone incomplete against a dead model server.
+- **A dry run is named apart** and nothing downstream reads it, so "I would have run this" can never be counted as "this ran".
+
+**Appeals.** A student who believes a run was unlucky gets one additional regeneration at the middle temperature, granted only if they show the specification passes the public suite on the reference harness — which is exactly what the milestone command prints. The appeal runs under its own run tag, so it writes its own record beside the grading ones: it cannot overwrite a grading slot and cannot be mistaken for one already done. Re-grading then takes the best of every complete record, appeal included. Best-of-K makes this rare, and an appeal is scoped to one program.
+
+**Type A has no re-run.** Its grading is deterministic: the same code against the same tests gives the same result, so re-running a Type A submission answers nothing. A Type A appeal is one of three other things — the hidden tests are disputed (the professor's call), a required file was missing and the submission was mis-scored (fix the roster and re-grade), or the written score is disputed (a second reader). Nothing in that list is a regeneration.
 
 ---
 
@@ -153,6 +164,8 @@ The handout says: develop with whatever you like, but the grade comes from the r
 If it cannot, the twist is too hard for the model, not for the students, and the grade would measure model capability rather than student skill. Fix the twist, the resource wording, or the contract until it passes. This costs one afternoon and is the single most important fairness control in the design.
 
 The calibration run also sets the regeneration timeout (twice the reference specification's wall-clock time) and produces the answer key for appeals. The [calibration checklist](./templates/calibration-checklist.md) walks through it.
+
+**Type A calibrates without a harness run.** Its gate is deterministic: the reference solution passes every hidden test, a canonical solution ignoring the twist fails the twist categories, and the per-case timings set `test_timeout_s`. Variant projects gate the same way on at least two generated variants. The checklist has a section for each.
 
 ---
 
@@ -183,12 +196,18 @@ The ledger cannot distinguish a harness fetch from a student typing `curl`. Don'
 
 | Component | Weight | How |
 |---|---|---|
-| Milestone | 10 | Auto pass/fail: public suite passes through the reference harness by the one-third mark |
+| Milestone | 10 | Auto pass/fail on a submitted record: the public suite passes through the reference harness by the one-third mark, and on a Type B project the record carries the regeneration that produced the code |
 | Hidden test suite | 70 | Weighted by category; **twist categories carry half of the 70** |
-| Written component | 20 | Three dimensions, 0–3 each, one page-limited document |
+| Written component | 20 | Three dimensions, 0–3 each (four for a graduate row), one page-limited document |
 | Ledger (Type A only) | gate | No signed entry, submission incomplete |
 
+**How the hidden score is computed.** For each applicable category, the fraction of its cases that passed, weighted by the category's weight, divided by the applicable weights — then scaled to the 70. *Applicable* means every category for a graduate row and every non-graduate-only category otherwise, so the graduate denominator is larger rather than the graduate bar being a separate score. A category that declares a weight but ships no cases carries no information and is left out of the denominator, so a declared-but-unwritten category cannot cap the whole cohort below full marks. Type B scores the best of the K runs; Type A scores the single run.
+
+**A row is graded only when every component it needs is there.** A missing written or milestone row makes the row *incomplete* with no total, never a total that silently omits 30 of the 100 points, and the row says what is missing. Two of the inputs cannot be derived from the project directory at all and come from the professor's **roster**: who is enrolled and who is a graduate student. The tools refuse to grade without the graduate column rather than defaulting it, because defaulting it grades every graduate on the undergraduate bar.
+
 Flat pass rate would let a canonical solution that ignores the resource collect most of the points from the non-twist cases. Weighting the twist categories is what makes reading the resource load-bearing.
+
+The rule precisely: the twist categories' weights sum to exactly half of the non-graduate weights; an **all-twist part** — a program whose categories are all twist categories — is allowed and the rule then applies trivially (all of the non-grad weight is twist, so the professor must either add a non-twist category or accept that the program is entirely twist, and say which in the handout). `scripts/review_checks.py` enforces it; an all-twist part passes only when `project.json` declares `"all_twist": true`.
 
 ### Equivalence policy
 
@@ -233,7 +252,7 @@ Required with every submission. Default: **required but ungraded**; a missing no
 | Week (of 3 / of 5) | What happens |
 |---|---|
 | 0 | Publish resource, handout, public tests, category names and counts, reference harness install guide. Ledger open. |
-| 1 / 1–2 | **Milestone** at the one-third mark: student runs the runner script themselves and the public suite passes. Auto-graded pass/fail, 10%. Forces early install and ends the "it worked in ChatGPT" appeal. |
+| 1 / 1–2 | **Milestone** at the one-third mark: the student does a **practice run** themselves, the public suite passes, and they submit the record it produces. Auto-graded pass/fail, 10%. Forces early install and ends the "it worked in ChatGPT" appeal. |
 | 2 / 3–4 | Development. Office hours are about the specification or solution, never about the reference model's behavior. |
 | 3 / 5 | Submission. TAs run pre-scan, safety read, runner. Grades out. Hidden tests and seeds released. |
 | +1 | Appeals window (§6). |
@@ -254,7 +273,7 @@ Type A solutions are code, and the hidden test runner executes them in the same 
 
 ## 12. Integrity
 
-- **Similarity detection** on specifications and solutions, standard misconduct process. A specification is text; treat it like code.
+- **The similarity check** is the institution's existing checker, named in the handout as `{{SIMILARITY_TOOL}}`. The course submits specifications (Type B) or solutions (Type A) to it and follows the standard misconduct process; the professor handles anything it flags. A specification is text; treat it like code. The framework ships no similarity tool of its own.
 - **The twist changes every semester**, so cross-semester copying is moot. Only within-semester sharing matters.
 - **Per-student variant parameters** are an option, not the default: each student's resource URL carries a parameter (board size, grid seed, …), and hidden tests are generated per parameter. Copying then requires understanding to adapt. Cost: the runner generates tests per submission and the professor writes a generator instead of fixed cases. Example 4 shows it.
 
@@ -268,7 +287,7 @@ Type A solutions are code, and the hidden test runner executes them in the same 
 4. **Milestone.** Auto-graded from student-run runner output.
 5. **Grade.** TAs follow the [runbook](./templates/ta-runbook.md): pre-scan, safety read, runner, written component, gradebook.
 6. **Release hidden tests and seeds.** Appeals window.
-7. **Rotate.** Next semester, the [rotation checklist](./templates/rotation-checklist.md): new twist, new nonce, new seeds, new resource URL, new hidden tests, re-verify the reference harness still meets the criteria.
+7. **Rotate.** Next semester, the [rotation checklist](./templates/rotation-checklist.md): new twist, new nonce, new seeds, new resource URL, new hidden tests, re-verify the reference harness still meets the six criteria, tool-calling probe included.
 
 ---
 
@@ -295,14 +314,14 @@ Things the professor chooses per project, with the framework default first:
 
 | Decision | Default | Alternatives |
 |---|---|---|
-| Project type | Type B | Type A; both in the same course; Hybrid (code graded, specification as a reproducibility gate) |
-| Project shape | One part | Multi-part with weights, one directory per part, combined by `tools/combine_parts.py` |
+| Project type | Type B | Type A; both in the same course. **Hybrid, not provided:** a professor who wants it builds a runner mode that grades the solution as Type A and runs the specification as a pass/fail reproducibility gate |
+| Project shape | One program | Multi-part with weights, **one directory per program**, combined by `tools/combine_parts.py` (or `tools/grade_all.py`, which does both steps) |
 | Interface contract | JSON on stdin/stdout | File-argument CLI with fixed stdout format (`prog.py in out depth`) |
 | Equivalence policy | `strict` per category | `estimate`, `ab`, `valid` via `check.py` |
 | Resource mode | Published resource with the twist | **Research-pointer variant**: the resource points to external documentation plus a twist; snapshot the external page, since it will change |
 | Process note | Required, ungraded | Is the written component; separately graded ~5% |
 | Ledger strength | Sign with ID + nonce | Add a second instruction the harness must follow from the page (tests instruction-following; also a prompt-injection demonstration, so explain it) |
-| Integrity | Similarity detection + semester rotation | Per-student variant parameters |
+| Integrity | The institution's similarity checker (`{{SIMILARITY_TOOL}}`) + semester rotation | Per-student variant parameters |
 | Regeneration statistic | Best of K=3 | Median (rewards robust specifications); K=5 |
 | Graduate bar | Extra category + prediction dimension | Higher threshold on the same tests |
 | Pairs | Allowed, both sign | Individual only |
@@ -316,9 +335,12 @@ framework.md                  this document
 CONTEXT.md                    glossary
 templates/                    handout (A, B), student primer, rubric, twist and calibration
                               checklists, TA runbook, rotation checklist, process-note prompt
-tools/                        runner.py, run_tests.py, grade.py, combine_parts.py, prescan.py,
-                              ledger_server.py, sandbox/ (Dockerfile, firewall)
-examples/01–04                four thin projects, one per showcased option
+tools/                        runner.py, run_tests.py, milestone.py, grade.py, grade_all.py,
+                              combine_parts.py, prescan.py, ledger_server.py,
+                              sandbox/ (Dockerfile, firewall)
+examples/01–04                four worked projects, one per showcased option
+tests/, scripts/              the standard-library test suite; the fixture-cohort rehearsal, the
+                              deterministic repository checks, and the harness tool-calling probe
 docs/grill/                   the design interview that produced every decision above
 docs/adr/                     the decisions that were hard to reverse
 docs/research/                the harness survey; the previous project's rubric and what it left open

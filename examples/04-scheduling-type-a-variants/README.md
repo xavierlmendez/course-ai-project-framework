@@ -82,13 +82,13 @@ python3 ../../tools/run_tests.py --solution reference/solution --tests tests/pub
 # generate a student's hidden tests by hand
 python3 tests/gen_hidden.py --variant JKL333444 --out /tmp/hidden-JKL333444
 
-# TA batch: the runner reads submissions/<id>/variant.txt and calls the generator per submission
+# TA batch: the runner reads the variant from variants.csv and calls the generator per submission
 python3 ../../tools/runner.py --project project.json --submissions submissions --type A --out runs/
 python3 ../../tools/grade.py --project project.json --runs runs/ --status status.csv
 
 # ledger server for the resource (from the framework root)
-python3 tools/ledger_server.py --resource examples/04-scheduling-type-a-variants/resource \
-    --ledger ledger.tsv --nonce <NONCE> --port 8080 --base-url http://host.docker.internal:8080
+python3 tools/ledger_server.py --project examples/04-scheduling-type-a-variants/project.json \
+    --allow-in-repo --base-url http://host.docker.internal:8083   # port 8083 and the nonce come from project.json
 ```
 
 ## Professor workflow for variants
@@ -97,7 +97,9 @@ python3 tools/ledger_server.py --resource examples/04-scheduling-type-a-variants
    use the first partner's ID (the sample row `MNO777888+PQR999000,MNO777888`).
 2. Tell each student their URL: `.../?v=<variant>`. The handout says the public tests are for
    `demo`, not their variant.
-3. Students put the variant in `variant.txt`; the runner refuses a submission without it.
+3. The **professor's `variants.csv` roster decides** each student's variant. A `variant.txt`
+   inside a submission is ignored, so a student cannot choose an easier variant by editing it.
+   Students are told their variant through the resource URL the handout gives them.
 4. The hidden suite is not a directory in the repo; it is whatever `gen_hidden.py` produces for
    the variant. After grading, release the generator (it is deterministic) instead of the cases.
 5. Calibration: run the reference solution against generated tests for at least two variants
@@ -120,17 +122,29 @@ Canonical vs public: `{'basic': (2, 2), 'overlaps': (1, 1), 'twist_class': (0, 1
 
 grad_large wall time per case for the reference: 0.029 s (limit 10 s).
 
+**The sample submission fails one public test on purpose:** it scores 5/6 on the public suite
+(`twist_class`), because it is the worked example of candor — its WRITTEN.md states the
+limitation and predicts exactly that failure — so it would *not* earn the milestone, which
+requires a clean public suite; do not "fix" it, and if you copy it for a rehearsal expect
+`milestone 0`.
+
 Sample submission `JKL333444` (implements the cooldown, omits the priority exemption; its
 WRITTEN.md predicts the twist_class failure), run through the runner with `--type A --no-sandbox`,
 which exercised the per-variant generator path, then `grade.py`:
 
 ```
 student_id,status,grad,best_slot,hidden_score,basic_pass,overlaps_pass,twist_cooldown_pass,twist_class_pass,grad_large_pass,milestone,written_raw,written_score,total,note
-JKL333444,graded,0,A,52.5,5/5,5/5,6/6,0/6,,,,,52.5,          # undergraduate
-JKL333444,graded,1,A,42.0,5/5,5/5,6/6,0/6,0/4,,,,42.0,       # same submission graded as graduate
+JKL333444,incomplete,0,A,52.5,5/5,5/5,6/6,0/6,,,,,,"missing: milestone, written"
+JKL333444,incomplete,1,A,42.0,5/5,5/5,6/6,0/6,0/4,,,,,"missing: milestone, written"
 ```
 
-`prescan.py` on the submission: `OK JKL333444 words=147`.
+The second line is the same submission graded as a graduate row: `grad_large` joins the denominator,
+so the hidden score falls from 52.5 to 42.0. Both rows are `incomplete` with **no total**, because no
+`written.csv` or `milestone.csv` was supplied — that is the tools working as designed: a row is
+`graded` only when every component it needs is present, and a total that silently omitted 30 of the
+100 points would be worse than none. Add the two course-level files to see a total.
+
+`prescan.py` on the submission: `OK JKL333444 words=1` (solution code does not count toward the specification cap).
 
 The handout's worked example was produced by the reference solution: `{"total": 14, "chosen": ["a", "c"]}`.
 
