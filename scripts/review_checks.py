@@ -370,7 +370,8 @@ def main():
     check_vocabulary()
     check_portfolio()
     text = "\n".join(OUT) + "\n"
-    os.makedirs(os.path.dirname(a.out), exist_ok=True)
+    if os.path.dirname(a.out):
+        os.makedirs(os.path.dirname(a.out), exist_ok=True)
     open(a.out, "w").write(text)
     fails = sum(1 for l in OUT if l.startswith("| FAIL"))
     warns = sum(1 for l in OUT if l.startswith("| WARN"))
