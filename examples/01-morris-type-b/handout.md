@@ -31,7 +31,7 @@ We cannot tell whether the page was fetched by your harness or by you with `curl
 
 | | |
 |---|---|
-| Language | Python 3.12, standard library only, one file per program |
+| Language | Python 3.12 or later, standard library only, one file per program |
 | Entry points | `MiniMaxOpening.py`, `MiniMaxGame.py`, `ABOpening.py`, `ABGame.py`, `MiniMaxOpeningBlack.py`, `MiniMaxGameBlack.py`, `MiniMaxOpeningImproved.py`, `MiniMaxGameImproved.py` — one program per directory, each the `entry` in that directory's `project.json` |
 | Invocation | `python3 <Program>.py <input file> <output file> <depth>` |
 | Input | a file holding one 23-character board of `W`, `B`, `x` |
@@ -53,12 +53,16 @@ MINIMAX estimate: 0.
 Each program has its own directory, `part-<N>-opening/` or `part-<N>-game/`, and its own public suite in `tests/public/`. From the root of the course repository, for the Part I Opening program:
 
 ```
-python3 tools/run_tests.py --solution <your dir> \
+python3 tools/run_tests.py --solution <your part-I-opening dir> \
   --tests examples/01-morris-type-b/part-I-opening/tests/public \
   --entry MiniMaxOpening.py --timeout 30
 ```
 
 For another program, swap `part-I-opening` for that program's directory and the `--entry` for its entry point from §3.
+
+**Two names used throughout this handout.** `<your part-I-opening dir>` — and `<your dir>` generally — is the directory holding your submission files for that program, for example `mywork/part-I-opening/`. `runs/` is where the runner writes: it creates `runs/<your dir's name>/` beside where you run the command, and every record and working directory named below lives inside it.
+
+`run_tests.py` prints a summary either way; `--json` prints **only** the JSON summary instead of the human-readable one, for feeding into another program.
 
 Hidden categories (names, counts, weights and equivalence policy; cases released after grading). The **twist** categories are marked `*`; in every program they carry exactly half the non-graduate weight.
 
@@ -99,11 +103,11 @@ Hidden categories (names, counts, weights and equivalence policy; cases released
 
 ## 5. The reference harness
 
-Your grade comes from **OpenCode with the model named in each program's `project.json`** (the `base_model` key), run by the TAs. Develop with whatever you like; optimizing for another tool is pointless. <!-- model: from project.json -->
+Your grade comes from **OpenCode with the model named in each program's `project.json`** (the `base_model` key), run by the TAs. Develop with whatever you like; optimizing for another tool is pointless.
 
 Install guide: the [student primer](../../templates/student-primer.md). Read it before the milestone.
 
-If your machine cannot run the model, use the course Ollama server your instructor announces: set `ollama_host` in your own copy of the program's `project.json` to that URL. The runner writes it into the `opencode.json` it generates, verbatim, so it must be an address the machine you are running on can reach. Exporting `OLLAMA_HOST` does not redirect OpenCode.
+**If your machine cannot run the model.** Running Ollama locally needs no edit at all: the `ollama_host` shipped in each `project.json` is the grading container's view of the model server, and a practice run (which uses no sandbox) substitutes `127.0.0.1` for it automatically. To use the course Ollama server your instructor announces, add `"ollama_host_local"` to **your own copy** of that program's `project.json`, set to the server URL as your machine reaches it. Leave `ollama_host` alone — it describes the grading run. Exporting `OLLAMA_HOST` does not redirect OpenCode.
 
 Run a specification the way the TAs will, from the root of the course repository:
 
@@ -116,28 +120,40 @@ python3 tools/runner.py --project examples/01-morris-type-b/part-I-opening/proje
 
 ## 6. What to submit
 
-One directory per **program** — eight of them, named as the program directories are (`part-I-opening`, `part-I-game`, `part-II-opening`, … `part-IV-game`) — each containing exactly:
+One top-level submission directory. Inside it, one directory per **program** — eight of them, named as the program directories are (`part-I-opening`, `part-I-game`, `part-II-opening`, … `part-IV-game`) — and, at the top level beside them, **one `WRITTEN.md` and one `PROCESS.md` for the whole project, 600 words each**. There is not one of those per program: the written component and the process note are course-level, written once and scored once (§8), and the pre-scan looks for them in the top-level directory.
 
-| File | Cap |
-|---|---|
-| `SPEC.md` — exactly that name, in each program's directory. It is the file the harness is told to read (`spec` in that program's `project.json`) | 1,500 words each including supporting files |
-| `PROCESS.md` | 1 page, 600 words; required, not graded |
-| `WRITTEN.md` | 1 page, 600 words; graded |
-| Part IV only: `MyStaticEstimation.md`, named inside your Part IV `SPEC.md` so the harness receives it | 1 page: the improved function as you specified it, two positions where it chooses differently from the baseline, and why its choice is better |
+```
+<your dir>/
+  part-I-opening/SPEC.md          … one SPEC.md per program, eight in all
+  part-I-game/SPEC.md
+  …
+  part-IV-game/SPEC.md
+  WRITTEN.md                      one page for the whole project
+  PROCESS.md                      one page for the whole project
+```
+
+| File | Where | Cap |
+|---|---|---|
+| `SPEC.md` — exactly that name | in each program's directory; it is the file the harness is told to read (`spec` in that program's `project.json`) | 1,500 words each including supporting files |
+| `PROCESS.md` | top level, one for the project | 1 page, 600 words; required, not graded |
+| `WRITTEN.md` | top level, one for the project | 1 page, 600 words; graded |
+| Part IV only: `MyStaticEstimation.md`, named inside your Part IV `SPEC.md` so the harness receives it | in `part-IV-opening/` and `part-IV-game/` as your specification requires | 1 page: the improved function as you specified it, two positions where it chooses differently from the baseline, and why its choice is better |
 
 Do **not** submit generated code. It is not graded.
 
 ## 7. Milestone (end of week 1, 10%)
 
-Your `part-I-opening/SPEC.md` passes the public suite through the reference harness. Do the `--practice` run in §5, then produce the signed milestone record from the directory it wrote and submit that file:
+Your `part-I-opening/SPEC.md` passes the public suite through the reference harness. Do the `--practice` run in §5 first — a real run, not a dry run — then build the record from what it wrote:
 
 ```
 python3 tools/milestone.py record \
   --project examples/01-morris-type-b/part-I-opening/project.json \
   --solution runs/<your part-I-opening dir>/practice-k1-work \
   --regeneration runs/<your part-I-opening dir>/practice-k1.json \
-  --student-id ABC123456 --out milestone.json
+  --student-id <your student ID> --out milestone.json
 ```
+
+This is a Type B project, so `--regeneration` is **required** and `--solution` must be that regeneration's own working directory — the `-work` directory beside the record. A record built from anything else, including a dry-run record (named `*.dry.json`), is rejected.
 
 Submit `milestone.json`. Auto-graded pass/fail.
 
@@ -162,7 +178,7 @@ Each program is graded on its own categories, then combined with those weights. 
 
 **Regeneration.** The TAs run each specification through the reference harness three times, at temperatures 0.2, 0.6 and 1.0, with a fixed seed per temperature that is secret until grades are released. Your hidden-test score per program is the best of the three. A run that exceeds 20 minutes or produces a program that does not start scores zero for that run.
 
-**Written component** (`WRITTEN.md`, one page per program), 0–3 on each of:
+**Written component** (`WRITTEN.md`, one page for the whole project, at the top level of your submission — not one per program), 0–3 on each of:
 
 - *Accuracy*: explain how you developed the specification.
 - *Twist specificity*: which lines of your specification make the program use this board's lines rather than the textbook board's, and, for Part II, which lines make alpha-beta return minimax's exact estimate?
@@ -175,7 +191,7 @@ Harness choice, model choice, how the page was fetched, the code the harness pro
 
 ## 10. Integrity
 
-Specifications are text and are treated like code: they are submitted to MOSS, the institution's similarity checker, and anything it flags goes to the professor under the standard misconduct process. This is an individual project unless your section allows pairs; a pair submits one directory per program and both sign the ledger. The board and its lines change next semester.
+Specifications are text and are treated like code: they are submitted to MOSS, the institution's similarity checker, and anything it flags goes to the professor under the standard misconduct process. This is an individual project unless your section allows pairs; a pair submits one submission directory and both sign the ledger. The board and its lines change next semester.
 
 ## 11. Appeals
 

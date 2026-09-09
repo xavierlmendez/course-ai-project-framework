@@ -31,3 +31,10 @@ Sample student submissions pre-scan `OK` in all four.
 ## Not verified
 
 - An actual OpenCode regeneration against Ollama `qwen2.5-coder:14b`. The four items in `tools/README.md` ("Things to verify during the calibration run") remain open until someone runs the calibration checklist on a machine with the model pulled.
+
+> **Note added 2026-09-09 (this record is left as it was written).** That regeneration was attempted
+> on 2026-09-09 and failed: `qwen2.5-coder:14b` emits no structured tool calls through Ollama, so
+> OpenCode's agent loop never began and no entry point was produced. The reference model is now
+> `qwen3:14b`, which does (5/5 at `num_ctx` 32768), and `project.json` carries `"num_ctx": 32768`.
+> The four `tools/README.md` items are still open. Evidence:
+> `docs/review/evidence/harness-tool-calling.md`; decision: D-006 in `docs/DECISIONS.md`.

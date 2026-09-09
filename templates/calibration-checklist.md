@@ -5,7 +5,10 @@ Sections are in execution order: Setup, then the gate for your type, then Sanity
 
 ## Setup (both types)
 
-- [ ] Reference harness installed exactly as the student install guide says. Model tag pinned in `project.json`.
+- [ ] Reference harness installed exactly as the student install guide says. Model tag pinned in `project.json`, and `num_ctx` set (32768; the agent loop's tool schemas do not fit Ollama's 4096 default).
+- [ ] **The model emits structured tool calls** through the harness's provider path: five attempts against the model server with one tool definition, five `tool_calls` replies. This is the sixth harness criterion (`framework.md` §5) and it is the cheapest box on this page — a model that fails it produces no entry point at all, and every regeneration would be scored as the student's failure. Do not infer it from `ollama show`'s `Capabilities: … tools`, which describes the chat template.
+      `MODEL=$(python3 -c 'import json;print(json.load(open("project.json"))["base_model"])'); bash scripts/cpu_verify.sh   # the tooltest function; expect 5/5 at num_ctx 32768`
+- [ ] The harness's provider timeouts exceed `regeneration_timeout_s`. The runner writes OpenCode's `headerTimeout` and `chunkTimeout` from it; confirm they are in the generated `opencode.json` and that no slot dies at exactly 300 s.
 - [ ] Ledger server running and reachable from inside the sandbox; the published resource served from it with the nonce visible.
 - [ ] Hidden tests in `tests/hidden/<category>/`, weights in `project.json`, twist categories summing to half the hidden weight. Variant projects generate them instead: see **Per-student variants**.
 - [ ] A canonical solution exists in `canonical/` (the textbook problem, twist ignored). It is what proves the twist is load-bearing.

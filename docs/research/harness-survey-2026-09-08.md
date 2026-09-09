@@ -2,6 +2,17 @@
 
 Surveyed 2026-09-08 by a research sub-agent. Every claim cites a source (S#). "Unverified" = not confirmed on a vendor page. Free allowances change often; re-verify before each semester.
 
+> **Note added 2026-09-09 (the survey itself is left as it was written).** This table's last row
+> recommends `qwen2.5-coder` sizes on RAM grounds, and the model chosen from it on 2026-09-08 was
+> `qwen2.5-coder:14b`. That choice was wrong for a reason no column here captures: measured on
+> 2026-09-09, the model returns its tool call as assistant text rather than a structured `tool_calls`
+> entry (0/5 at `num_ctx` 4096 and 0/5 at 32768), so an agent loop never starts. The reference model
+> is now **`qwen3:14b`** (5/5 at 32768). The survey therefore needs a column it does not have —
+> *emits structured tool calls, measured* — which is the sixth criterion added to `framework.md` §5.
+> Sizes also assume Ollama's 4096-token default context; at the 32,768 the agent loop requires, a 14B
+> model occupies about 15 GB rather than 9. See `docs/review/evidence/harness-tool-calling.md` and
+> D-006 in `docs/DECISIONS.md`.
+
 | Harness (vendor) | Free-tier terms | Web fetch/search built in | Headless / scripted | Temp / seed | Free-tier model(s) | Pin model version |
 |---|---|---|---|---|---|---|
 | **Claude Code** (Anthropic) | Not on Free plan; Pro/Max only [S1]. No individual student plan; Campus Program gives API credits to club members via student ambassadors [S5]; institutional "Claude for Higher Education" via sales [S6]. | Yes: `WebFetch`, `WebSearch` [S3] | `claude -p "…" --output-format json` [S2] | No temperature/seed flag [S2]; request closed as duplicate [S4] | None free (needs Pro/Max or API credits) [S1] | Yes, `--model claude-…` full name [S2] |

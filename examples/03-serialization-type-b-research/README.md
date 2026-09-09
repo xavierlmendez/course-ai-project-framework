@@ -50,7 +50,7 @@ The twist is load-bearing: the canonical solution keeps most of the base points 
 
 `tools/prescan.py submissions --allow host.docker.internal localhost www.bittorrent.org` → `OK GHI111222 words=200`. The reference specification also scans `OK`. `tools/runner.py --dry-run` prints the six sandbox commands (three regenerations, three hidden-test runs) with slot models `ref-bencode-b-slot1..3` and run tags `grading-k1..3`.
 
-**Not verified here:** an actual regeneration. OpenCode and `qwen2.5-coder:14b` are not installed on this machine. Run the calibration checklist before release.
+**Not verified here:** an actual regeneration. OpenCode and `qwen3:14b` are not installed on this machine. Run the calibration checklist before release.
 
 ## Files
 

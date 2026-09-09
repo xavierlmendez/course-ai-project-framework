@@ -84,7 +84,7 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
                                         //   student with a local Ollama therefore edits
                                         //   nothing; a student on the course server sets this
                                         //   one key
-  "base_model": "qwen2.5-coder:14b",
+  "base_model": "qwen3:14b",
   "num_ctx": 32768,                     // context window pinned into every slot Modelfile
                                         //   (PARAMETER num_ctx). The agent loop's tool
                                         //   schemas do not fit Ollama's 4096 default;

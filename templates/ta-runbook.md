@@ -66,6 +66,11 @@ ollama list | grep -F "$MODEL" || echo "NOT PRESENT — run: ollama pull $MODEL"
 Pull it now if it is missing. It is several gigabytes, and `--create-slots` on Day 1 will
 otherwise download it silently in the middle of your grading window.
 
+The model must be one that emits structured tool calls through the harness (`framework.md` §5,
+criterion 6); that is checked once at calibration, not on grading day. If a whole batch comes back
+with `entry_present: false` and empty working directories, suspect the model or the provider
+timeouts before you suspect the specifications, and stop the batch.
+
 **4. Serve the published resource, and leave it running.** [course] The harness fetches it
 during every regeneration, so it must be up for the whole batch. One server for the whole
 project, including every part. In its own terminal:

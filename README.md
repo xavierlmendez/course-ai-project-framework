@@ -66,4 +66,4 @@ Verified on this machine (macOS, Python 3.14, Docker Desktop):
 - The sandbox image builds; inside it, tests run as an unprivileged user, the outbound firewall blocks an outside host and admits the resource host, and a ledger signature from inside the container reaches the ledger file.
 - The runner's sandboxed Type A path on examples 02 and 04 (including per-variant test generation); Type B dry runs on examples 01 and 03.
 
-Not verified: an actual regeneration through OpenCode against an Ollama `qwen2.5-coder:14b` model (not installed here). The calibration checklist covers exactly this, and `tools/README.md` lists the four behaviours to confirm.
+Not verified: an actual regeneration through OpenCode against an Ollama `qwen3:14b` model on the grading machine. The calibration checklist covers exactly this, and `tools/README.md` lists the four behaviours to confirm. The model itself was measured on 2026-09-09 and does emit structured tool calls (5/5 at `num_ctx` 32768), which is why it replaced `qwen2.5`-coder — see `docs/review/evidence/harness-tool-calling.md` and D-006.

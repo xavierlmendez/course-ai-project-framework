@@ -105,16 +105,20 @@ A reference harness must be:
 3. **Runnable headless** from a script, so TAs batch it.
 4. **Temperature-settable**, so the schedule in §6 is real.
 5. **Model-pinnable**, so the semester's model is the same on day 1 and on grading day.
+6. **Able to emit structured tool calls through the harness's own provider path**, so the agent loop can read a file, fetch the resource and write the entry point at all. This is a property of the *pair*, harness and model, and it is verified by measurement before the semester — a five-attempt probe against the model server with one tool definition (`scripts/cpu_verify.sh`, the `tooltest` function), requiring five structured `tool_calls` out of five. It is never inferred from Ollama's `Capabilities: … tools` flag, which describes the chat template rather than the model's behaviour.
 
-Criterion 1 removes every cloud harness whose free tier can reroute or rotate models mid-semester, and it removes Claude Code entirely (no free path at time of survey). Criterion 5 is what makes appeals possible.
+Criterion 1 removes every cloud harness whose free tier can reroute or rotate models mid-semester, and it removes Claude Code entirely (no free path at time of survey). Criterion 5 is what makes appeals possible. Criterion 6 exists because the fifth criterion was met and the loop still produced nothing: measured on 2026-09-09, the coder model chosen on 2026-09-08 returned its tool call as ordinary assistant text on 0 of 5 attempts at `num_ctx` 4096 and 0 of 5 at 32768, so every Type B regeneration wrote no entry point and would have been scored as the student's failure. Evidence: [`docs/review/evidence/harness-tool-calling.md`](docs/review/evidence/harness-tool-calling.md).
 
 ### This year's instance
 
-**OpenCode + Ollama, model `qwen2.5-coder:14b`.**
+**OpenCode 1.18.29 + Ollama, model `qwen3:14b`.**
 
 - OpenCode is the only free open harness surveyed with both web fetch and web search built in, headless JSON output (`opencode run`), and a pinnable `ollama/<tag>` model.
 - Ollama gives pinned weights, a `seed` parameter, and a `temperature` parameter. Per-slot model variants are created from a Modelfile so the pin is harness-independent.
-- 14B is the smallest model size to trust with following a one-page resource and satisfying an interface contract. It needs about 9 GB of RAM. Masters-level CS students are expected to have that hardware; the computer lab and the SSH server are the fallback, and the runner takes the Ollama server address as a parameter so a shared server and a laptop produce comparable runs.
+- `qwen3:14b` passes criterion 6: 5 of 5 structured tool calls at `num_ctx` 32768 on the same probe the model it replaces failed 0 of 5. That model was chosen from the capability flag alone; the swap was made on measurement.
+- The context window is not Ollama's default. The agent loop's system prompt and tool schemas do not fit in 4096 tokens, so `project.json` carries `"num_ctx": 32768` and the runner writes it into each slot's Modelfile. At 32k the 14B model occupies about 15 GB rather than 9, which a 16 GB laptop will swap: the computer lab and the shared course server are the fallback, and the runner takes the Ollama server address as a parameter so a shared server and a laptop produce comparable runs.
+- **The harness's provider timeouts must exceed the regeneration budget.** OpenCode 1.18.29 aborts a provider request whose response headers, or next streamed chunk, take longer than 300 s, which a 14B model on a CPU-only box exceeds before its first token. The runner therefore writes `headerTimeout` and `chunkTimeout` into the generated `opencode.json` as `regeneration_timeout_s × 1000`, so the runner's own wall-clock kill is the only bound that applies. Any harness chosen in a later semester must be checked for the same class of limit.
+- `qwen3` has a thinking mode. It is left at Ollama's default for the model; whether to disable it is a decision for the professor, recorded open as D-007 in [`docs/DECISIONS.md`](docs/DECISIONS.md) — thinking improves specification-following and lengthens every run, and both timeouts and the calibration numbers move with it.
 
 ### Documented alternatives
 
@@ -269,7 +273,7 @@ Type A solutions are code, and the hidden test runner executes them in the same 
 4. **Milestone.** Auto-graded from student-run runner output.
 5. **Grade.** TAs follow the [runbook](./templates/ta-runbook.md): pre-scan, safety read, runner, written component, gradebook.
 6. **Release hidden tests and seeds.** Appeals window.
-7. **Rotate.** Next semester, the [rotation checklist](./templates/rotation-checklist.md): new twist, new nonce, new seeds, new resource URL, new hidden tests, re-verify the reference harness still meets the criteria.
+7. **Rotate.** Next semester, the [rotation checklist](./templates/rotation-checklist.md): new twist, new nonce, new seeds, new resource URL, new hidden tests, re-verify the reference harness still meets the six criteria, tool-calling probe included.
 
 ---
 

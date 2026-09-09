@@ -74,7 +74,7 @@ CCC333333,...,35.0,35.0,...,66.5,10.0,20.0,96.5,graded
 
 Both perfect students total exactly 100.0, on their own denominators — the graduate's includes the `grad_*` categories and the fourth written dimension. The baseline-copying student scores 35 of 70 on each Part IV program, which is exactly the twist half, and loses 3.5 of the 70 hidden points: 5% + 5% of the 70, halved. The fabricated run records are written under `/tmp` and are not committed.
 
-**Not verified:** any OpenCode regeneration (not installed on the build machine). `reference/SPEC.md` for each program folds in the ten failure patterns from Xavier's `PROMPT_TUNING.md` as non-negotiables, but its pass rate on `qwen2.5-coder:14b` is unknown until the calibration checklist is run.
+**Not verified:** any OpenCode regeneration of these specifications end to end. `reference/SPEC.md` for each program folds in the ten failure patterns from Xavier's `PROMPT_TUNING.md` as non-negotiables, but its pass rate on `qwen3:14b` is unknown until the calibration checklist is run.
 
 ## Running it
 

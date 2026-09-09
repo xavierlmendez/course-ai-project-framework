@@ -13,8 +13,9 @@ in [`review/fix-plan.md`](./review/fix-plan.md) §2 and are referenced from here
 gave uncontrolled temperature, per-student best-of-N, and an advantage to paid accounts; cloud free
 tiers reroute models mid-session and expose no seed, so appeals could not be rerun.
 **Decision.** Grades come only from executions the course performs, on a reference harness chosen
-under five published criteria; this year's instance is OpenCode on Ollama with `qwen2.5-coder:14b`,
-pinned per slot by Modelfile `temperature` and `seed`.
+under published criteria; this year's instance is OpenCode on Ollama with the model named in
+`project.json`, pinned per slot by Modelfile `temperature` and `seed`. (The model tag named here on
+2026-09-08 was replaced on 2026-09-09; see D-006. The criteria were five; D-006 adds a sixth.)
 **Consequences.** Regenerations are reproducible and appeals rerunnable; the graded model is weaker
 than frontier models so every task must be calibrated against it; hardware, not subscriptions,
 becomes the equity question. Full record: [`adr/0001-course-owns-execution.md`](./adr/0001-course-owns-execution.md).
@@ -70,3 +71,47 @@ temporary directory; a test that cannot be made to fail is rewritten until it ca
 tests, six of which failed beforehand and two of which were rewritten after they passed vacuously.
 The suite is slower to write than assertions after the fact, and the Docker-dependent sandbox tests
 are excluded from the fast suite, but the recorded numbers are now reproducible on demand.
+
+## D-006 — The reference model is `qwen3:14b`, and a sixth harness criterion is structured tool calls · 2026-09-09 · status: accepted
+
+**Context.** The reference instance named in D-001 — the Qwen 2.5 coder model at 14B — met all five published
+criteria and still could not be graded with: measured on 2026-09-09 through Ollama's `/api/chat` and
+`/v1/chat/completions`, it returned its tool call as ordinary assistant text on **0 of 5** attempts at
+`num_ctx` 4096 and **0 of 5** at 32768, so OpenCode's agent loop never began, the working directory
+held no entry point, and the runner recorded a complete run with a hidden score of zero. A whole
+cohort would have been graded on the machine's failure. `qwen3:14b`, on the same box, the same Ollama
+0.33.3 and the same probe, returned a real `tool_calls` entry on **5 of 5** attempts at 32768.
+Evidence: [`review/evidence/harness-tool-calling.md`](./review/evidence/harness-tool-calling.md).
+**Decision.** The reference harness instance is **OpenCode 1.18.29 + Ollama + `qwen3:14b`**, and
+`framework.md` §5 gains a **sixth criterion**: the model must emit structured tool calls through the
+harness's provider path, verified before the semester by a five-attempt probe
+(`scripts/cpu_verify.sh`, the `tooltest` function) rather than assumed from Ollama's capability flag,
+which describes the chat template and not the model. Two supporting changes ship with it: every
+`project.json` carries `"num_ctx": 32768`, because the agent loop's tool schemas do not fit Ollama's
+4096 default; and the runner writes OpenCode's `headerTimeout` and `chunkTimeout` as
+`regeneration_timeout_s × 1000`, because OpenCode 1.18.29 otherwise aborts any provider request whose
+headers or next chunk take longer than 300 s — which a 14B model on a CPU box exceeds before its
+first token, and which would have been mis-scored as the student's failure rather than an
+environment error.
+**Consequences.** The calibration gate acquires a cheap pre-check that fails in seconds instead of a
+cohort. Everything downstream of the model tag is unaffected: the pinning, the seeds, the temperature
+schedule, the sandbox, the grading arithmetic and the ledger are all independent of which model is
+chosen. The cost is memory: at `num_ctx` 32768 the 14B model occupies about 15 GB rather than 9, so a
+16 GB laptop swaps and the shared course server becomes the recommended route for students who do
+not have the headroom. D-001's model tag is superseded; its rule is not.
+
+## D-007 — `qwen3` thinking mode is left at Ollama's default · 2026-09-09 · status: open
+
+**Context.** `qwen3:14b` reports `completion, tools, thinking`: it can emit a reasoning block before
+its answer, and Ollama exposes a `think` parameter to turn that off. The tool-calling probe was run
+with `"think": false`; the reference stack does not set it, so regenerations run at whatever default
+Ollama applies to the tag. Thinking plausibly improves specification-following — the property the
+whole project measures — and just as plausibly doubles the wall clock of every regeneration on a CPU
+box, which moves `regeneration_timeout_s`, the calibration numbers and the grading-day budget in the
+TA runbook.
+**Decision.** Not taken. The professor decides before the semester, on measurement: run the
+calibration gate both ways and compare pass rate against wall clock. Until then the default stands
+and is recorded here so that a run's behaviour is not silently attributed to the model tag alone.
+**Consequences.** Whichever way it goes, the choice must be pinned before the seeds are created and
+must not change mid-cohort: the reproducibility promise in §6 covers the weights, the seed, the
+temperature and the wrapper prompt, and a thinking flag changed between slots would break it.

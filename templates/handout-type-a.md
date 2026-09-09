@@ -22,7 +22,7 @@ We cannot tell whether the page was fetched by your harness or by you with `curl
 
 | | |
 |---|---|
-| Language | {{LANGUAGE}} |
+| Language | {{LANGUAGE, e.g. Python 3.12 or later}} |
 | Entry point | `{{ENTRY}}` in the root of your submission |
 | Input | one JSON object on stdin |
 | Output | one JSON object on stdout, nothing else |
@@ -43,6 +43,10 @@ Public tests are in `tests/public/`. From the root of the course repository:
 python3 tools/run_tests.py --solution <your dir> --tests tests/public --entry {{ENTRY}}
 ```
 
+`<your dir>` is the directory holding your submission files, for example `mywork/`; put its path
+wherever `<your dir>` appears below. `run_tests.py` prints a summary either way — `--json` prints
+**only** the JSON summary instead of the human-readable one, for feeding into another program.
+
 To read the published resource and sign the ledger from your own machine while practising, start the course's reference server yourself:
 
 ```
@@ -59,7 +63,7 @@ Hidden categories (names and counts; cases released after grading):
 
 ## 5. AI use
 
-Use any harness you like. The course provides a free reference setup, **{{HARNESS}} with the model named in `project.json` (`base_model`: `{{MODEL}}`)**; the install guide is the [student primer](./student-primer.md). A shared Ollama server is at `{{OLLAMA_HOST}}` for anyone whose machine cannot run the model: set `ollama_host` in `project.json` (or your own copy) to that URL. Exporting `OLLAMA_HOST` does not redirect OpenCode. Your code is graded, not your tool. You are expected to understand every line you submit; the written component asks you to explain one design decision.
+Use any harness you like. The course provides a free reference setup, **{{HARNESS}} with the model named in `project.json` (`base_model`: `{{MODEL}}`)**; the install guide is the [student primer](./student-primer.md). If your machine cannot run the model: with Ollama running locally there is nothing to edit — the `ollama_host` shipped in `project.json` names the grading container's view of the model server, and a practice run (no sandbox) automatically substitutes `127.0.0.1` for it. To use the shared course server at `{{OLLAMA_HOST}}` instead, add `"ollama_host_local": "{{OLLAMA_HOST}}"` to **your own copy** of `project.json`; that is the address your machine uses, and the runner writes it into the `opencode.json` it generates. Leave `ollama_host` alone — it belongs to the grading run. Exporting `OLLAMA_HOST` does not redirect OpenCode. Your code is graded, not your tool. You are expected to understand every line you submit; the written component asks you to explain one design decision.
 
 ## 6. What to submit
 
@@ -75,7 +79,7 @@ Your solution passes the public suite. Produce the signed milestone record and s
 
 ```
 python3 tools/milestone.py record --project project.json \
-  --solution <your dir> --student-id {{STUDENT_ID}} --out milestone.json
+  --solution <your dir> --student-id <your student ID> --out milestone.json
 ```
 
 Submit `milestone.json`. Auto-graded pass/fail.
