@@ -149,6 +149,8 @@ If it cannot, the twist is too hard for the model, not for the students, and the
 
 The calibration run also sets the regeneration timeout (twice the reference specification's wall-clock time) and produces the answer key for appeals. The [calibration checklist](./templates/calibration-checklist.md) walks through it.
 
+**Type A calibrates without a harness run.** Its gate is deterministic: the reference solution passes every hidden test, a canonical solution ignoring the twist fails the twist categories, and the per-case timings set `test_timeout_s`. Variant projects gate the same way on at least two generated variants. The checklist has a section for each.
+
 ---
 
 ## 8. The ledger
