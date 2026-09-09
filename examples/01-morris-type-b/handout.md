@@ -80,7 +80,7 @@ One directory per part, each containing exactly:
 
 | File | Cap |
 |---|---|
-| `SPEC.md` (Parts I and II: one spec per program, named `SPEC-MiniMaxOpening.md` etc.) | 1,500 words each including supporting files |
+| `SPEC.md`, one per part directory | 1,500 words each including supporting files |
 | `PROCESS.md` | 1 page per part; required, not graded |
 | `WRITTEN.md` | 1 page for the whole project, 600 words; graded |
 | Part IV only: `MyStaticEstimation.md` | 1 page: your function, two positions where it chooses differently from the baseline, and why it is better |
@@ -89,7 +89,7 @@ Do **not** submit generated code. It is not graded.
 
 ## 7. Milestone (end of week 1, 10%)
 
-Your Part I `SPEC-MiniMaxOpening.md` passes the public suite through the reference harness. Submit the runner's JSON record. Auto-graded pass/fail.
+Your Part I `SPEC.md` passes the public suite through the reference harness. Produce the record with `tools/milestone.py record` and submit it. Auto-graded pass/fail.
 
 ## 8. Grading
 

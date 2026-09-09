@@ -78,7 +78,7 @@ Do **not** submit generated code. It is not graded.
 
 ## 7. Milestone ({{MILESTONE_DATE}}, 10%)
 
-Your specification passes the public suite through the reference harness. Submit the runner's JSON record. Auto-graded pass/fail.
+Your specification passes the public suite through the reference harness. Produce the record with `tools/milestone.py record` (its help shows the Type B path, which points at the working directory your practice run produced) and submit it. Auto-graded pass/fail.
 
 ## 8. Grading
 

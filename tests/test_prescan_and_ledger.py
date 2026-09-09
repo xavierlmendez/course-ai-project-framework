@@ -32,12 +32,15 @@ class TestPrescan(TempCase):
         self.write("subs/ABC123456/PROCESS.md", "used opencode")
         self.write("subs/ABC123456/WRITTEN.md", "word " * 900)
         _, out, _ = run_tool("prescan.py", self.path("subs"), "--allow", "resource.invalid")
-        self.assertIn("over-page-cap", out, f"a 900-word page was not flagged: {out}")
+        self.assertTrue(out.startswith("INCOMPLETE"),
+                        f"a page over the cap should be INCOMPLETE, not misconduct: {out}")
+        self.assertIn("over-page-cap", out)
 
     def test_a_missing_required_page_is_flagged(self):
         self.write("subs/ABC123456/SPEC.md", "spec")
         _, out, _ = run_tool("prescan.py", self.path("subs"), "--allow", "resource.invalid")
-        self.assertIn("missing:WRITTEN.md", out, f"a missing written component passed: {out}")
+        self.assertTrue(out.startswith("INCOMPLETE"), f"expected INCOMPLETE: {out}")
+        self.assertIn("missing:WRITTEN.md", out)
 
     def test_instruction_override_is_flagged(self):
         self.write("subs/XYZ999999/SPEC.md",

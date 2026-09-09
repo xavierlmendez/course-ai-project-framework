@@ -8,9 +8,21 @@ Two subcommands.
 
         Run by the **student**. Runs the public suite against a solution directory and
         writes a record naming the student, the project, the harness and model that
-        produced it, and the public-suite result. For Type B, pass the runner's practice
-        record so the harness and model come from the run that actually happened rather
-        than from whatever is installed now.
+        produced it, and the public-suite result.
+
+        **Type A**: `--solution` is the directory holding the code you are submitting.
+
+        **Type B**: you do not write the code, so `--solution` is the directory the harness
+        wrote for you. Do a practice run first, then point at its working directory:
+
+            python3 tools/runner.py --project project.json --submission ./my-submission \\
+                    --run-tag practice --slot 1 --out ./practice --no-sandbox
+            python3 tools/milestone.py record --project project.json \\
+                    --solution ./practice/my-submission/practice-k1-work \\
+                    --regeneration ./practice/my-submission/practice-k1.json \\
+                    --student-id ABC123456 --out milestone.json
+
+        The point of the milestone is that this whole path worked on your machine.
 
     milestone.py check --project project.json --records DIR --status status.csv > milestone.csv
 

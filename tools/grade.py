@@ -123,12 +123,13 @@ def main():
     for sid in ids:
         st = status.get(sid, {"status": "graded", "grad": "0", "note": ""})
         grad = str(st.get("grad", "0")).strip() in ("1", "true", "yes", "grad")
-        recs = []
+        recs, all_recs = [], []
         for f in sorted(glob.glob(os.path.join(a.runs, sid, "*.json"))):
             try:
                 r = json.load(open(f))
             except Exception:
                 continue
+            all_recs.append(r)
             if r.get("complete"):
                 recs.append(r)
         best, best_frac, best_detail = None, -1.0, {}
@@ -155,11 +156,18 @@ def main():
             have_all = hidden != "" and ms_score != "" and wr_score != ""
             total = round(hidden + ms_score + wr_score, 2) if eligible and have_all else ""
         out_status = st.get("status", "")
+        note = st.get("note", "")
         if eligible and not have_all:
             out_status = "incomplete"
+            why = [n for n, ok in (("hidden", hidden != ""), ("milestone", ms_score != ""),
+                                   ("written", wr_score != "")) if not ok]
+            note = ("missing: " + ", ".join(why) + ("; " + note if note else "")) if why else note
+        incomplete_slots = sum(1 for r in all_recs if not r.get("complete"))
+        if incomplete_slots:
+            note = (note + "; " if note else "") + f"{incomplete_slots} slot(s) never completed"
         row = [sid, out_status, int(grad), best_slot, hidden]
         row += [f"{best_detail[c][0]}/{best_detail[c][1]}" if c in best_detail else "" for c in cat_names]
-        row += [ms_score, wr_raw, wr_score, total, st.get("note", "")]
+        row += [ms_score, wr_raw, wr_score, total, note]
         w.writerow(row)
 
 

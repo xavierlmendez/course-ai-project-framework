@@ -455,6 +455,15 @@ def regenerate(p, sub_dir, workdir, slot, seed, run_tag, sandbox, dry):
     env_err = classify_failure(code, out, err) if not timed_out else None
     if env_err:
         rec["environment_error"] = env_err
+    # A harness that exits cleanly, calls no tool and writes nothing did not fail to solve
+    # the task: it never started. Scoring that as the student's zero would blame a cohort
+    # for a broken setup. Measured failure mode: a model that emits its tool call as plain
+    # text (docs/review/evidence/harness-tool-calling.md).
+    if not rec["entry_present"] and not env_err and not timed_out and code == 0:
+        if '"type":"tool"' not in (out or ""):
+            rec["harness_error"] = ("the harness made no tool call and produced no file. "
+                                    "The model is probably not emitting structured tool calls; "
+                                    "run the calibration checklist before grading.")
     return rec
 
 
@@ -504,7 +513,7 @@ def process_type_b(p, sid, sub_dir, out, seeds, run_tag, slots, tests_override, 
         except SubmissionError as e:
             print(f"  {sid}: SKIP ({e})")
             return "skipped"
-        env_err = rec["regeneration"].get("environment_error")
+        env_err = rec["regeneration"].get("environment_error") or rec["regeneration"].get("harness_error")
         if env_err:
             # Nothing ran. Leave the slot incomplete so a retry pass picks it up, rather
             # than scoring the student zero for a machine that was broken.

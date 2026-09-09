@@ -129,10 +129,20 @@ def main():
         if not os.path.isdir(p):
             continue
         hits, words = scan_submission(p, a.allow, a.cap, a.page_cap)
-        status = "FLAG" if hits else "OK"
+        # Two different outcomes, deliberately not the same word: FLAG means a human must
+        # read it for possible misconduct; INCOMPLETE means a file or a cap problem the
+        # student can fix. The runbook assigns a different status to each.
+        admin = [h for h in hits if h.startswith("missing:") or "over-page-cap" in h]
+        suspicious = [h for h in hits if h not in admin]
         if words > a.cap:
-            status = "OVERCAP" if status == "OK" else "FLAG+OVERCAP"
-        print(f"{status}\t{sid}\twords={words}\t" + " ".join(hits))
+            admin.append(f"spec-over-cap:{words}")
+        if suspicious:
+            status = "FLAG"
+        elif admin:
+            status = "INCOMPLETE"
+        else:
+            status = "OK"
+        print(f"{status}\t{sid}\twords={words}\t" + " ".join(suspicious + admin))
     return 0
 
 
