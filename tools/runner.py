@@ -120,13 +120,13 @@ def load_status(path):
         return {r["student_id"]: r for r in csv.DictReader(fh)}
 
 
-def sh(cmd, timeout=None, cwd=None, dry=False):
+def sh(cmd, timeout=None, cwd=None, dry=False, env=None):
     if dry:
         print("  $ " + " ".join(cmd))
         return 0, "", "", 0.0
     t0 = time.time()
     try:
-        r = subprocess.run(cmd, cwd=cwd, capture_output=True, text=True, timeout=timeout)
+        r = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout)
         return r.returncode, r.stdout, r.stderr, time.time() - t0
     except subprocess.TimeoutExpired as e:
         return None, (e.stdout or "") if isinstance(e.stdout, str) else "", (e.stderr or "") if isinstance(e.stderr, str) else "", time.time() - t0
@@ -467,9 +467,16 @@ def regenerate(p, sub_dir, workdir, slot, seed, run_tag, sandbox, dry):
     cname = re.sub(r"[^A-Za-z0-9_.-]", "-", cname)[:100]
     if sandbox:
         cmd = docker_base(p, workdir, extra_env=env, network=True, name=cname) + ["regenerate"]
+        run_env = None
     else:
-        cmd = ["opencode", "run", "-m", f"ollama/{slot_model}", "--format", "json", prompt]
-    code, out, err, wall = sh(cmd, timeout=p["regeneration_timeout_s"], cwd=None if sandbox else workdir, dry=dry)
+        # OpenCode 1.18.29 takes its project directory from the PWD variable, not from the
+        # process's real working directory. Launched from a script whose PWD is the repo, it
+        # opened a second instance on the repo and died in 4 s with "Unexpected server error"
+        # (R620, 2026-09-09). Say the directory both ways.
+        cmd = ["opencode", "run", "--dir", workdir, "-m", f"ollama/{slot_model}", "--format", "json", prompt]
+        run_env = dict(os.environ, PWD=workdir)
+    code, out, err, wall = sh(cmd, timeout=p["regeneration_timeout_s"], cwd=None if sandbox else workdir,
+                              dry=dry, env=run_env)
     timed_out = code is None
     if timed_out and sandbox and not dry:
         # Killing the docker client leaves the container and the harness running, holding

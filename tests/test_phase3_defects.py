@@ -172,3 +172,33 @@ class TestOpenCodeTimeouts(TempCase):
         self.assertEqual(opts["headerTimeout"], 1800 * 1000)
         self.assertEqual(opts["chunkTimeout"], 1800 * 1000)
         self.assertEqual(opts["baseURL"], "http://host.docker.internal:11434/v1")
+
+
+class TestHarnessLaunchDirectory(TempCase):
+    """OpenCode 1.18.29 takes its project directory from the PWD variable, not the real cwd
+    (R620, 2026-09-09: launched from the repo it opened a second instance there and died in
+    4 s). The no-sandbox launch must therefore name the work directory both ways."""
+
+    def test_no_sandbox_launch_sets_dir_and_pwd(self):
+        p = {"slot_prefix": "ref-x-slot", "temperatures": [0.2], "ollama_host": "http://127.0.0.1:11434",
+             "regeneration_timeout_s": 60, "entry": "solve.py", "spec": "SPEC.md", "name": "x",
+             "data_files": [], "code_ext": [".py"]}
+        sub = self.path("submissions", "ABC123456", "SPEC.md"); open(sub, "w").write("build it")
+        work = self.path("runs", "ABC123456", "t-k1-work"); os.makedirs(work, exist_ok=True)
+        seen = {}
+
+        def fake_sh(cmd, timeout=None, cwd=None, dry=False, env=None):
+            seen.update(cmd=cmd, cwd=cwd, env=env)
+            return 1, "", "", 0.1
+
+        with mock.patch.object(runner, "sh", fake_sh), \
+             mock.patch.object(runner, "prepare_workdir", lambda *a, **k: None), \
+             mock.patch.object(runner, "wrapper_prompt", lambda p: "go"):
+            try:
+                runner.regenerate(p, os.path.dirname(sub), work, 1, 7, "t", sandbox=False, dry=False)
+            except Exception:
+                pass  # the record-building after the launch is not under test here
+        self.assertEqual(seen["cwd"], work)
+        self.assertIn("--dir", seen["cmd"])
+        self.assertEqual(seen["cmd"][seen["cmd"].index("--dir") + 1], work)
+        self.assertEqual(seen["env"]["PWD"], work)
