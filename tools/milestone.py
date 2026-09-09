@@ -30,6 +30,10 @@ Two subcommands.
         that grade.py reads. A record passes when its digest matches, it names this
         project, its student is on the roster, and every public test passed.
 
+        Records are matched to `status.csv` rows on any **shared member**, so a pair's
+        record may name either partner or the pair in any of its forms (`A+B`, `A-B`,
+        `A,B`). The output has exactly one row per `status.csv` row.
+
 What the digest is and is not: it makes casual editing of a record detectable, so a
 student cannot change a failing run into a passing one by opening the file. It is not a
 signature and does not prove the run happened, because the student controls the machine.
@@ -43,11 +47,31 @@ import datetime
 import hashlib
 import json
 import os
+import re
 import subprocess
 import sys
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DIGEST_KEY = "digest"
+
+
+def members(key):
+    """A roster key, a ledger pair or a submission directory name, split into student ids.
+    Pairs are written `A+B` in the ledger, `A-B` as a directory, `A,B` in a roster, so the
+    three forms name the same pair. Mirrors `members()` in runner.py's `roster_variant`."""
+    out = []
+    for part in re.split(r"[+,\-]", key or ""):
+        part = part.strip().upper()
+        if part:
+            out.append(part)
+    return out
+
+
+def same_student(a, b):
+    """True when two ids name the same student or the same pair, in any of the forms.
+    A shared member is enough: a pair's record may name either partner."""
+    x, y = set(members(a)), set(members(b))
+    return bool(x and y and (x == y or x & y))
 
 
 def now():
@@ -88,8 +112,12 @@ def cmd_record(a):
         harness["harness_exit"] = reg.get("regeneration", {}).get("harness_exit")
         harness["wall_s"] = reg.get("regeneration", {}).get("wall_s")
         harness["run_tag"] = reg.get("run_tag")
+    # A pair may type their id in any of the accepted forms (`A+B`, `A-B`, `A,B`, or one
+    # partner alone). Normalise to the ledger's `A+B` so the record is self-consistent;
+    # `check` matches it to the roster on any shared member either way.
+    ids = members(a.student_id)
     rec = {
-        "student_id": a.student_id.strip().upper(),
+        "student_id": "+".join(ids) if ids else a.student_id.strip().upper(),
         "project": p.get("name"),
         "part": p.get("part"),
         "type": p.get("type", "B"),
@@ -131,10 +159,22 @@ def validate(rec, p):
 
 def cmd_check(a):
     p = json.load(open(a.project))
-    roster = {}
+    # The roster keys, in status.csv order and de-duplicated. The output has exactly one row
+    # per status.csv row, so a pair never produces a phantom second row under a partner's id.
+    roster = []
     if a.status and os.path.exists(a.status):
         with open(a.status, newline="") as fh:
-            roster = {r["student_id"]: r for r in csv.DictReader(fh)}
+            for r in csv.DictReader(fh):
+                key = (r.get("student_id") or "").strip()
+                if key and key not in roster:
+                    roster.append(key)
+
+    def roster_key(sid):
+        """The status.csv key this record belongs to, matching on any shared member."""
+        for key in roster:
+            if same_student(sid, key):
+                return key
+        return None
 
     results = {}
     for name in sorted(os.listdir(a.records)):
@@ -148,15 +188,21 @@ def cmd_check(a):
             continue
         sid = (rec.get("student_id") or os.path.splitext(name)[0]).strip().upper()
         reasons = validate(rec, p)
-        if roster and sid not in roster:
-            reasons.append("not on the roster")
-        results[sid] = reasons
+        key = roster_key(sid) if roster else sid
+        if roster and key is None:
+            # Not one of the graded submissions: report it, but do not invent a row.
+            print(f"{sid}: not on the roster", file=sys.stderr)
+            continue
+        # A pair may submit one record per partner. One acceptable record earns the
+        # milestone for the pair, so a passing record replaces a failing one.
+        if key not in results or (results[key] and not reasons):
+            results[key] = reasons
         if reasons:
             print(f"{sid}: {'; '.join(reasons)}", file=sys.stderr)
 
     w = csv.writer(sys.stdout, lineterminator="\n")
     w.writerow(["student_id", "milestone", "note"])
-    ids = sorted(set(results) | set(roster))
+    ids = roster if roster else sorted(results)
     for sid in ids:
         if sid not in results:
             w.writerow([sid, 0, "no milestone record submitted"])

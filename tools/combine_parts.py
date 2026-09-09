@@ -25,6 +25,10 @@ empty when grade.py is run per part.
 
 A row is `graded` only when every part is graded and both course-level components are
 present. Otherwise it is `incomplete` with no total.
+
+Every part's non-empty `note` is carried into the combined `note`, prefixed with the part
+name (`I: 1 slot(s) never completed`), because a per-part note such as "never completed" is
+grade-relevant and the combined gradebook is the only file the TA reads before sending.
 Standard library only.
 """
 import argparse
@@ -80,10 +84,17 @@ def main():
                 grad = True
 
         hiddens, statuses, combined, parts_ok = [], [], 0.0, True
+        part_notes = []
         for p, b in zip(parts, books):
             r = b.get(sid)
             h = r.get("hidden_score", "") if r else ""
             s = r.get("status", "missing") if r else "missing"
+            # A per-part note is grade-relevant ("1 slot(s) never completed") and is the only
+            # place it is said, so it must survive into the combined gradebook rather than
+            # being dropped: the readiness check on Day 2 reads this column.
+            n = (r.get("note", "") if r else "").strip()
+            if n:
+                part_notes.append(f"{p['name']}: {n}")
             hiddens.append(h)
             statuses.append(s)
             if h == "" or s not in ("graded", "appeal"):
@@ -105,8 +116,12 @@ def main():
         have_all = hidden_score != "" and ms_score != "" and wr_score != ""
         total = round(hidden_score + ms_score + wr_score, 2) if have_all else ""
         status = "graded" if have_all else "incomplete"
-        note = "" if have_all else "missing: " + ", ".join(
-            n for n, ok in [("a part", parts_ok), ("milestone", ms_score != ""), ("written", wr_score != "")] if not ok)
+        pieces = list(part_notes)
+        if not have_all:
+            pieces.append("missing: " + ", ".join(
+                n for n, ok in [("a part", parts_ok), ("milestone", ms_score != ""),
+                                ("written", wr_score != "")] if not ok))
+        note = "; ".join(pieces)
 
         w.writerow([sid, int(grad)] + hiddens + statuses
                    + [hidden_score, ms_score, wr_raw, wr_score, total, status, note])

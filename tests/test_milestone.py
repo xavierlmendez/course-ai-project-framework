@@ -100,6 +100,45 @@ class TestCheck(MilestoneCase):
         self.assertEqual(rows["ZZZ999999"]["milestone"], "0")
         self.assertIn("no milestone record", rows["ZZZ999999"]["note"])
 
+    def test_a_pair_record_naming_one_partner_matches_the_pair_row(self):
+        """Cold run 4: a record made with --student-id PRA333333 against a status.csv row
+        PRA333333-PRB444444 gave `not on the roster`, a phantom row, and 0 for the pair.
+        The runbook promises the tools match on any shared member."""
+        self.record_for("PRA333333", out=self.path("records/pair.json"))
+        status = self.make_status([("PRA333333-PRB444444", "graded", 0, "pair")])
+        _, out, _ = self.check(status=status)
+        rows = parse_csv(out)
+        self.assertEqual(list(rows), ["PRA333333-PRB444444"],
+                         f"the output must have one row per status.csv row: {out}")
+        self.assertEqual(rows["PRA333333-PRB444444"]["milestone"], "1")
+        self.assertEqual(rows["PRA333333-PRB444444"]["note"], "")
+
+    def test_either_partner_matches(self):
+        self.record_for("PRB444444", out=self.path("records/pair.json"))
+        status = self.make_status([("PRA333333-PRB444444", "graded", 0, "pair")])
+        _, out, _ = self.check(status=status)
+        self.assertEqual(parse_csv(out)["PRA333333-PRB444444"]["milestone"], "1")
+
+    def test_record_accepts_a_pair_id_in_either_form(self):
+        """`record` takes `A+B`, `A-B` or one partner; `check` matches all three."""
+        for typed in ("PRA333333+PRB444444", "PRA333333-PRB444444"):
+            with self.subTest(typed=typed):
+                code, _, _ = self.record_for(typed, out=self.path("records/pair.json"))
+                self.assertEqual(code, 0)
+                rec = json.load(open(self.path("records/pair.json")))
+                self.assertEqual(rec["student_id"], "PRA333333+PRB444444")
+                status = self.make_status([("PRA333333-PRB444444", "graded", 0, "pair")])
+                _, out, _ = self.check(status=status)
+                self.assertEqual(parse_csv(out)["PRA333333-PRB444444"]["milestone"], "1")
+
+    def test_a_record_from_nobody_on_the_roster_makes_no_row(self):
+        self.record_for("ABC123456")
+        self.record_for("ZZZ999999", out=self.path("records/ZZZ999999.json"))
+        status = self.make_status([("ABC123456", "graded", 0, "")])
+        _, out, err = self.check(status=status)
+        self.assertEqual(list(parse_csv(out)), ["ABC123456"])
+        self.assertIn("not on the roster", err)
+
     def test_output_feeds_grade_py(self):
         """The whole point: the file this writes is the file grade.py reads."""
         self.record_for("ABC123456")

@@ -88,6 +88,51 @@ class TestPrescan(TempCase):
         self.assertNotIn("OVERCAP", out, "solution code was counted toward the specification cap")
 
 
+class TestPrescanStudentId(TempCase):
+    """Cold run 4: the runbook tells the TA to check the student id inside the
+    specification against the submission directory. A pair's specification names whoever
+    signs the ledger, so **either** member must be acceptable."""
+
+    def spec(self, sid, ledger_id):
+        self.write(f"subs/{sid}/SPEC.md",
+                   "Sign the ledger the way the page says, with my student ID "
+                   f"`{ledger_id}` and the page's nonce.\n")
+        self.write(f"subs/{sid}/PROCESS.md", "used opencode")
+        self.write(f"subs/{sid}/WRITTEN.md", "explanation")
+
+    def scan(self):
+        _, out, _ = run_tool("prescan.py", self.path("subs"), "--allow", "resource.invalid")
+        return out
+
+    def test_a_pair_spec_naming_one_member_is_accepted(self):
+        self.spec("PRA333333-PRB444444", "PRA333333")
+        out = self.scan()
+        self.assertTrue(out.startswith("OK"),
+                        f"a pair spec naming one member was flagged: {out}")
+
+    def test_a_pair_spec_naming_the_other_member_is_accepted(self):
+        self.spec("PRA333333-PRB444444", "PRB444444")
+        self.assertTrue(self.scan().startswith("OK"))
+
+    def test_an_individual_spec_naming_itself_is_accepted(self):
+        self.spec("ABC123456", "ABC123456")
+        self.assertTrue(self.scan().startswith("OK"))
+
+    def test_a_spec_naming_somebody_else_is_flagged(self):
+        """Rehearsing on a copied sample hits this: the sample's id is still inside."""
+        self.spec("STU111111", "ABC123456")
+        out = self.scan()
+        self.assertTrue(out.startswith("FLAG"), f"a foreign student id was not flagged: {out}")
+        self.assertIn("spec-id-mismatch:ABC123456", out)
+
+    def test_a_spec_naming_no_id_at_all_is_not_flagged_for_it(self):
+        """A missing id is not evidence of anything; only a *different* id is."""
+        self.write("subs/ABC123456/SPEC.md", "Read the page, then write solve.py.\n")
+        self.write("subs/ABC123456/PROCESS.md", "used opencode")
+        self.write("subs/ABC123456/WRITTEN.md", "explanation")
+        self.assertNotIn("spec-id-mismatch", self.scan())
+
+
 class TestLedgerServer(TempCase):
     """The reference ledger server's validation and containment."""
 
