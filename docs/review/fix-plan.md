@@ -143,19 +143,30 @@ now drops privileges by default whenever it is root, so the safe path is the def
 | 4.2 | `docs/handout-truth` | Fill every placeholder, name only files that exist, link the primer, correct the specification filename, remove the promise of programs that do not exist | 4.1 | F-01, F-28, F-33, F-60 addressed |
 | 4.3 | `docs/primer-corrections` | Remove instructions the sandbox cannot satisfy; make the wrapper text match the project's entry point | 4.1 | F-32 addressed |
 
-### Phase 5 — The framework's promises match what it ships · exit when: no document promises an unimplemented behaviour · decider: Xavier
+### Phase 5 — The framework's promises match what it ships · **DONE 2026-09-09** · exit criteria met: every slice merged; `review_checks.py` reports 0 FAIL; the reference model was changed to one that demonstrably drives the harness (D-006) · decider: Xavier
 
 | Slice | Branch | Change | Depends on | Done when |
 |---|---|---|---|---|
-| 5.1 | `feat/equivalence-policy` | `policy` in the schema, consumed by the test runner and checked by `review_checks.py`; declared on every category in all four examples | Phase 1 | F-34 test passes; checks report zero policy FAILs |
-| 5.2 | `fix/calibration-gate` | Calibration runs from a directory holding only the specification; add the variants path and the Type A path (decision 21); fix the step ordering that requires seeds before creating them | Phase 1 | F-06, F-38, F-63, F-64 addressed; a gate cannot pass with the solution present |
-| 5.3 | `fix/hybrid-and-similarity` | Demote Hybrid to "not provided" in the options menu, out of settled decisions and the active glossary (decision 5); point similarity detection at the institution's tool with a runbook step (decision 6) | — | F-36, F-37 addressed; no handout promises an absent mechanism |
+| 5.1 ✅ | `feat/equivalence-policy` | `policy` in the schema, consumed by the test runner and checked by `review_checks.py`; declared on every category in all four examples | Phase 1 | F-34 test passes; checks report zero policy FAILs |
+| 5.2 ✅ | `fix/calibration-gate` | Calibration runs from a directory holding only the specification; add the variants path and the Type A path (decision 21); fix the step ordering that requires seeds before creating them | Phase 1 | F-06, F-38, F-63, F-64 addressed; a gate cannot pass with the solution present |
+| 5.3 ✅ | `fix/hybrid-and-similarity` | Demote Hybrid to "not provided" in the options menu, out of settled decisions and the active glossary (decision 5); point similarity detection at the institution's tool with a runbook step (decision 6) | — | F-36, F-37 addressed; no handout promises an absent mechanism |
 | 5.4a ✅ | `feat/example-01-eight-programs` | Add the Game (midgame/endgame) program to Parts I and II, so both program shapes exist under the established contract (decision 17) | 5.1 | Reference passes; canonical fails twist categories; hopping and capture paths are covered |
 | 5.4b ✅ | `feat/example-01-eight-programs` | Build Part III, Opening and Game for Black (decision 17) | 5.4a | Same bar; the colour-swap contract is exercised |
 | 5.4c ✅ | `feat/example-01-eight-programs` | Build Part IV, Opening and Game with the improved estimator, graded on positions where the baseline is weak (decisions 17, 18) | 5.4b | Same bar; a submission that simply copies the baseline estimator fails |
 | 5.4d ✅ | `feat/example-01-eight-programs` | Correct the twist weights and claims across all four parts; re-scope Part II's twist category so it tests the board twist rather than textbook pruning, and replace its straw-man canonical | 5.4b | F-26, F-27, F-54 addressed; checks report zero weight FAILs |
-| 5.5a | `fix/example-01-resource` | Correct the worked example that prints a wrong expected output (F-61), and the same class of error across the other resources | 5.1 | Every worked example reproduces from its reference solution |
-| 5.5 | `fix/twist-weight-enforcement` | Enforce the twist-half rule in `review_checks.py` and state the rule for an all-twist part | 5.4 | F-35 addressed |
+| 5.5a ✅ | `fix/example-01-resource` | Correct the worked example that prints a wrong expected output (F-61), and the same class of error across the other resources | 5.1 | Every worked example reproduces from its reference solution |
+| 5.5 ✅ | `fix/twist-weight-enforcement` | Enforce the twist-half rule in `review_checks.py` and state the rule for an all-twist part | 5.4 | F-35 addressed |
+
+**Slices 5.1–5.5 result (2026-09-09).** All merged into `feat/phase-3-ta`. 5.1 `policy` on every
+category, consumed by `run_tests.py --project` and checked by `review_checks.py`. 5.2 the calibration
+gate runs from a directory holding only the specification. 5.3 Hybrid demoted; similarity detection
+is a runbook step against the institution's tool. 5.5 the twist-half rule is enforced, with
+`all_twist` for a part that is entirely twist. Two further slices were added during the night:
+
+| Slice | Branch | Change | Done when |
+|---|---|---|---|
+| 5.6 ✅ | `fix/runner-opencode` | Reference model `qwen3:14b` (D-006, sixth harness criterion); OpenCode's 300 s `headerTimeout`/`chunkTimeout` lifted to the regeneration budget; the work directory named to OpenCode via `--dir` and `PWD`; `num_ctx` pinned in every slot Modelfile | evidence in `docs/review/evidence/harness-tool-calling.md`; tests in `tests/test_phase3_defects.py` |
+| 4.4 ✅ | Phase 4b | Type B milestone requires the harness record that produced the code and `check` verifies it; `ollama` CLI calls and the no-sandbox OpenCode baseURL use the host-side model server; missing binaries and unreachable servers give one-sentence errors; dry-run records are `*.dry.json`; handouts define `<your dir>`, drop hard-coded IDs, and the primer is runnable via `$MODEL` | 38 tests in `tests/test_phase4_defects.py`; second cold student walk |
 
 **Slices 5.4a–d result (2026-09-08).** One commit on `feat/example-01-eight-programs`. Example 01 is
 now eight program directories — `part-<N>-opening` and `part-<N>-game` for each of the four parts —
@@ -170,15 +181,15 @@ the move under pruning, and its canonical is a fair alpha-beta on the standard b
 minimax-without-pruning. Findings closed: F-26, F-27, F-28, F-54. `review_checks.py --no-network`
 reports zero FAIL rows.
 
-### Phase 6 — Records, portfolio, and consistency · exit when: the repo is committed, CI is green, and the site deploys · decider: Xavier
+### Phase 6 — Records, portfolio, and consistency · **6.1, 6.2, 6.3, 6.5 done 2026-09-09; 6.4 open** · exit when: the repo is committed, CI is green, and the site deploys · decider: Xavier
 
 | Slice | Branch | Change | Depends on | Done when |
 |---|---|---|---|---|
-| 6.1 | `chore/repo-standards` | `CLAUDE.md`, `docs/DECISIONS.md` from the existing ADRs, `docs/BACKLOG.md`, CI running the tests and checks, pre-commit | Phase 1 | F-50 addressed; CI green on a PR |
-| 6.2 | `fix/portfolio-ledger` | Volume permissions, redeploy strategy, atomic header write, client address from the socket, align validation with the reference server, decision records | — | F-23, F-51, F-55, F-56 addressed; a deploy dry-run writes an entry |
-| 6.3 | `fix/ledger-server-hardening` | Path containment by real path, ledger default outside any repository, ignore rule | — | F-47, F-48 tests pass |
+| 6.1 ✅ | `chore/repo-standards` | `CLAUDE.md`, `docs/DECISIONS.md` from the existing ADRs, `docs/BACKLOG.md`, CI running the tests and checks, pre-commit | Phase 1 | F-50 addressed; CI green on a PR |
+| 6.2 ✅ | `fix/portfolio-ledger` | Volume permissions, redeploy strategy, atomic header write, client address from the socket, align validation with the reference server, decision records | — | F-23, F-51, F-55, F-56 addressed; a deploy dry-run writes an entry |
+| 6.3 ✅ | `fix/ledger-server-hardening` | Path containment by real path, ledger default outside any repository, ignore rule | — | F-47, F-48 tests pass |
 | 6.4 | `docs/consistency` | Reconcile stale numbers, the schema documentation, run-tag vocabulary, the artifact, and terminology against `CONTEXT.md` | Phases 1–5 | F-58, F-59 addressed; a fresh-context consistency judge returns PASS |
-| 6.5 | `docs/reproducibility-statement` | State what reproducible means including the machine, and what is not fixed | Phase 2 | F-45 addressed |
+| 6.5 ✅ | `docs/reproducibility-statement` | State what reproducible means including the machine, and what is not fixed | Phase 2 | F-45 addressed |
 
 ## 6. Risks
 
