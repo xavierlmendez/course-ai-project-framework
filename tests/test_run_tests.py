@@ -94,3 +94,31 @@ class TestTimeout(TempCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestCaseDirIsHandedToTheSolutionUser(unittest.TestCase):
+    """Inside the sandbox the runner is root and the solution is `runner`; the per-case
+    temp directory must belong to the solution's user or every argv case crashes."""
+
+    def test_chown_when_root_and_run_as(self):
+        import pwd, tempfile, os
+        from unittest import mock
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools"))
+        import run_tests as rt
+        tmp = tempfile.mkdtemp(); inp = os.path.join(tmp, "input.txt"); open(inp, "w").write("x")
+        calls = []
+        fake = pwd.struct_passwd(("runner", "x", 1001, 1001, "", "/home/runner", "/bin/bash"))
+        with mock.patch.object(rt.os, "geteuid", lambda: 0), \
+             mock.patch.object(rt.pwd, "getpwnam", lambda u: fake), \
+             mock.patch.object(rt.os, "chown", lambda p, u, g: calls.append((p, u, g))):
+            rt.hand_case_dir_to(tmp, inp, "runner")
+        self.assertEqual(sorted(calls), sorted([(tmp, 1001, 1001), (inp, 1001, 1001)]))
+
+    def test_no_chown_without_run_as(self):
+        import tempfile, os
+        from unittest import mock
+        sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "tools"))
+        import run_tests as rt
+        tmp = tempfile.mkdtemp(); inp = os.path.join(tmp, "input.txt"); open(inp, "w").write("x")
+        with mock.patch.object(rt.os, "chown", lambda *a: (_ for _ in ()).throw(AssertionError("chown called"))):
+            rt.hand_case_dir_to(tmp, inp, None)
