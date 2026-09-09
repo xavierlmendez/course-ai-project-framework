@@ -107,14 +107,25 @@ network calls to anywhere but the resource, attempts to read `/tests`, credentia
 text addressed to you as the grader. The pre-scan misses paraphrases, which is why you read
 them all.
 
+Also check the **student ID inside the specification** matches the submission directory. A
+specification that tells the harness to sign the ledger as somebody else is either a copied
+template or an attempt to sign for another student; either way it is a `flagged`, not a
+correction you make yourself.
+
 Anything the pre-scan marked `FLAG`: read it line by line, set its status to `flagged`, do
 not run it, and send it to the professor. **You do not decide misconduct.**
 
-**3. Check the caps and the required files.** Every submission needs the specification (or
-the solution, for Type A), `PROCESS.md` and `WRITTEN.md`. `PROCESS.md` and `WRITTEN.md` are
-capped at **600 words** each; the specification at 1,500 including any supporting files.
+**3. The caps and the required files are checked by the pre-scan in step 1.** It reports
+`missing:WRITTEN.md` for an absent page and `WRITTEN.md:over-page-cap:900` for one over the
+600-word limit, alongside `words=` for the specification against its 1,500-word cap. Set any
+submission it reports to `incomplete`. Nothing here is counted by hand.
 
 **4. Type A only: the ledger gate.** Confirm each student has an entry.
+
+The ledger is `{{PROJECT}}/ledger.tsv`, the file the resource server has been appending to
+since the project was published. If it does not exist, or is empty, the students never
+signed it and the gate cannot be applied: do not fail everyone, stop and ask the professor
+whether the server was running.
 
 ```
 # one student, or one partner of a pair
@@ -222,15 +233,19 @@ carries on. When the batch finishes, re-run the same command once. Anything stil
 after that is a real problem to raise, not a grade.
 
 ```
-grep -l '"complete": false' {{PROJECT}}/runs/*/*.json | wc -l   # slots still to retry
+# slots still to retry, across every part. Prints 0 and succeeds when there are none.
+find {{PROJECT}} -name '*.json' -path '*/runs/*' -exec grep -l '"complete": false' {} + 2>/dev/null | wc -l
 ```
 
 ---
 
 ## Day 2 — The gradebook
 
-**1. The milestone.** Students submitted milestone records during the project. Collect them
-into one directory, one `.json` per student, then validate them:
+**1. The milestone.** [course] Students submitted milestone records during the project.
+Collect them into one directory, one `.json` per student, then validate them. For a
+multi-part project pass the part the handout told students to produce their record against
+(`part-I/project.json` unless the handout says otherwise): a record names the part it was
+made for, and `check` only accepts records for the part you name.
 
 ```
 python3 tools/milestone.py check \
@@ -261,36 +276,20 @@ BBB222222,3,3,2,1
 
 Leave `prediction` empty for undergraduates. Values outside 0–3 are rejected by the tools.
 
-**3. Produce the gradebook.** Single-part:
+**3. Produce the gradebook.** One command, single-part or multi-part:
 
 ```
-python3 tools/grade.py --project {{PROJECT}}/project.json \
-  --runs {{PROJECT}}/runs/ --status {{PROJECT}}/status.csv \
-  --written {{PROJECT}}/written.csv --milestone {{PROJECT}}/milestone.csv \
+python3 tools/grade_all.py --project {{PROJECT}} \
+  --status {{PROJECT}}/status.csv \
+  --written {{PROJECT}}/written.csv \
+  --milestone {{PROJECT}}/milestone.csv \
   > {{PROJECT}}/gradebook.csv
 ```
 
-Multi-part: grade each part, then combine once. A part contributes only its hidden score;
-the milestone and written component are course-level and counted once.
-
-```
-BOOKS=""
-for P in $PARTS; do
-  python3 tools/grade.py --project {{PROJECT}}/part-$P/project.json \
-    --runs {{PROJECT}}/part-$P/runs/ --status {{PROJECT}}/status.csv \
-    > {{PROJECT}}/gb-$P.csv || { echo "part $P failed to grade"; break; }
-  BOOKS="$BOOKS {{PROJECT}}/gb-$P.csv"
-done
-
-python3 tools/combine_parts.py --parts {{PROJECT}}/parts.json \
-  --written {{PROJECT}}/written.csv --milestone {{PROJECT}}/milestone.csv \
-  $BOOKS > {{PROJECT}}/gradebook.csv
-```
-
-`$PARTS` comes from `parts.json` (top of this document), so the loop grades exactly the parts
-that exist. A per-part gradebook carries the hidden score only; the milestone and written
-component are course-level and are added once by `combine_parts.py`. If `grade.py` stops with
-"runs directory not found", that part was never run.
+If `{{PROJECT}}` contains `parts.json` this grades each part on its own and combines them,
+adding the milestone and written component once. Otherwise it grades the project directly.
+There is no shell loop to get wrong, and a part that was never run stops the command with a
+message rather than producing a gradebook with holes in it.
 
 **4. Check before you send it.** Every row should read `graded` with a total. A row marked
 `incomplete` has a `note` saying what is missing. Fix the input and re-run; do not hand-edit
@@ -317,15 +316,25 @@ PY
 3. **Appeals.** A student may request one additional run at the middle temperature, and only
    if they show their work passes the public suite on the reference harness.
 
-**Type B** (the specification is regenerated):
+**What counts as showing their work passes.** The student sends the milestone-record command's
+output for the current state of their submission (`tools/milestone.py record`). If it says
+`FAIL`, the precondition is not met and the appeal is refused; say so and point at the
+public-suite line. If they have no record, that is also a refusal. You are not judging the
+specification, only whether the stated precondition holds.
+
+**Type B** (the specification is regenerated). An appeal is scoped to **one part**; name that
+part's project, submissions and runs:
 
 ```
-# set that student's status to `appeal` in status.csv, then:
-python3 tools/runner.py --project {{PROJECT}}/project.json \
-  --submission {{PROJECT}}/submissions/ABC123456 \
+# set that student's status to `appeal` in status.csv, then, for the part under appeal:
+python3 tools/runner.py --project {{PROJECT}}/part-II/project.json \
+  --submission {{PROJECT}}/part-II/submissions/ABC123456 \
   --run-tag appeal --slot 2 \
-  --out {{PROJECT}}/runs/
+  --out {{PROJECT}}/part-II/runs/
 ```
+
+Single-part projects drop the `part-II/` segments. Re-run `grade_all.py` afterwards; it
+re-grades every part, so an appeal on one part does not disturb the others.
 
 The appeal writes its own record (`appeal-k2.json`) alongside the grading records, so it
 neither overwrites the original nor is skipped as already done. Re-run `grade.py`, which
@@ -346,8 +355,9 @@ Set the status back to `graded` when the appeal is resolved.
 
 - Do not edit a student's specification to make it run. A specification that does not work
   scores what it scores; best-of-K exists for the rest.
-- Do not run anything outside the sandbox. `--no-sandbox` is for students practising on
-  their own machines.
+- Do not run a student's code outside the sandbox. `--no-sandbox` is for students practising
+  on their own machines. The one exception is `milestone.py check`, which only reads and
+  validates JSON records and never executes anything a student wrote.
 - Do not grade the process note.
 - Do not judge a specification's style, length or elegance. Only the rubric and the tests.
 - Do not hand-edit the gradebook. Fix the input and re-run.

@@ -82,7 +82,7 @@ python3 ../../tools/run_tests.py --solution reference/solution --tests tests/pub
 # generate a student's hidden tests by hand
 python3 tests/gen_hidden.py --variant JKL333444 --out /tmp/hidden-JKL333444
 
-# TA batch: the runner reads submissions/<id>/variant.txt and calls the generator per submission
+# TA batch: the runner reads the variant from variants.csv and calls the generator per submission
 python3 ../../tools/runner.py --project project.json --submissions submissions --type A --out runs/
 python3 ../../tools/grade.py --project project.json --runs runs/ --status status.csv
 
@@ -97,7 +97,9 @@ python3 tools/ledger_server.py --resource examples/04-scheduling-type-a-variants
    use the first partner's ID (the sample row `MNO777888+PQR999000,MNO777888`).
 2. Tell each student their URL: `.../?v=<variant>`. The handout says the public tests are for
    `demo`, not their variant.
-3. Students put the variant in `variant.txt`; the runner refuses a submission without it.
+3. The **professor's `variants.csv` roster decides** each student's variant. A `variant.txt`
+   inside a submission is ignored, so a student cannot choose an easier variant by editing it.
+   Students are told their variant through the resource URL the handout gives them.
 4. The hidden suite is not a directory in the repo; it is whatever `gen_hidden.py` produces for
    the variant. After grading, release the generator (it is deterministic) instead of the cases.
 5. Calibration: run the reference solution against generated tests for at least two variants
@@ -130,7 +132,7 @@ JKL333444,graded,0,A,52.5,5/5,5/5,6/6,0/6,,,,,52.5,          # undergraduate
 JKL333444,graded,1,A,42.0,5/5,5/5,6/6,0/6,0/4,,,,42.0,       # same submission graded as graduate
 ```
 
-`prescan.py` on the submission: `OK JKL333444 words=147`.
+`prescan.py` on the submission: `OK JKL333444 words=1` (solution code does not count toward the specification cap).
 
 The handout's worked example was produced by the reference solution: `{"total": 14, "chosen": ["a", "c"]}`.
 

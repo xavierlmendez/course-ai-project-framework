@@ -45,5 +45,6 @@
  },
  "sandbox_image": "harness-sandbox",
  "sandbox_memory": "2g",
- "nonce": "922EAEEEDE7F"
+ "nonce": "922EAEEEDE7F",
+ "resource_port": 8080
 }

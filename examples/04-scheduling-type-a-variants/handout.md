@@ -61,8 +61,8 @@ Use any harness you like. The course provides a free reference setup, **OpenCode
 |---|---|
 | your solution directory, `solve.py` at its root | — |
 | `variant.txt` containing your variant string | one line |
-| `PROCESS.md` | 1 page; required, not graded |
-| `WRITTEN.md` | 1 page; graded |
+| `PROCESS.md` | 1 page, 600 words; required, not graded |
+| `WRITTEN.md` | 1 page, 600 words; graded |
 
 ## 7. Milestone (end of week 1, 10%)
 

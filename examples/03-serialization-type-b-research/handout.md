@@ -74,8 +74,8 @@ python3 tools/runner.py --project project.json --submission <dir> --run-tag prac
 | File | Cap |
 |---|---|
 | `SPEC.md` | 1,500 words including any supporting files |
-| `PROCESS.md` | 1 page; required, not graded |
-| `WRITTEN.md` | 1 page; graded, see §8 |
+| `PROCESS.md` | 1 page, 600 words; required, not graded |
+| `WRITTEN.md` | 1 page, 600 words; graded, see §8 |
 
 Do **not** submit generated code. It is not graded.
 

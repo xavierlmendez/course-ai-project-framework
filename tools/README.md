@@ -7,6 +7,7 @@ Python 3 standard library plus Docker and Ollama. A TA can read every file in on
 | `run_tests.py` | Runs interface-contract tests against one solution directory. Used by students (public suite), by the milestone, and by the runner inside the sandbox (hidden suite). |
 | `runner.py` | TA batch runner. Type B: K sandboxed regenerations per submission, then hidden tests. Type A: hidden tests once. Also creates the pinned slot models (`--create-slots`). Resumable. |
 | `grade.py` | Turns runner records plus `status.csv`, `written.csv`, `milestone.csv` into `gradebook.csv`. Refuses a `status.csv` with no `grad` column, refuses a written dimension outside 0–3, and marks a row `incomplete` rather than emitting a total that silently omits a component. |
+| `grade_all.py` | Grades a whole project, single-part or multi-part, in one command. Replaces the shell loop, which word-split differently in bash and zsh and silently continued past a part that was never run. |
 | `combine_parts.py` | Combines per-part gradebooks. Each part contributes only its **hidden** score, weighted; the milestone and written component are course-level and added once. |
 | `milestone.py` | `record` (student) runs the public suite and writes a milestone record; `check` (TA) validates submitted records into `milestone.csv`. |
 | `prescan.py` | Flags lines in specifications the safety read must look at closely. Not a safety control. |
@@ -163,11 +164,9 @@ python3 tools/runner.py --project project.json --submissions submissions/ --stat
 python3 tools/grade.py --project project.json --runs runs/ --status status.csv --written written.csv \
         --milestone milestone.csv > gradebook.csv
 
-# multi-part: grade each part (hidden only), then combine once
-python3 tools/grade.py --project part-I/project.json  --runs part-I/runs  --status status.csv > gb-I.csv
-python3 tools/grade.py --project part-II/project.json --runs part-II/runs --status status.csv > gb-II.csv
-python3 tools/combine_parts.py --parts parts.json --written written.csv --milestone milestone.csv \
-        gb-I.csv gb-II.csv > gradebook.csv
+# the whole project in one command, single-part or multi-part
+python3 tools/grade_all.py --project . --status status.csv \
+        --written written.csv --milestone milestone.csv > gradebook.csv
 
 # the milestone
 python3 tools/milestone.py record --project project.json --solution <dir> \

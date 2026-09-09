@@ -58,8 +58,8 @@ Use any harness you like. The course provides a free reference setup, **{{HARNES
 | File | Cap |
 |---|---|
 | your solution directory, `{{ENTRY}}` at its root | — |
-| `PROCESS.md` | 1 page; required, not graded |
-| `WRITTEN.md` | 1 page; graded |
+| `PROCESS.md` | 1 page, 600 words; required, not graded |
+| `WRITTEN.md` | 1 page, 600 words; graded |
 
 ## 7. Milestone ({{MILESTONE_DATE}}, 10%)
 

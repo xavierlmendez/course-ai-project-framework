@@ -26,5 +26,6 @@
  "nonce": "379AEEDCD7E2",
  "part": "IV",
  "resource_dir": "../resource",
- "ledger": "../ledger.tsv"
+ "ledger": "../ledger.tsv",
+ "resource_port": 8080
 }

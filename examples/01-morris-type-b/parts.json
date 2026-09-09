@@ -1,1 +1,13 @@
-{"parts":[{"name":"I","weight":45},{"name":"II","weight":35},{"name":"III","weight":10},{"name":"IV","weight":10}]}
+{
+ "parts": [
+  {
+   "name": "I",
+   "weight": 45
+  },
+  {
+   "name": "II",
+   "weight": 35
+  }
+ ],
+ "_note": "Only the parts that are built and graded. Parts III and IV of the professor's real assignment are not yet built in this example; adding them here before they exist would reweight I and II. See README.md."
+}

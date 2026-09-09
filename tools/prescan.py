@@ -67,8 +67,11 @@ def scan_text(text, allow):
     return hits
 
 
-def scan_submission(path, allow, cap):
-    hits, words = [], 0
+PAGE_FILES = ("PROCESS.md", "WRITTEN.md")
+
+
+def scan_submission(path, allow, cap, page_cap=600):
+    hits, words, pages = [], 0, {}
     for root, _, files in os.walk(path):
         for f in files:
             if not f.lower().endswith(TEXT_EXT):
@@ -81,9 +84,16 @@ def scan_submission(path, allow, cap):
                 hits.append(f"unreadable:{f}:{e}")
                 continue
             rel = os.path.relpath(p, path)
-            if rel not in ("PROCESS.md", "WRITTEN.md") and not rel.lower().endswith(CODE_EXT):
+            if rel in PAGE_FILES:
+                pages[rel] = len(text.split())
+            elif not rel.lower().endswith(CODE_EXT):
                 words += len(text.split())
             hits += [f"{rel}:{h}" for h in scan_text(text, allow)]
+    for name in PAGE_FILES:
+        if name not in pages:
+            hits.append(f"missing:{name}")
+        elif pages[name] > page_cap:
+            hits.append(f"{name}:over-page-cap:{pages[name]}")
     return hits, words
 
 
@@ -92,7 +102,9 @@ def main():
     ap.add_argument("submissions")
     ap.add_argument("--project", help="project.json; the resource and model hosts are taken from it")
     ap.add_argument("--allow", nargs="*", default=[], help="extra hosts allowed in URLs")
-    ap.add_argument("--cap", type=int, default=1500, help="word cap on SPEC.md + supporting files")
+    ap.add_argument("--cap", type=int, default=1500, help="word cap on the specification + supporting files")
+    ap.add_argument("--page-cap", type=int, default=600,
+                    help="word cap on PROCESS.md and WRITTEN.md, checked per file")
     a = ap.parse_args()
     allow = list(a.allow)
     if a.project:
@@ -116,7 +128,7 @@ def main():
         p = os.path.join(a.submissions, sid)
         if not os.path.isdir(p):
             continue
-        hits, words = scan_submission(p, a.allow, a.cap)
+        hits, words = scan_submission(p, a.allow, a.cap, a.page_cap)
         status = "FLAG" if hits else "OK"
         if words > a.cap:
             status = "OVERCAP" if status == "OK" else "FLAG+OVERCAP"

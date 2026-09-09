@@ -45,5 +45,6 @@
  "variants": {
   "generator": "tests/gen_hidden.py"
  },
- "nonce": "C63B9D665ABB"
+ "nonce": "C63B9D665ABB",
+ "resource_port": 8080
 }

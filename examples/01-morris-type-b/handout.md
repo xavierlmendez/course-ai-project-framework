@@ -82,7 +82,7 @@ One directory per part, each containing exactly:
 |---|---|
 | `SPEC.md` (Parts I and II: one spec per program, named `SPEC-MiniMaxOpening.md` etc.) | 1,500 words each including supporting files |
 | `PROCESS.md` | 1 page per part; required, not graded |
-| `WRITTEN.md` | 1 page per part; graded |
+| `WRITTEN.md` | 1 page for the whole project, 600 words; graded |
 | Part IV only: `MyStaticEstimation.md` | 1 page: your function, two positions where it chooses differently from the baseline, and why it is better |
 
 Do **not** submit generated code. It is not graded.

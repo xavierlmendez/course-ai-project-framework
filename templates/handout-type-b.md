@@ -70,8 +70,8 @@ A directory containing exactly:
 | File | Cap |
 |---|---|
 | `SPEC.md` | 1,500 words including any supporting files |
-| `PROCESS.md` | 1 page; required, not graded |
-| `WRITTEN.md` | 1 page; graded, see §8 |
+| `PROCESS.md` | 1 page, 600 words; required, not graded |
+| `WRITTEN.md` | 1 page, 600 words; graded, see §8 |
 | supporting files (optional) | count toward the 1,500 words |
 
 Do **not** submit generated code. It is not graded.
