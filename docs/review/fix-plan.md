@@ -150,12 +150,25 @@ now drops privileges by default whenever it is root, so the safe path is the def
 | 5.1 | `feat/equivalence-policy` | `policy` in the schema, consumed by the test runner and checked by `review_checks.py`; declared on every category in all four examples | Phase 1 | F-34 test passes; checks report zero policy FAILs |
 | 5.2 | `fix/calibration-gate` | Calibration runs from a directory holding only the specification; add the variants path and the Type A path (decision 21); fix the step ordering that requires seeds before creating them | Phase 1 | F-06, F-38, F-63, F-64 addressed; a gate cannot pass with the solution present |
 | 5.3 | `fix/hybrid-and-similarity` | Demote Hybrid to "not provided" in the options menu, out of settled decisions and the active glossary (decision 5); point similarity detection at the institution's tool with a runbook step (decision 6) | — | F-36, F-37 addressed; no handout promises an absent mechanism |
-| 5.4a | `feat/example-01-game-programs` | Add the Game (midgame/endgame) program to Parts I and II, so both program shapes exist under the established contract (decision 17) | 5.1 | Reference passes; canonical fails twist categories; hopping and capture paths are covered |
-| 5.4b | `feat/example-01-part-iii` | Build Part III, Opening and Game for Black (decision 17) | 5.4a | Same bar; the colour-swap contract is exercised |
-| 5.4c | `feat/example-01-part-iv` | Build Part IV, Opening and Game with the improved estimator, graded on positions where the baseline is weak (decisions 17, 18) | 5.4b | Same bar; a submission that simply copies the baseline estimator fails |
+| 5.4a ✅ | `feat/example-01-eight-programs` | Add the Game (midgame/endgame) program to Parts I and II, so both program shapes exist under the established contract (decision 17) | 5.1 | Reference passes; canonical fails twist categories; hopping and capture paths are covered |
+| 5.4b ✅ | `feat/example-01-eight-programs` | Build Part III, Opening and Game for Black (decision 17) | 5.4a | Same bar; the colour-swap contract is exercised |
+| 5.4c ✅ | `feat/example-01-eight-programs` | Build Part IV, Opening and Game with the improved estimator, graded on positions where the baseline is weak (decisions 17, 18) | 5.4b | Same bar; a submission that simply copies the baseline estimator fails |
 | 5.5a | `fix/example-01-resource` | Correct the worked example that prints a wrong expected output (F-61), and the same class of error across the other resources | 5.1 | Every worked example reproduces from its reference solution |
-| 5.4c | `fix/example-01-integrity` | Correct the twist weights and claims across all four parts; re-scope Part II's twist category so it tests the board twist rather than textbook pruning, and replace its straw-man canonical | 5.4b | F-26, F-27, F-54 addressed; checks report zero weight FAILs |
+| 5.4d ✅ | `feat/example-01-eight-programs` | Correct the twist weights and claims across all four parts; re-scope Part II's twist category so it tests the board twist rather than textbook pruning, and replace its straw-man canonical | 5.4b | F-26, F-27, F-54 addressed; checks report zero weight FAILs |
 | 5.5 | `fix/twist-weight-enforcement` | Enforce the twist-half rule in `review_checks.py` and state the rule for an all-twist part | 5.4 | F-35 addressed |
+
+**Slices 5.4a–d result (2026-09-08).** One commit on `feat/example-01-eight-programs`. Example 01 is
+now eight program directories — `part-<N>-opening` and `part-<N>-game` for each of the four parts —
+because a project directory carries one `entry`. `parts.json` weights them 22.5/22.5/17.5/17.5/5/5/5/5,
+which is the professor's 45/35/10/10 split evenly within each part. Every program has a reference
+solution, a canonical solution, a `<1,500`-word `reference/SPEC.md`, a generated hidden and public
+suite, a sample submission and a gitignored seeds file, and every category declares a `policy`. All
+eight references reproduce the professor's own recorded outputs in `AISpring26/tests/spec.yaml`
+exactly. Every reference passes every hidden case; every canonical scores under 50% on its twist
+category. Part II's twist category is now `ab_*_mill`, positions where a diagonal-spoke mill decides
+the move under pruning, and its canonical is a fair alpha-beta on the standard board rather than
+minimax-without-pruning. Findings closed: F-26, F-27, F-28, F-54. `review_checks.py --no-network`
+reports zero FAIL rows.
 
 ### Phase 6 — Records, portfolio, and consistency · exit when: the repo is committed, CI is green, and the site deploys · decider: Xavier
 

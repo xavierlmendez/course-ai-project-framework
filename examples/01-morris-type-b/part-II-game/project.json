@@ -1,0 +1,46 @@
+{
+  "name": "morris-p2-game",
+  "type": "B",
+  "part": "II-game",
+  "entry": "ABGame.py",
+  "python": "python3",
+  "spec": "SPEC.md",
+  "resource_dir": "../resource",
+  "resource_host": "host.docker.internal",
+  "resource_port": 8080,
+  "ledger": "../ledger.tsv",
+  "ollama_host": "http://host.docker.internal:11434",
+  "base_model": "qwen2.5-coder:14b",
+  "k": 3,
+  "temperatures": [
+    0.2,
+    0.6,
+    1.0
+  ],
+  "seeds_file": "seeds.secret.json",
+  "regeneration_timeout_s": 1200,
+  "test_timeout_s": 30,
+  "hidden_tests": "tests/hidden",
+  "public_tests": "tests/public",
+  "hidden_points": 70,
+  "milestone_points": 10,
+  "written_points": 20,
+  "wrapper_prompt": "Read {spec} in the current directory and carry out its instructions exactly. The finished program must be a single file named {entry} in the current directory. Do not ask questions; make reasonable choices and finish.",
+  "sandbox_image": "harness-sandbox",
+  "categories": {
+    "ab_game_pruning": {
+      "weight": 3,
+      "policy": "ab"
+    },
+    "ab_game_mill": {
+      "weight": 3,
+      "twist": true,
+      "policy": "ab"
+    },
+    "grad_depth3": {
+      "weight": 1,
+      "grad_only": true,
+      "policy": "ab"
+    }
+  }
+}
