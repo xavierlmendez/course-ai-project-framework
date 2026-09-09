@@ -123,7 +123,7 @@ Criterion 1 removes every cloud harness whose free tier can reroute or rotate mo
 
 ### Students may use anything to develop
 
-The handout says: develop with whatever you like, but the grade comes from the reference harness, so optimizing for a paid tool is pointless. Students install the reference harness by the milestone (§10) and run the same runner script the TAs use, minus the secret seeds.
+The handout says: develop with whatever you like, but the grade comes from the reference harness, so optimizing for a paid tool is pointless. Students install the reference harness by the milestone (§10) and run the same runner script the TAs use, through `runner.py --practice`: the same wrapper prompt and temperature schedule, with the public suite instead of the hidden one, seeds of their own instead of the secret ones, and no sandbox.
 
 ---
 
@@ -234,7 +234,7 @@ Required with every submission. Default: **required but ungraded**; a missing no
 | Week (of 3 / of 5) | What happens |
 |---|---|
 | 0 | Publish resource, handout, public tests, category names and counts, reference harness install guide. Ledger open. |
-| 1 / 1–2 | **Milestone** at the one-third mark: student runs the runner script themselves and the public suite passes. Auto-graded pass/fail, 10%. Forces early install and ends the "it worked in ChatGPT" appeal. |
+| 1 / 1–2 | **Milestone** at the one-third mark: student runs `runner.py --practice` themselves and the public suite passes. Auto-graded pass/fail, 10%. Forces early install and ends the "it worked in ChatGPT" appeal. |
 | 2 / 3–4 | Development. Office hours are about the specification or solution, never about the reference model's behavior. |
 | 3 / 5 | Submission. TAs run pre-scan, safety read, runner. Grades out. Hidden tests and seeds released. |
 | +1 | Appeals window (§6). |

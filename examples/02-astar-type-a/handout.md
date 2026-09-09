@@ -8,7 +8,15 @@ Write a program that finds a minimum-cost path between two cells of a grid with 
 
 The full task, including the rule that differs from the textbook version, is at:
 
-**http://localhost:8080/** from your laptop, **http://host.docker.internal:8080/** from inside the course sandbox.
+**http://localhost:8081/** from your laptop, **http://host.docker.internal:8081/** from inside the grading sandbox. (8081 is this project's `resource_port`.)
+
+To practise at home, start that server yourself from the root of the course repository:
+
+```
+python3 tools/ledger_server.py --project examples/02-astar-type-a/project.json --allow-in-repo
+```
+
+It listens on the project's `resource_port`, prints the nonce it is serving, and writes `examples/02-astar-type-a/ledger.tsv`. `--allow-in-repo` is needed only because that path is inside a checkout: the server refuses by default so that a real ledger of student IDs is never one `git add .` from being committed, and a practice ledger is throwaway. That is your own ledger; the graded one is the course server your instructor announces.
 
 Your harness must fetch that page. It contains a nonce and a ledger instruction.
 
@@ -35,11 +43,14 @@ $ echo '{"grid": ["......", "......"], "start": [0, 0], "goal": [0, 5]}' | pytho
 
 ## 4. Tests
 
-Public tests are in `tests/public/`:
+Public tests are in `examples/02-astar-type-a/tests/public/`. From the root of the course repository:
 
 ```
-python3 tools/run_tests.py --solution . --tests tests/public
+python3 tools/run_tests.py --solution <your dir> \
+  --tests examples/02-astar-type-a/tests/public --entry solve.py --timeout 10
 ```
+
+Add `--json` for a machine-readable summary. The milestone (§7) runs this same suite for you and writes a signed record.
 
 Any minimum-cost path is accepted; a checker validates the path and its cost. Hidden categories (names and counts; cases released after grading):
 
@@ -54,7 +65,11 @@ Any minimum-cost path is accepted; a checker validates the path and its cost. Hi
 
 ## 5. AI use
 
-Use any harness you like. The course provides a free reference setup, **OpenCode with `qwen2.5-coder:14b`** on Ollama, install guide at the course site, shared server at `http://<course-ollama-host>:11434`. Your code is graded, not your tool. You are expected to understand every line you submit; the written component asks you to explain one design decision.
+Use any harness you like. The course provides a free reference setup, **OpenCode on Ollama with the model named in `examples/02-astar-type-a/project.json`** (the `base_model` key). <!-- model: from project.json --> The install guide is the [student primer](../../templates/student-primer.md).
+
+If your machine cannot run the model, use the course Ollama server your instructor announces: put its URL in `ollama_host` in your own copy of `project.json` (the shipped value is the one the grading container uses, so it will not resolve on your laptop). Exporting `OLLAMA_HOST` does not redirect OpenCode.
+
+Your code is graded, not your tool. You are expected to understand every line you submit; the written component asks you to explain one design decision.
 
 ## 6. What to submit
 
@@ -66,7 +81,14 @@ Use any harness you like. The course provides a free reference setup, **OpenCode
 
 ## 7. Milestone (end of week 1, 10%)
 
-Your solution passes the public suite. Submit the test runner's JSON output. Auto-graded pass/fail.
+Your solution passes the public suite. Produce the signed milestone record and submit it:
+
+```
+python3 tools/milestone.py record --project examples/02-astar-type-a/project.json \
+  --solution <your dir> --student-id ABC123456 --out milestone.json
+```
+
+Submit `milestone.json`. Auto-graded pass/fail.
 
 ## 8. Grading
 
@@ -90,4 +112,4 @@ Harness choice, model choice, how the page was fetched, how many times you regen
 
 ## 10. Integrity
 
-Solutions are submitted to {{SIMILARITY_TOOL}}, the institution's similarity checker, and anything it flags goes to the professor under the standard misconduct process. Pairs submit one directory and both sign the ledger. The twist changes every semester.
+Solutions are submitted to MOSS, the institution's similarity checker, and anything it flags goes to the professor under the standard misconduct process. Pairs submit one directory and both sign the ledger. The twist changes every semester.

@@ -5,13 +5,13 @@ Python 3 standard library plus Docker and Ollama. A TA can read every file in on
 | Tool | Role |
 |---|---|
 | `run_tests.py` | Runs interface-contract tests against one solution directory. Used by students (public suite), by the milestone, and by the runner inside the sandbox (hidden suite). Given `--project project.json` it enforces each category's declared equivalence policy and reports it in the summary. |
-| `runner.py` | TA batch runner. Type B: K sandboxed regenerations per submission, then hidden tests. Type A: hidden tests once. Also creates the pinned slot models (`--create-slots`). Resumable. |
+| `runner.py` | TA batch runner. Type B: K sandboxed regenerations per submission, then hidden tests. Type A: hidden tests once. Also creates the pinned slot models (`--create-slots`), and gives students one practice command (`--practice`). Resumable. |
 | `grade.py` | Turns runner records plus `status.csv`, `written.csv`, `milestone.csv` into `gradebook.csv`. Refuses a `status.csv` with no `grad` column, refuses a written dimension outside 0–3, and marks a row `incomplete` rather than emitting a total that silently omits a component. |
 | `grade_all.py` | Grades a whole project, single-part or multi-part, in one command. Replaces the shell loop, which word-split differently in bash and zsh and silently continued past a part that was never run. |
 | `combine_parts.py` | Combines per-part gradebooks. Each part contributes only its **hidden** score, weighted; the milestone and written component are course-level and added once. |
 | `milestone.py` | `record` (student) runs the public suite and writes a milestone record; `check` (TA) validates submitted records into `milestone.csv`. |
 | `prescan.py` | Flags lines in specifications the safety read must look at closely. Not a safety control. |
-| `ledger_server.py` | Serves the published resource and the write-only ledger endpoint. Reference implementation; port the one route into an existing site if you have one. |
+| `ledger_server.py` | Serves the published resource and the write-only ledger endpoint. `--project project.json` takes its resource directory, ledger file, nonce and port from the project, which is the form a handout can give a student. Reference implementation; port the one route into an existing site if you have one. |
 | `sandbox/` | Docker image: Python, a **pinned** OpenCode, curl, and an outbound allowlist of host:port pairs. Hidden tests are staged root-only; the graded solution runs unprivileged. |
 | `../tests/` | `python3 -m unittest discover -s tests`. Every test names the finding it guards. No Docker, model or network needed. |
 | `../scripts/rehearsal.py` | Grades a fixture cohort end to end and prints the arithmetic beside the gradebook, so the totals can be checked by hand. |
@@ -22,6 +22,7 @@ Python 3 standard library plus Docker and Ollama. A TA can read every file in on
 ```
 project.json
 seeds.secret.json           {"seeds": [n1, n2, n3]}   never committed, secret until grades are out
+seeds.practice.json         written by --practice when the secret seeds are absent; never committed
 resource/index.md           the published resource; {{NONCE}}, {{VARIANT}}, {{BASE_URL}} substituted
 tests/public/<cat>/NNN.in.json + NNN.out.json     (or check.py in the category dir)
                             argv-files contract instead: NNN.args ("{in} {out} 3"), NNN.in.txt,
@@ -52,7 +53,8 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
   "entry": "solve.py",                  // the file the harness must produce
   "nonce": "A1B2C3D4E5F6",              // printed on the resource page and required by the
                                         //   ledger. Lives here only; ledger_server.py --project
-                                        //   reads it, so rotation changes one line
+                                        //   reads it, so rotation changes one line. Omit it and
+                                        //   the server mints and prints a random practice nonce
   "spec": "SPEC.md",                    // the specification file the harness is told to read.
                                         //   Multi-part: "SPEC-part-I.md" and so on, one per part
   "part": "I",                          // optional. Declaring it puts grade.py in hidden-only
@@ -62,6 +64,11 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
   "resource_host": "host.docker.internal",          // the published resource's host …
   "resource_port": 8080,                            // … and its port. The sandbox allowlist is
                                                     //   host:port pairs, never a bare host
+  "resource_dir": "resource",                       // optional; where ledger_server.py --project
+                                                    //   finds the page. Relative to project.json
+  "ledger": "ledger.tsv",                           // optional; same, for ledger_server.py --project.
+                                                    //   The server refuses a path inside a repository
+                                                    //   unless --allow-in-repo is given
   "ollama_host": "http://host.docker.internal:11434",   // as the *sandbox* reaches it
   "ollama_host_local": null,            // optional: as *this machine* reaches it, when the
                                         //   model server is not on the docker host. A
@@ -195,6 +202,10 @@ python3 tools/milestone.py record --project project.json --solution <dir> \
         --student-id ABC123456 --out milestone.json          # student
 python3 tools/milestone.py check --project project.json --records milestone-records/ \
         --status status.csv > milestone.csv                   # TA
+
+# the commands a student runs: no secret seeds, no prepared slot models, public suite
+python3 tools/ledger_server.py --project project.json --allow-in-repo   # practice ledger, port from the project
+python3 tools/runner.py --project project.json --submission <dir> --practice
 
 # check the tools themselves
 python3 -m unittest discover -s tests
