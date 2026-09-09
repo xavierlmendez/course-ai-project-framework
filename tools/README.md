@@ -110,10 +110,31 @@ simply absent unless the professor sets them.
                                         //   (PARAMETER num_ctx). The agent loop's tool
                                         //   schemas do not fit Ollama's 4096 default;
                                         //   measured 2026-09-08/09. --verify-slots checks it
+  "thinking": "off",                    // "off" (default): the slot Modelfile carries the base
+                                        //   model's chat template patched to disable qwen3's
+                                        //   thinking mode, because a thinking model narrates its
+                                        //   plan inside <think> and ends the turn without calling
+                                        //   a tool, so the agent loop never gets past the first
+                                        //   step (R620, 2026-09-09, D-007). The patch is applied
+                                        //   to whatever `ollama show --template <base_model>`
+                                        //   returns and --create-slots stops if that template
+                                        //   carries no qwen3 thinking switch.
+                                        //   "default": the template is left untouched — use it
+                                        //   for a base model with no thinking mode.
+                                        //   --verify-slots checks the slot's template too and
+                                        //   says "slot N still thinks" if it was created before
+                                        //   this patch. `PARAMETER think false` and a `"think":
+                                        //   false` request field are both dead ends: Modelfiles
+                                        //   reject the parameter and Ollama's /v1 endpoint, the
+                                        //   one OpenCode uses, ignores the field
   "k": 3,
   "temperatures": [0.2, 0.6, 1.0],
   "seeds_file": "seeds.secret.json",
-  "regeneration_timeout_s": 1200,       // set to 2x the reference specification's slowest passing run
+  "regeneration_timeout_s": 1200,       // set to 2x the reference specification's slowest passing run.
+                                        //   1200 is a GPU number. On the CPU-only R620 a full
+                                        //   Type B run took 28 minutes without the course page and
+                                        //   was still working at 90 minutes with it (2026-09-09),
+                                        //   so a CPU grading box needs hours, not twenty minutes
   "test_timeout_s": 10,
   "hidden_tests": "tests/hidden",
   "public_tests": "tests/public",
@@ -303,7 +324,8 @@ the batch, on the grounds that the machine, not the cohort, is what needs fixing
 docker build -t harness-sandbox tools/sandbox/
 python3 tools/runner.py --project project.json --create-slots   # OLLAMA_HOST is set from the
                                                                 # project; pins temperature,
-                                                                # seed and num_ctx per slot
+                                                                # seed, num_ctx and the no-think
+                                                                # TEMPLATE per slot
 python3 tools/ledger_server.py --project project.json \
         --base-url http://host.docker.internal:8080   # port comes from resource_port
 python3 tools/runner.py --project project.json --verify-slots   # is the schedule reaching the model?

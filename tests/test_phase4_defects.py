@@ -17,7 +17,7 @@ import unittest
 from unittest import mock
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
-from helpers import TempCase, run_tool, parse_csv, ROOT  # noqa: E402
+from helpers import TempCase, run_tool, parse_csv, qwen3_template, ROOT  # noqa: E402
 
 sys.path.insert(0, os.path.join(ROOT, "tools"))
 import runner  # noqa: E402
@@ -193,6 +193,9 @@ class SlotCase(TempCase):
         calls = []
 
         def fake_sh(cmd, timeout=None, cwd=None, dry=False, env=None):
+            if cmd[:3] == ["ollama", "show", "--template"]:
+                calls.append({"cmd": cmd, "env": env, "modelfile": ""})
+                return 0, qwen3_template(), "", 0.0
             modelfile = open(cmd[-1]).read() if cmd[:2] == ["ollama", "create"] else ""
             calls.append({"cmd": cmd, "env": env, "modelfile": modelfile})
             return 0, "", "", 0.0
@@ -201,7 +204,7 @@ class SlotCase(TempCase):
              mock.patch.object(runner.shutil, "which", side_effect=lambda x: "/usr/bin/" + x), \
              mock.patch.object(runner, "model_server_reachable", return_value=True):
             runner.create_slots(self.p, dry)
-        return calls
+        return [c for c in calls if c["cmd"][:2] == ["ollama", "create"]]
 
 
 class TestSlotCreationTargetsTheProjectsServer(SlotCase):
@@ -268,6 +271,10 @@ class TestUnreachableModelServer(SlotCase):
         self.assertFalse(regenerated.called, "the practice run carried on with no model server")
 
 
+# A slot template that has been through the no-think patch, as the model server reports it.
+NO_THINK_SLOT_TEMPLATE = runner.no_think_template(qwen3_template(), "qwen3:14b")
+
+
 class TestVerifySlotsChecksNumCtx(SlotCase):
 
     def params(self, **over):
@@ -276,14 +283,16 @@ class TestVerifySlotsChecksNumCtx(SlotCase):
         return base
 
     def test_a_slot_without_num_ctx_is_a_problem(self):
-        with mock.patch.object(runner, "slot_parameters",
+        with mock.patch.object(runner, "slot_template", return_value=NO_THINK_SLOT_TEMPLATE), \
+             mock.patch.object(runner, "slot_parameters",
                                side_effect=lambda p, i: {"temperature": str(p["temperatures"][i - 1]),
                                                          "seed": str([11, 22, 33][i - 1])}):
             problems = runner.verify_slots(self.p, [11, 22, 33])
         self.assertTrue(any("num_ctx" in x for x in problems), problems)
 
     def test_a_wrong_num_ctx_is_a_problem(self):
-        with mock.patch.object(runner, "slot_parameters",
+        with mock.patch.object(runner, "slot_template", return_value=NO_THINK_SLOT_TEMPLATE), \
+             mock.patch.object(runner, "slot_parameters",
                                side_effect=lambda p, i: {"temperature": str(p["temperatures"][i - 1]),
                                                          "seed": str([11, 22, 33][i - 1]),
                                                          "num_ctx": "4096"}):
@@ -291,7 +300,8 @@ class TestVerifySlotsChecksNumCtx(SlotCase):
         self.assertTrue(any("4096" in x for x in problems), problems)
 
     def test_correct_slots_report_no_problems(self):
-        with mock.patch.object(runner, "slot_parameters",
+        with mock.patch.object(runner, "slot_template", return_value=NO_THINK_SLOT_TEMPLATE), \
+             mock.patch.object(runner, "slot_parameters",
                                side_effect=lambda p, i: {"temperature": str(p["temperatures"][i - 1]),
                                                          "seed": str([11, 22, 33][i - 1]),
                                                          "num_ctx": "32768"}):
