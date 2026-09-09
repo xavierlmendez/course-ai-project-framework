@@ -26,7 +26,13 @@ JSON object on stdout. Contract (argv-files): the entry point is run as
 
 Usage:
     run_tests.py --solution DIR --tests DIR [--entry solve.py] [--timeout 10]
-                 [--python python3] [--json]
+                 [--python python3] [--json] [--project project.json]
+
+--project makes the declared equivalence policy (framework.md section 9) binding: every
+category in project.json carries "policy": "strict" | "estimate" | "ab" | "valid", and a
+policy other than strict is realised only by a check.py in the category directory. A
+category whose declaration and directory disagree is refused rather than graded on the
+wrong rule. Without --project the runner behaves exactly as before.
 Standard library only.
 """
 import argparse
@@ -200,6 +206,47 @@ def judge(result, out_path, checker, in_path, python):
     return actual == expected, ("match" if actual == expected else "mismatch")
 
 
+POLICIES = ("strict", "estimate", "ab", "valid")
+
+
+def category_policies(project_path, discovered):
+    """Return ({category: policy}, [problem strings]) for the discovered categories.
+
+    A policy is only ever realised by a check.py: exact JSON (or line) comparison is
+    `strict` and nothing else. So a category that declares `estimate`, `ab` or `valid`
+    without a checker would silently be graded strictly, and a category that declares
+    `strict` while shipping a checker is graded by the checker and not by the declaration.
+    Both are refused here rather than turned into wrong marks.
+    """
+    with open(project_path) as fh:
+        declared = (json.load(fh).get("categories") or {})
+    policies, problems = {}, []
+    for cat, cases in sorted(discovered.items()):
+        meta = declared.get(cat)
+        if meta is None:
+            policies[cat] = None          # not a graded category of this project
+            continue
+        pol = meta.get("policy", "strict")
+        has_check = any(case[3] for case in cases)
+        if pol not in POLICIES:
+            problems.append(f"category {cat!r}: unknown equivalence policy {pol!r} "
+                            f"(expected one of {', '.join(POLICIES)})")
+            continue
+        policies[cat] = pol
+        if pol != "strict" and not has_check:
+            problems.append(
+                f"category {cat!r}: policy {pol!r} requires a check.py in the category "
+                f"directory to realise it, and there is none. Add check.py or declare "
+                f'"policy": "strict".')
+        elif pol == "strict" and has_check:
+            stated = "declares" if "policy" in meta else "defaults to"
+            problems.append(
+                f"category {cat!r}: {stated} policy 'strict' but the directory contains a "
+                f"check.py. A checker decides equivalence, so declare the policy it "
+                f"implements (estimate, ab or valid) or remove check.py.")
+    return policies, problems
+
+
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--solution", required=True)
@@ -208,6 +255,10 @@ def main():
     ap.add_argument("--timeout", type=float, default=10.0)
     ap.add_argument("--python", default=sys.executable or "python3")
     ap.add_argument("--json", action="store_true", help="print only the JSON summary")
+    ap.add_argument("--project", default=None,
+                    help="project.json. Makes each category's declared equivalence policy "
+                         "binding and reports it in the summary. Optional: without it the "
+                         "runner compares exactly and reports no policy.")
     ap.add_argument("--run-as", default=None,
                     help="run each solution as this user so the graded code cannot read the "
                          "expected outputs. Defaults to 'runner' when this process is root and "
@@ -223,16 +274,33 @@ def main():
     if a.run_as == "root":
         a.run_as = None
 
+    discovered = discover(a.tests)
+    policies = {}
+    if a.project:
+        policies, problems = category_policies(a.project, discovered)
+        if problems:
+            for why in problems:
+                print(f"equivalence policy: {why}", file=sys.stderr)
+            summary = {"solution_started": False, "categories": {},
+                       "error": "equivalence policy refused: " + " | ".join(problems)}
+            print(json.dumps(summary, indent=None if a.json else 2))
+            return 2
+
     if not os.path.exists(os.path.join(a.solution, a.entry)):
         summary = {"solution_started": False, "categories": {}, "error": f"missing {a.entry}"}
-        for cat, cases in discover(a.tests).items():
-            summary["categories"][cat] = {"pass": 0, "total": len(cases), "cases": []}
+        for cat, cases in discovered.items():
+            rec = {"pass": 0, "total": len(cases), "cases": []}
+            if a.project:
+                rec["policy"] = policies.get(cat)
+            summary["categories"][cat] = rec
         print(json.dumps(summary, indent=None if a.json else 2))
         return 2
 
     summary = {"solution_started": True, "categories": {}}
-    for cat, cases in discover(a.tests).items():
+    for cat, cases in discovered.items():
         rec = {"pass": 0, "total": len(cases), "cases": []}
+        if a.project:
+            rec["policy"] = policies.get(cat)
         for name, in_path, out_path, checker, mode in cases:
             try:
                 if mode == "argv":

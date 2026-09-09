@@ -17,12 +17,12 @@
   "milestone_points": 10,
   "written_points": 20,
   "categories": {
-    "basic":          {"weight": 1},
-    "walls":          {"weight": 1},
-    "unreachable":    {"weight": 1},
-    "twist_long_run": {"weight": 1.5, "twist": true},
-    "twist_detour":   {"weight": 1.5, "twist": true},
-    "grad_large":     {"weight": 1, "grad_only": true}
+    "basic":          {"weight": 1, "policy": "valid"},
+    "walls":          {"weight": 1, "policy": "valid"},
+    "unreachable":    {"weight": 1, "policy": "valid"},
+    "twist_long_run": {"weight": 1.5, "twist": true, "policy": "valid"},
+    "twist_detour":   {"weight": 1.5, "twist": true, "policy": "valid"},
+    "grad_large":     {"weight": 1, "grad_only": true, "policy": "valid"}
   },
   "sandbox_image": "harness-sandbox",
   "sandbox_memory": "2g"

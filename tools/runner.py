@@ -70,6 +70,7 @@ def load_project(path):
     with open(path) as fh:
         p = json.load(fh)
     p["_dir"] = os.path.dirname(os.path.abspath(path))
+    p["_path"] = os.path.abspath(path)
     p.setdefault("type", "B")
     p.setdefault("entry", "solve.py")
     p.setdefault("python", "python3")
@@ -212,7 +213,8 @@ def endpoints(p):
     return ",".join(dict.fromkeys(out))
 
 
-def docker_base(p, workdir, extra_env=None, network=True, tests_dir=None, name=None):
+def docker_base(p, workdir, extra_env=None, network=True, tests_dir=None, name=None,
+                project_file=None):
     cmd = ["docker", "run", "--rm", "-i",
            "-v", f"{os.path.abspath(workdir)}:/work", "-w", "/work",
            "-v", f"{HERE}:/tools:ro"]
@@ -223,6 +225,10 @@ def docker_base(p, workdir, extra_env=None, network=True, tests_dir=None, name=N
         # cannot traverse to it whatever the host's permissions on the mount are. The
         # entrypoint stages a root-only copy at /tests for the test runner itself.
         cmd += ["-v", f"{os.path.abspath(tests_dir)}:/root/tests-src:ro"]
+    if project_file:
+        # Read-only so run_tests.py can enforce the declared equivalence policy inside
+        # the container. It carries no secrets: seeds live in seeds.secret.json.
+        cmd += ["-v", f"{os.path.abspath(project_file)}:/project.json:ro"]
     if network:
         cmd += ["--cap-add", "NET_ADMIN", "--add-host", "host.docker.internal:host-gateway",
                 "-e", f"ALLOW_ENDPOINTS={endpoints(p)}", "-e", f"OLLAMA_HOST={p['ollama_host']}"]
@@ -307,15 +313,26 @@ def resolve_tests(p, sub_dir, override, dry, sid=None):
 
 
 def run_tests(p, workdir, tests_dir, sandbox, dry):
+    """Run the hidden suite, with the project's declared equivalence policies binding.
+
+    --project is passed through in both paths so a category whose policy and check.py
+    disagree is refused here rather than graded on the wrong rule (F-34).
+    """
+    project_file = p.get("_path")
     if sandbox:
-        cmd = docker_base(p, workdir, network=False, tests_dir=tests_dir) + [
+        cmd = docker_base(p, workdir, network=False, tests_dir=tests_dir,
+                          project_file=project_file) + [
             "runtests",
             "python3", "/tools/run_tests.py", "--solution", "/work", "--tests", "/tests",
             "--entry", p["entry"], "--timeout", str(p["test_timeout_s"]),
             "--run-as", "runner", "--json"]
+        if project_file:
+            cmd += ["--project", "/project.json"]
     else:
         cmd = [p["python"], os.path.join(HERE, "run_tests.py"), "--solution", workdir, "--tests", tests_dir,
                "--entry", p["entry"], "--timeout", str(p["test_timeout_s"]), "--json"]
+        if project_file:
+            cmd += ["--project", project_file]
     code, out, err, wall = sh(cmd, timeout=3600, dry=dry)
     if dry:
         return {"dry_run": True}
