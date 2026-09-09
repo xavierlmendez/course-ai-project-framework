@@ -103,17 +103,29 @@ One design conflict surfaced during the rehearsal and was resolved: the new comp
 every *part* incomplete, because a part has no milestone or written component by design. `grade.py`
 gained a hidden-only mode, implied by a `part` key in `project.json`.
 
-### Phase 2 — The grading environment is sealed and pinned · exit when: each sandbox escape test fails before the fix and passes after · decider: Xavier
+### Phase 2 — The grading environment is sealed and pinned · **DONE 2026-09-08** · exit criteria met: 11 sandbox tests, 6 of which failed before the fix; 67 tests green overall · decider: Xavier
 
 | Slice | Branch | Change | Depends on | Done when |
 |---|---|---|---|---|
-| 2.1 | `fix/sandbox-network` | Per-host-port allow rules, DNS restricted to the resolver, IPv6 denied by default | 1.1 | F-08, F-09, F-49 tests pass from inside a built image |
-| 2.2 | `fix/hidden-test-isolation` | The graded solution cannot read the expected outputs: run tests as a separate user with `/tests` unreadable to the solution, or feed one case at a time | 2.1 | F-07 test passes: a lookup solution scores zero |
-| 2.3 | `fix/pin-harness` | Pin the OpenCode version in the Dockerfile and record it in `project.json`; the timeout kills the container, not the client | 1.1 | F-10, F-15 tests pass; two builds a week apart produce the same harness version |
-| 2.6 | `fix/temperature-path` | Set temperature and seed in the generated config as well as the Modelfile, and have the runner read back the model's effective parameters before grading (F-65) | 0.4 | The self-check fails loudly when a slot's effective temperature differs from its schedule |
-| 2.7 | `fix/entrypoint-ownership` | Stop chowning the bind mount; run as the unprivileged user without rewriting host ownership (F-62) | 1.1 | Resume can delete a working directory after a sandboxed run on Linux |
-| 2.4 | `fix/seed-hygiene` | Seeds not printed by `--create-slots`, not stored in run records before release | 1.1 | F-52 test passes |
-| 2.5 | `fix/prescan` | `--allow` defaults from `project.json` so conforming specifications are not flagged; add the missed classes; document what it does not catch | 1.1 | F-24, F-25 tests pass; sample submissions are `OK`, a planted specification is `FLAG` |
+| 2.1 ✅ | `fix/sandbox-network` | Per-host-port allow rules, DNS restricted to the resolver, IPv6 denied by default | 1.1 | F-08, F-09, F-49 tests pass from inside a built image |
+| 2.2 ✅ | `fix/hidden-test-isolation` | The graded solution cannot read the expected outputs: run tests as a separate user with `/tests` unreadable to the solution, or feed one case at a time | 2.1 | F-07 test passes: a lookup solution scores zero |
+| 2.3 ✅ | `fix/pin-harness` | Pin the OpenCode version in the Dockerfile and record it in `project.json`; the timeout kills the container, not the client | 1.1 | F-10, F-15 tests pass; two builds a week apart produce the same harness version |
+| 2.6 ✅ | `fix/temperature-path` | Set temperature and seed in the generated config as well as the Modelfile, and have the runner read back the model's effective parameters before grading (F-65) | 0.4 | The self-check fails loudly when a slot's effective temperature differs from its schedule |
+| 2.7 ✅ | `fix/entrypoint-ownership` | Stop chowning the bind mount; run as the unprivileged user without rewriting host ownership (F-62) | 1.1 | Resume can delete a working directory after a sandboxed run on Linux |
+| 2.4 ✅ | `fix/seed-hygiene` | Seeds not printed by `--create-slots`, not stored in run records before release | 1.1 | F-52 test passes |
+| 2.5 ✅ | `fix/prescan` | `--allow` defaults from `project.json` so conforming specifications are not flagged; add the missed classes; document what it does not catch | 1.1 | F-24, F-25 tests pass; sample submissions are `OK`, a planted specification is `FLAG` |
+
+**Phase 2 result.** One commit, `fix(sandbox): phase 2`. `tests/test_sandbox.py` builds the image and
+runs containers; six of its eleven tests failed against the sandbox as it stood, and two more passed
+at first for the wrong reason and were rewritten until they could fail. Findings closed: F-07, F-08,
+F-09, F-10, F-15, F-24, F-49, F-52, F-62, and F-65's guard.
+
+Two things worth recording. The isolation fix was wrong on the first attempt: the tests were staged
+to a root-only copy while the read-only mount stayed world-readable beside it, so a solution could
+still read the answers through the mount. The end-to-end test caught what the permission test missed.
+The mount now lives inside `/root`, which the graded user cannot traverse. Second, isolation depended
+on every caller passing `--run-as`; forgetting it silently ran the solution as root. `run_tests.py`
+now drops privileges by default whenever it is root, so the safe path is the default one.
 
 ### Phase 3 — A TA can execute the runbook cold · exit when: a fresh-context agent grades example 01 and example 04 from the repo alone · decider: Xavier
 
