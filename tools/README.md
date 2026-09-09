@@ -226,7 +226,7 @@ The record's `harness` block is what `check` reads:
 `check` refuses a Type B record with no harness block ("no harness evidence") and a **Type A**
 record that names a model, since no model was ever loaded.
 
-The runner record `record --regeneration` accepts must carry `run_tag`, `complete`, `dry_run`, and
+The runner record `record --regeneration` accepts must carry `run_tag` (the tag **with** the slot suffix, exactly as the runner writes it: `practice-k1`, `grading-k2`; the work directory is `<run_tag>-work`), `complete`, `dry_run`, and
 inside its `regeneration` block `entry_present`, `harness_exit` and `wall_s`, plus `slot` on the
 record; anything missing those is not a runner record and is refused by name.
 

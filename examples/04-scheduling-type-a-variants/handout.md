@@ -54,7 +54,7 @@ python3 tools/run_tests.py --solution <your dir> \
   --tests examples/04-scheduling-type-a-variants/tests/public --entry solve.py --timeout 10
 ```
 
-`<your dir>` is the directory holding your submission files, for example `mywork/`; use its path wherever `<your dir>` appears below. Nothing in this project writes a `runs/` directory: `runs/` belongs to the regeneration runner, which a Type A project never uses. The one file the course tools write for you is the milestone record (§7), and it lands in the directory you run the command from.
+`<your dir>` is the directory holding your submission files, for example `mywork-sched/`; use its path wherever `<your dir>` appears below. Nothing in this project writes a `runs/` directory: `runs/` belongs to the regeneration runner, which a Type A project never uses. The one file the course tools write for you is the milestone record (§7), and it lands in the directory you run the command from.
 
 `--json` prints **only** the JSON summary; without it the tool prints both the human-readable lines and the JSON. The milestone (§7) runs this same suite for you and writes a signed record.
 

@@ -45,7 +45,7 @@ Public tests are in `tests/public/`. From the root of the course repository:
 python3 tools/run_tests.py --solution <your dir> --tests tests/public --entry {{ENTRY}}
 ```
 
-`<your dir>` is the directory holding your submission files, for example `mywork/`; put its path
+`<your dir>` is the directory holding your submission files, for example `mywork-a/`; put its path
 wherever `<your dir>` appears below. `--json` prints **only** the JSON summary; without it the tool
 prints both the human-readable lines and the JSON.
 

@@ -30,8 +30,8 @@ Two subcommands.
             python3 tools/runner.py --project project.json --submission ./my-submission \\
                     --run-tag practice --slot 1 --out ./practice --no-sandbox
             python3 tools/milestone.py record --project project.json \\
-                    --solution ./practice/my-submission/practice-k1-work \\
-                    --regeneration ./practice/my-submission/practice-k1.json \\
+                    --solution runs/<dir name>/practice-k1-work \\
+                    --regeneration runs/<dir name>/practice-k1.json \\
                     --student-id ABC123456
 
         The point of the milestone is that this whole path worked on your machine.
@@ -174,9 +174,11 @@ def harness_evidence(a, p):
     # The runner names the work directory after the record's run tag, beside the record.
     work = os.path.join(os.path.dirname(path), f"{reg['run_tag']}-work")
     if os.path.realpath(work) != os.path.realpath(os.path.abspath(a.solution)):
-        sys.exit(f"--solution is not the directory that run wrote: expected {work}, "
-                 f"got {os.path.abspath(a.solution)}. The milestone measures the code the "
-                 "harness produced, not code beside it.")
+        sys.exit(f"--solution is not the directory that run wrote: the record's run_tag is "
+                 f"{reg['run_tag']!r}, so the runner put its code in {work}; you passed "
+                 f"{os.path.abspath(a.solution)}. Pass that directory (a record the runner wrote "
+                 "carries the slot suffix, e.g. run_tag 'practice-k1' beside 'practice-k1-work'). "
+                 "The milestone measures the code the harness produced, not code beside it.")
     return {
         "model": p.get("base_model"),
         "run_tag": reg.get("run_tag"),
