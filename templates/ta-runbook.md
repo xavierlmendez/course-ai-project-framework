@@ -100,13 +100,41 @@ ollama list | grep -F "$MODEL" || echo "NOT PRESENT — run: ollama pull $MODEL"
 Pull it now if it is missing. It is several gigabytes, and `--create-slots` on Day 1 will
 otherwise download it silently in the middle of your grading window.
 
-**On a Linux grading box, make Ollama listen on more than loopback.** By default it binds
-127.0.0.1 only, so the sandbox container cannot reach `host.docker.internal:11434` even though
-`--verify-slots` — which dials from the host side — says ok, and every slot then fails after
-about a minute with OpenCode's "Cannot connect to API". Set `OLLAMA_HOST=0.0.0.0` for the
-ollama service (a systemd override) and restart it. On Docker Desktop (macOS, Windows) this is
-automatic. `--verify-slots` and every sandboxed batch now probe from inside the sandbox and stop
-with that sentence rather than letting the batch fail slot by slot.
+**A fresh Linux grading box, from nothing to a verified sandbox.** These are the exact
+commands, in order, checked on 9 September 2026 on Ubuntu 22.04 with Ollama 0.33.3. Docker
+Desktop on macOS needs none of this — steps b and c are the Linux-only part.
+
+```
+# a. install Ollama
+curl -fsSL https://ollama.com/install.sh | sh
+
+# b. make it listen on all interfaces, or the sandbox cannot reach it (see below)
+sudo mkdir -p /etc/systemd/system/ollama.service.d \
+  && printf '[Service]\nEnvironment="OLLAMA_HOST=0.0.0.0"\n' \
+     | sudo tee /etc/systemd/system/ollama.service.d/override.conf \
+  && sudo systemctl daemon-reload \
+  && sudo systemctl restart ollama
+
+# c. the model (about 9 GB), the sandbox image, and the sandbox's own tests
+ollama pull qwen3:14b            # or "$MODEL" from the block above
+docker build -t harness-sandbox tools/sandbox/
+python3 -m unittest tests.test_sandbox     # 11 tests, about 25 s
+```
+
+Step b is not optional on Linux. Ollama binds 127.0.0.1 by default, so the sandbox container
+cannot reach `host.docker.internal:11434`, and every slot then fails after about a minute with
+OpenCode's "Cannot connect to API". `--verify-slots` and every sandboxed batch now probe the
+model server **from inside the sandbox** as well as from the host, and stop naming this fix if
+that probe fails, rather than letting the batch fail slot by slot. On Docker Desktop (macOS,
+Windows) it is automatic.
+
+**If the grading box is an AWS instance.** The reference box for the timings in this runbook is
+a **g5.xlarge** (one A10G, 24 GB of GPU memory, 4 vCPU, 15 GB RAM) on the Ubuntu 22.04 Deep
+Learning Base AMI, which has Docker already installed. Launch it in a region where the
+"Running On-Demand G and VT instances" service quota is at least 4 vCPUs — the default is often
+0, and raising it takes a support round trip, so check it days before grading. It costs about
+one dollar an hour; **stop** the instance between batches rather than terminating it, so you pay
+only for the EBS volume and keep the model, the image and the grading directory.
 
 The model must be one that emits structured tool calls through the harness (`framework.md` §5,
 criterion 6); that is checked once at calibration, not on grading day. If a whole batch comes back
@@ -599,20 +627,47 @@ practice run writes `practice-k<N>.json` beside `practice-k<N>-work`; any other 
 `<tag>-k<N>.json` beside `<tag>-k<N>-work` (so an appeal is `appeal-k2.json`); and a `--dry-run`
 writes `<tag>-k<N>.dry.json` beside `<tag>-k<N>-dry-work`, which the grading tools skip.
 
+Beside each working directory it also writes **`<tag>-k<N>-work.harness.jsonl`**: the harness's
+full event stream for that slot. The record keeps only a 3,000-character tail, so this file is
+the only place that shows which tools the harness called, with what arguments, and what the
+model said. You do not need it to grade; you need it when a slot is disputed (Day 3) or when a
+whole batch comes back empty.
+
 **Read the last lines.** The runner prints a `SKIPPED` summary and exits non-zero if nobody
 was graded. A skipped submission is almost always a `status.csv` key that does not match the
 directory name, or a student missing from the variant roster.
 
-**How long it takes.** Measure, do not guess. The professor's calibration run recorded the
-wall-clock time of one regeneration; the batch is roughly that × 3 × the number of
-submissions you are running, on one machine. Ask the professor for the number and plan the
-window before you start. If a regeneration takes 10 minutes, 65 submissions is about 32
-machine-hours, which is more than one night.
+**Grading-day budget.** Measure on your own box; the numbers below are what a real one gave, so
+you have a reference point rather than a guess. On the **A10G** grading box of Day 0 step 3
+(g5.xlarge, one A10G), `qwen3:14b` at `num_ctx` 32768 generates at **49.5 tokens/s** — a
+300-token answer in about 6 seconds, and the harness's 2,000-token first prompt evaluated in
+under a second. What that buys per slot is not one answer but a whole agent loop. Three
+sandboxed Type B slots of one submission took **75 s, 50 s and 569 s**; the long one iterated —
+it wrote the program, made an input file, ran it, and rewrote it. So budget **2–10 minutes per
+slot on an A10G**.
+
+The arithmetic for a cohort: 65 submissions × 3 slots = 195 slots, which at 2–10 minutes each is
+roughly **6 to 30 hours of unattended machine time per program**. One night covers the fast end
+comfortably and the slow end not at all, so start the batch at the end of Day 1 and expect to
+find it finished — or still running — on Day 2 morning. A multi-part project multiplies that by
+the number of programs. Every number in this paragraph was measured on an A10G on 9 September
+2026 and must be re-measured on a different box: a CPU-only machine of the R620 class takes
+**30–90 minutes per slot**, which is 100 to 300 hours for the same cohort, and is therefore a
+correctness-check machine only, never a grading box. The default `regeneration_timeout_s` of
+1200 (20 minutes) is a GPU number and is the right bound on an A10G.
 
 **If it stops with `BATCH ABORTED`.** Three regenerations failed in a row for environment
 reasons: the model server is down, docker is broken, or the disk is full. Nothing was scored
 against those students. Fix the machine and re-run the **same command**; completed slots are
 skipped and incomplete ones are retried.
+
+**Two sandbox failures you should no longer see**, named here because you may find them in an
+old log or an old record. On a **Linux** host the bind-mounted work directory belongs to the
+host user and the harness inside the container could not write into it; the runner now passes
+`HOST_UID`/`HOST_GID` and the sandbox entrypoint runs the harness as that uid. And an
+**interrupted batch** used to leave a container holding the next run's name, so docker refused
+the next slot with a name conflict and exit 125; the runner now removes a stale container of
+that name before it starts one.
 
 **The retry pass.** Isolated environment failures leave a slot incomplete and the batch
 carries on. When the batch finishes, re-run the same command once. Anything still incomplete
@@ -800,6 +855,12 @@ python3 tools/runner.py --project {{PROJECT}}/part-II-opening/project.json \
 
 Single-part projects drop the `part-II-opening/` segments. Re-run `grade_all.py` afterwards; it
 re-grades every part, so an appeal on one part does not disturb the others.
+
+If the student disputes what the harness *did* rather than what it scored, the file to read is
+`runs/<id>/grading-k<N>-work.harness.jsonl`, the full event stream of the disputed slot: it
+shows every tool the harness called and everything the model said, where the record keeps only
+a 3,000-character tail. Read it to answer "it never fetched the page" or "it never wrote the
+file"; you are still not grading the transcript.
 
 The appeal writes its own record (`appeal-k2.json`) alongside the grading records, so it
 neither overwrites the original nor is skipped as already done. `grade_all.py` considers every

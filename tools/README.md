@@ -280,7 +280,8 @@ One record per run, written by `runner.py`. The fields the other tools read:
 - `tests_dir` — the absolute path of the hidden suite this run was scored against, so a
   record says which tests produced its numbers. `null` when none was resolved.
 - `regeneration` — Type B only: `entry_present`, `harness_exit`, `wall_s`, the model and
-  the command. `milestone.py` reads it as harness evidence.
+  the command, plus `harness_log`, the name of the event-stream file beside the work
+  directory. `milestone.py` reads it as harness evidence.
 - `tests` — the hidden-suite result, below.
 
 ### The `tests` block
@@ -311,6 +312,13 @@ run writes `runs/<id>/k<N>.json` beside its working directory `runs/<id>/grading
 A student's own run is named after their submission directory instead — `mywork/part-I-opening`
 gives `runs/part-I-opening/practice-k1.json` beside `runs/part-I-opening/practice-k1-work`, which
 is the form the handouts use.
+**The harness's full event stream is kept beside the work directory**, as
+`runs/<id>/<tag>-k<N>-work.harness.jsonl` (stdout, then stderr under a `--- stderr ---`
+marker). The record embeds only a 3,000-character tail in `harness_stdout_tail`, so this file
+is where an appeal or a failed calibration reads which tools the harness called, with what
+arguments, and what the model said; the record's `regeneration.harness_log` names it. A
+`--dry-run` writes no such file.
+
 Any other run tag writes `runs/<id>/<tag>-k<N>.json` beside `runs/<id>/<tag>-k<N>-work`, so an
 **appeal** is a record of its own: it neither collides with the grading record nor is mistaken for
 one already done. `grade.py` considers every complete record and takes the best.
