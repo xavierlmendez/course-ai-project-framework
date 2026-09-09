@@ -6,6 +6,15 @@ sandbox is the safety control. Standard library only.
 
 Usage:
     prescan.py SUBMISSIONS_DIR [--project project.json] [--allow HOST ...] [--cap 1500]
+    prescan.py --course COURSE_DIR [--cap 1500] [--page-cap 600]
+
+Two modes. The first scans **one program's** submissions directory, the shape the runner
+grades. The second scans the **course-level** `submissions/` tree beside `parts.json`, the
+shape students actually submit (one directory per student, one sub-directory per program,
+one `WRITTEN.md` and one `PROCESS.md` for the whole project). The course mode is the one to
+run on Day 0, before `fan_out.py` has copied anything: it checks the layout, every
+`SPEC.md` against the same patterns and word cap, and the two course-level pages against
+the 600-word cap once each rather than once per program. It prints one row per student.
 
 Pass --project and the allowed hosts come from the project itself, so the mandatory
 ledger line in every conforming specification is not flagged as an offsite URL.
@@ -106,7 +115,12 @@ def id_check(dir_name, texts):
     return []
 
 
-def scan_submission(path, allow, cap, page_cap=600):
+def scan_tree(path, allow):
+    """Walk one directory: (hits, specification words, {page file: words}, texts).
+
+    The specification word count excludes the two course-level pages and any file in the
+    target language, which are capped and counted elsewhere.
+    """
     hits, words, pages, texts = [], 0, {}, []
     for root, _, files in os.walk(path):
         for f in files:
@@ -126,6 +140,11 @@ def scan_submission(path, allow, cap, page_cap=600):
             elif not rel.lower().endswith(CODE_EXT):
                 words += len(text.split())
             hits += [f"{rel}:{h}" for h in scan_text(text, allow)]
+    return hits, words, pages, texts
+
+
+def scan_submission(path, allow, cap, page_cap=600):
+    hits, words, pages, texts = scan_tree(path, allow)
     for name in PAGE_FILES:
         if name not in pages:
             hits.append(f"missing:{name}")
@@ -135,33 +154,128 @@ def scan_submission(path, allow, cap, page_cap=600):
     return hits, words
 
 
+def scan_course_student(student_dir, programs, allow, cap, page_cap):
+    """One student's whole submission in the layout the handout asks for.
+
+    Everything the per-program mode checks, but read once over the course-level tree: the
+    layout itself (fan_out's rules), every program's SPEC.md against the same patterns and
+    the same 1,500-word cap, and the **single** WRITTEN.md and PROCESS.md against the
+    600-word cap — once each, not once per program.
+    """
+    import fan_out
+    problems, _words, _missing = fan_out.inspect(student_dir, programs)
+    hits, texts, words = list(problems), [], {}
+    for name, dirname, _spec, _data in programs:
+        d = os.path.join(student_dir, dirname)
+        if not os.path.isdir(d):
+            continue
+        h, w, _p, t = scan_tree(d, allow)
+        hits += [f"{dirname}/{x}" for x in h]
+        texts += t
+        words[name] = w
+        if w > cap:
+            hits.append(f"{dirname}:spec-over-cap:{w}")
+    for page in PAGE_FILES:
+        p = os.path.join(student_dir, page)
+        if not os.path.isfile(p):
+            continue                      # fan_out.inspect already reported it as missing
+        text = open(p, encoding="utf-8", errors="replace").read()
+        texts.append(text)
+        n = len(text.split())
+        hits += [f"{page}:{h}" for h in scan_text(text, allow)]
+        if n > page_cap:
+            hits.append(f"{page}:over-page-cap:{n}")
+    hits += id_check(os.path.basename(os.path.normpath(student_dir)), texts)
+    return hits, words
+
+
+def course_hosts(course_dir):
+    """Allowed hosts taken from every part's project.json, so --course needs no --project."""
+    import glob
+    allow = []
+    for pj in sorted(glob.glob(os.path.join(course_dir, "part-*", "project.json"))):
+        try:
+            proj = json.load(open(pj))
+        except (OSError, ValueError):
+            continue
+        allow += hosts_from_project(proj)
+    return allow
+
+
+def hosts_from_project(proj):
+    allow = []
+    if proj.get("resource_host"):
+        allow.append(proj["resource_host"])
+    if proj.get("ollama_host"):
+        h = urllib.parse.urlsplit(proj["ollama_host"]).hostname
+        if h:
+            allow.append(h)
+    for e in proj.get("extra_allow_endpoints", []):
+        allow.append(e.split(":")[0])
+    return allow
+
+
+def classify(hits):
+    """(status, suspicious, admin). FLAG needs a human to read for misconduct; INCOMPLETE is
+    a file, layout or cap problem the student can fix."""
+    admin = [h for h in hits if h.startswith(("missing:", "missing-program:", "stray-file:",
+                                              "unknown-directory:"))
+             or "over-page-cap" in h or "over-cap" in h]
+    suspicious = [h for h in hits if h not in admin]
+    return ("FLAG" if suspicious else "INCOMPLETE" if admin else "OK"), suspicious, admin
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("submissions")
+    ap.add_argument("submissions", nargs="?",
+                    help="one program's submissions directory (the per-program mode)")
+    ap.add_argument("--course", help="a course directory holding parts.json: scan the "
+                                     "course-level submissions/ tree in the layout students "
+                                     "submit, one row per student")
     ap.add_argument("--project", help="project.json; the resource and model hosts are taken from it")
     ap.add_argument("--allow", nargs="*", default=[], help="extra hosts allowed in URLs")
     ap.add_argument("--cap", type=int, default=1500, help="word cap on the specification + supporting files")
     ap.add_argument("--page-cap", type=int, default=600,
                     help="word cap on PROCESS.md and WRITTEN.md, checked per file")
     a = ap.parse_args()
+    if not a.submissions and not a.course:
+        ap.error("give either a submissions directory (one program's) or --course DIR "
+                 "(a course directory holding parts.json)")
     allow = list(a.allow)
     if a.project:
         try:
             proj = json.load(open(a.project))
         except OSError as e:
             sys.exit(f"--project: {e}")
-        if proj.get("resource_host"):
-            allow.append(proj["resource_host"])
-        if proj.get("ollama_host"):
-            h = urllib.parse.urlsplit(proj["ollama_host"]).hostname
-            if h:
-                allow.append(h)
-        for e in proj.get("extra_allow_endpoints", []):
-            allow.append(e.split(":")[0])
+        allow += hosts_from_project(proj)
+    elif a.course:
+        # Every part of a course points at the same resource and model hosts; taking them
+        # from the parts means the course-level scan needs no --project of its own.
+        allow += course_hosts(a.course)
     if not allow:
         print("note: no allowed hosts given, so every URL will be flagged. "
               "Pass --project project.json.", file=sys.stderr)
     a.allow = list(dict.fromkeys(allow))
+
+    if a.course:
+        sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+        import fan_out
+        course = os.path.abspath(a.course)
+        programs = fan_out.load_parts(course)
+        # The tree lives beside parts.json unless the TA points somewhere else, which is
+        # what happens when submissions are unpacked from the dropbox into scratch space.
+        root = os.path.abspath(a.submissions) if a.submissions \
+            else os.path.join(course, "submissions")
+        for sid in fan_out.students(root):
+            hits, words = scan_course_student(os.path.join(root, sid), programs,
+                                              a.allow, a.cap, a.page_cap)
+            status, suspicious, admin = classify(hits)
+            counts = ",".join(f"{n}={words[n]}" if n in words else f"{n}=-"
+                              for n, _d, _s, _f in programs)
+            print(f"{status}\t{sid}\tprograms={len(words)}/{len(programs)}\twords={counts}\t"
+                  + " ".join(suspicious + admin))
+        return 0
+
     for sid in sorted(os.listdir(a.submissions)):
         p = os.path.join(a.submissions, sid)
         if not os.path.isdir(p):

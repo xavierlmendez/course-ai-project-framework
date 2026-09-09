@@ -101,6 +101,7 @@ def main():
     p = json.load(open(a.project))
     cats = p["categories"]
     hidden_only = a.hidden_only or bool(p.get("part"))
+    is_type_a = str(p.get("type", "B")).strip().upper() == "A"
     hidden_pts = float(p.get("hidden_points", 70))
     milestone_pts = float(p.get("milestone_points", 10))
     written_pts = float(p.get("written_points", 20))
@@ -166,7 +167,12 @@ def main():
             note = ("missing: " + ", ".join(why) + ("; " + note if note else "")) if why else note
         incomplete_slots = sum(1 for r in all_recs if not r.get("complete"))
         if incomplete_slots:
-            note = (note + "; " if note else "") + f"{incomplete_slots} slot(s) never completed"
+            # Type A has no slots: the student submits code and it is run once. "1 slot(s)
+            # never completed" invited a TA to look for the other slots and to wonder which
+            # one failed, so a Type A row says what actually happened.
+            why = ("the run never completed" if is_type_a
+                   else f"{incomplete_slots} slot(s) never completed")
+            note = (note + "; " if note else "") + why
         row = [sid, out_status, int(grad), best_slot, hidden]
         row += [f"{best_detail[c][0]}/{best_detail[c][1]}" if c in best_detail else "" for c in cat_names]
         row += [ms_score, wr_raw, wr_score, total, note]

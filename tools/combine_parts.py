@@ -28,7 +28,9 @@ present. Otherwise it is `incomplete` with no total.
 
 Every part's non-empty `note` is carried into the combined `note`, prefixed with the part
 name (`I: 1 slot(s) never completed`), because a per-part note such as "never completed" is
-grade-relevant and the combined gradebook is the only file the TA reads before sending.
+grade-relevant and the combined gradebook is the only file the TA reads before sending. A
+note every part repeats identically (`pair`, an appeal note recorded against each program)
+is said once without a prefix; a note about "never completed" is put first.
 Standard library only.
 """
 import argparse
@@ -39,6 +41,28 @@ import sys
 
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from grade import load_csv, written_score  # noqa: E402
+
+INCOMPLETE_NOTE = "never completed"
+
+
+def merge_notes(part_notes):
+    """Combine the per-part notes into the pieces of one course-level note.
+
+    Eight programs each carrying `pair` produced `I-opening: pair; I-game: pair; ...` — the
+    same fact eight times, pushing the one note that changes a grade off the end of the
+    column. A note that every part it appears in says identically is said once, without a
+    part prefix, because it is a property of the submission and not of a part. A note only
+    some parts say keeps its part prefix, because which part it is about is the point.
+    `never completed` is ordered first whatever else is in the row: it is the note the
+    readiness check on Day 2 is looking for.
+    """
+    order = {}
+    for name, note in part_notes:
+        order.setdefault(note, []).append(name)
+    pieces = [(note if len(names) > 1 else f"{names[0]}: {note}", INCOMPLETE_NOTE in note)
+              for note, names in order.items()]
+    pieces.sort(key=lambda p: not p[1])          # stable: incompletes first, else part order
+    return [text for text, _first in pieces]
 
 
 def main():
@@ -94,7 +118,7 @@ def main():
             # being dropped: the readiness check on Day 2 reads this column.
             n = (r.get("note", "") if r else "").strip()
             if n:
-                part_notes.append(f"{p['name']}: {n}")
+                part_notes.append((p["name"], n))
             hiddens.append(h)
             statuses.append(s)
             if h == "" or s not in ("graded", "appeal"):
@@ -116,7 +140,7 @@ def main():
         have_all = hidden_score != "" and ms_score != "" and wr_score != ""
         total = round(hidden_score + ms_score + wr_score, 2) if have_all else ""
         status = "graded" if have_all else "incomplete"
-        pieces = list(part_notes)
+        pieces = merge_notes(part_notes)
         if not have_all:
             pieces.append("missing: " + ", ".join(
                 n for n, ok in [("a part", parts_ok), ("milestone", ms_score != ""),

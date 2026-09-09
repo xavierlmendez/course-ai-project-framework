@@ -158,6 +158,52 @@ class TestPartNotesSurvive(TempCase):
         _, out, _ = self.combine()
         self.assertEqual(parse_csv(out)["ABC123456"]["note"], "")
 
+    def test_a_note_every_part_repeats_is_said_once(self):
+        """Eight programs each carrying `pair` filled the note column with the same word
+        eight times and pushed the grade-relevant note out of sight."""
+        self.make_parts([("I-opening", 25), ("I-game", 25), ("II-opening", 25), ("II-game", 25)])
+        for i in range(1, 5):
+            self.make_part_book(f"gb{i}.csv", [("ABC123456", "graded", 0, 70.0, "pair")])
+        self.make_written([("ABC123456", 3, 3, 3, "")])
+        self.make_milestone([("ABC123456", 1)])
+        _, out, _ = run_tool("combine_parts.py", "--parts", self.path("parts.json"),
+                             "--written", self.path("written.csv"),
+                             "--milestone", self.path("milestone.csv"),
+                             *[self.path(f"gb{i}.csv") for i in range(1, 5)], expect_ok=True)
+        self.assertEqual(parse_csv(out)["ABC123456"]["note"], "pair")
+
+    def test_a_note_only_some_parts_carry_keeps_its_part_prefix(self):
+        self.make_parts([("I", 45), ("II", 35)])
+        self.make_part_book("gb1.csv", [("ABC123456", "graded", 0, 70.0, "pair")])
+        self.make_part_book("gb2.csv", [("ABC123456", "graded", 0, 70.0)])
+        self.make_written([("ABC123456", 3, 3, 3, "")])
+        self.make_milestone([("ABC123456", 1)])
+        _, out, _ = self.combine()
+        self.assertEqual(parse_csv(out)["ABC123456"]["note"], "I: pair")
+
+    def test_the_never_completed_note_is_visible_first(self):
+        """De-duplication must not bury the one note that changes what the TA does next."""
+        self.make_parts([("I", 45), ("II", 35)])
+        self.make_part_book("gb1.csv", [("ABC123456", "graded", 0, 70.0, "pair")])
+        self.make_part_book("gb2.csv",
+                            [("ABC123456", "graded", 0, 70.0, "pair; 1 slot(s) never completed")])
+        self.make_written([("ABC123456", 3, 3, 3, "")])
+        self.make_milestone([("ABC123456", 1)])
+        _, out, _ = self.combine()
+        note = parse_csv(out)["ABC123456"]["note"]
+        self.assertTrue(note.startswith("II: pair; 1 slot(s) never completed"), note)
+        self.assertEqual(note, "II: pair; 1 slot(s) never completed; I: pair")
+
+    def test_an_identical_appeal_note_is_not_repeated_per_part(self):
+        self.make_parts([("I", 45), ("II", 35)])
+        for i in (1, 2):
+            self.make_part_book(f"gb{i}.csv",
+                                [("ABC123456", "appeal", 0, 70.0, "appeal granted 2026-05-01")])
+        self.make_written([("ABC123456", 3, 3, 3, "")])
+        self.make_milestone([("ABC123456", 1)])
+        _, out, _ = self.combine()
+        self.assertEqual(parse_csv(out)["ABC123456"]["note"], "appeal granted 2026-05-01")
+
 
 class TestPartMode(TempCase):
     """A part gradebook carries the hidden score only; the course-level components are
