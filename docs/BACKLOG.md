@@ -12,18 +12,6 @@ plan decisions are numbered in [`review/fix-plan.md`](./review/fix-plan.md) §2.
 
 ## Open
 
-### BL-01 — Example 01 Parts III and IV, and the Game programs for all four parts · `backlog-only` · re-entry 3–4 days
-Example 01 ships Parts I and II only. Parts III (black-move) and IV (improved estimation) exist as
-stub directories with weights but no resource, hidden tests, reference solution, or canonical
-solution, which is why `scripts/review_checks.py` reports FAIL rows containing `part-III` and
-`part-IV`. Decision 4 builds them out; decision 17 doubles the work by requiring both programs per
-part — an Opening and a Game variant for each of the four parts, matching the professor's real
-assignment — and decision 18 fixes how Part IV is graded (hidden tests use positions where the
-handout's baseline estimator is weak). To pick this up: write each part's resource page with its
-twist and nonce, author the hidden tests per category, port the professor's reference programs, then
-derive a canonical solution that ignores the twist and confirm it scores below 50% on the twist
-categories. Scheduled as slice 5.4 of the fix plan; it is the largest slice in the plan.
-
 ### BL-02 — Measure regeneration throughput on a GPU box · `backlog-only` · re-entry 1 day once hardware exists
 The regeneration timeout and the runbook's time budget must come from a calibration run (decision 9),
 but no machine capable of grading a cohort has been measured. The R620 was measured on 2026-09-08 at
@@ -42,14 +30,18 @@ reproducibility statement in `framework.md` §6, which ties the timeout to a nam
 this up: choose among the options in `review/evidence/grading-box.md` (consumer GPU box, cloud
 G-instance, or a longer window on a faster CPU box), then run BL-02 on it.
 
-### BL-04 — Replace example 01 Part II's twist category · `backlog-only` · re-entry 1 day
-F-27: Part II's `ab_pruning` twist category tests textbook alpha-beta pruning and the 24-point board,
-so a specification that never reads the published resource collects half of Part II's twist weight —
-12.25 points — which contradicts the definition of Twist in `CONTEXT.md` and the "canonical scores
-below 50%" calibration claim. The canonical solution is also a straw man: it is the reference program
-with the four diagonal mills deleted, so it fails for board reasons rather than for ignoring the
-twist. To pick this up: choose a Part II twist that the textbook algorithm cannot satisfy, rewrite
-the hidden tests for it, and build a canonical solution that is a competent twist-ignorant program
-rather than a damaged reference one. Depends on BL-01's Part II work landing first if both move.
-
 ## Closed
+
+### BL-01 — Example 01 Parts III and IV, and the Game programs for all four parts · `fix` · closed by slice 5.4
+Example 01 now ships all eight programs, one directory per program (`part-I-opening/`,
+`part-I-game/`, … `part-IV-game/`), each with its own resource section, hidden and public suites,
+reference solution and canonical solution, and `parts.json` weights 22.5/22.5/17.5/17.5/5/5/5/5.
+Decisions 4, 17 and 18 are all realised. `scripts/review_checks.py` no longer reports the stub rows,
+and the CI gate that allowed them was tightened to require 0 FAIL.
+
+### BL-04 — Replace example 01 Part II's twist category · `fix` · closed by slice 5.4
+F-27: Part II's twist was `ab_pruning`, which textbook alpha-beta on the 24-point board satisfies.
+Slice 5.4 split the twist out into `ab_diagonal_mill` (and `ab_game_mill` for the Game program) —
+positions where a diagonal-spoke mill decides the move — leaving `ab_pruning` as a non-twist
+correctness category, and replaced the straw-man canonical with a competent alpha-beta on the
+standard 24-point lines. The canonical scores 0/6 on both twist categories.

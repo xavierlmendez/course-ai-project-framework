@@ -43,7 +43,7 @@ no model and no seeds; skip to step 4.
 
 ```
 MODEL=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["base_model"])' \
-        {{PROJECT}}/project.json)      # multi-part: use {{PROJECT}}/part-I/project.json
+        {{PROJECT}}/project.json)      # multi-part: use {{PROJECT}}/part-I-opening/project.json
 echo "model: $MODEL"
 ollama list | grep -F "$MODEL" || echo "NOT PRESENT — run: ollama pull $MODEL"
 ```
@@ -79,7 +79,7 @@ and matching `resource_port` values.
 ```
 {{PROJECT}}/submissions/<student_id>/                 individual        [single-part]
 {{PROJECT}}/submissions/<id1>-<id2>/                  a pair            [single-part]
-{{PROJECT}}/part-I/submissions/<student_id>/          the same names    [multi-part, per part]
+{{PROJECT}}/part-I-opening/submissions/<student_id>/          the same names    [multi-part, per part]
 ```
 
 The directory name is the key for `status.csv`, `written.csv`, `milestone.csv`, the variant
@@ -260,7 +260,7 @@ find {{PROJECT}} -name '*.json' -path '*/runs/*' -exec grep -l '"complete": fals
 **1. The milestone.** [course] Students submitted milestone records during the project.
 Collect them into one directory, one `.json` per student, then validate them. For a
 multi-part project pass the part the handout told students to produce their record against
-(`part-I/project.json` unless the handout says otherwise): a record names the part it was
+(`part-I-opening/project.json` unless the handout says otherwise): a record names the part it was
 made for, and `check` only accepts records for the part you name.
 
 ```
@@ -347,13 +347,13 @@ part's project, submissions and runs:
 
 ```
 # set that student's status to `appeal` in status.csv, then, for the part under appeal:
-python3 tools/runner.py --project {{PROJECT}}/part-II/project.json \
-  --submission {{PROJECT}}/part-II/submissions/ABC123456 \
+python3 tools/runner.py --project {{PROJECT}}/part-II-opening/project.json \
+  --submission {{PROJECT}}/part-II-opening/submissions/ABC123456 \
   --run-tag appeal --slot 2 \
-  --out {{PROJECT}}/part-II/runs/
+  --out {{PROJECT}}/part-II-opening/runs/
 ```
 
-Single-part projects drop the `part-II/` segments. Re-run `grade_all.py` afterwards; it
+Single-part projects drop the `part-II-opening/` segments. Re-run `grade_all.py` afterwards; it
 re-grades every part, so an appeal on one part does not disturb the others.
 
 The appeal writes its own record (`appeal-k2.json`) alongside the grading records, so it
