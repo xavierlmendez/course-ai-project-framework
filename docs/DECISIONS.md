@@ -124,3 +124,33 @@ still be pinned before the seeds are created and must not change mid-cohort — 
 promise in §6 covers the weights, the seed, the temperature and the wrapper prompt, and a thinking
 flag changed between slots would break it. `--create-slots` now depends on the base model being
 present on the model server, since the template is read from it.
+
+## D-008 — The grading box is an A10G-class GPU, and the runbook's timings are measured there · 2026-09-09 · status: accepted
+
+**Context.** Every wall-clock number in the framework was, until now, an estimate or a CPU measurement.
+The batch is the one part of grading that cannot be re-run cheaply if the plan is wrong, so on
+2026-09-09 the whole workflow was run end to end on a real GPU box: an AWS g5.xlarge (one NVIDIA
+A10G, 24 GB of GPU memory, 4 vCPU, 15 GB RAM) on the Ubuntu 22.04 Deep Learning Base AMI, with
+Ollama 0.33.3 from the one-line installer and OpenCode 1.18.29 inside the sandbox image.
+**Decision.** That machine class is the reference grading box, and the timings in the TA runbook's
+"Grading-day budget" are the ones measured on it. Measured: `qwen3:14b` at `num_ctx` 32768 generates
+at **49.5 tokens/s** (a 300-token answer in about 6 s) and evaluates the harness's 2,000-token first
+prompt in under a second; the model occupies about **10 GB** of GPU memory at that context. Three
+sandboxed Type B slots of one submission took **75 s, 50 s and 569 s** — the long one iterated: wrote
+the program, made an input file, ran it, rewrote it. The planning figure is therefore **2–10 minutes
+per slot**, so 65 students × 3 slots ≈ **6–30 hours of unattended machine time per program**, an
+overnight batch. The default `regeneration_timeout_s` of 1200 s is a GPU number and is correct for
+this box. A CPU-only machine of the R620 class takes **30–90 minutes per slot** and is retained for
+correctness checks only, never for grading a cohort.
+**Consequences.** The runbook, the student primer and `framework.md` §6 state these numbers as
+measurements with the machine and the date attached, and every one of them must be re-measured on a
+different box — a timeout or a budget observed elsewhere is not evidence about this design. Grading
+day acquires a hardware prerequisite and a small cost: about one dollar an hour, with the instance
+stopped between batches. Two Linux-only setup steps become part of Day 0 rather than folklore
+(`OLLAMA_HOST=0.0.0.0` for the service, and building and testing the sandbox image), and two sandbox
+defects found on that box were fixed in the tools: the bind-mounted work directory is now writable
+because the runner passes `HOST_UID`/`HOST_GID`, and a stale container from an interrupted batch is
+removed rather than failing the next slot with a docker name conflict. One observation is recorded
+and **not** fixed: in one GPU run the harness signed the ledger with `practice` instead of the run
+tag it was given, so the calibration checklist now requires the ledger's run-tag column to be checked
+after a calibration run.
