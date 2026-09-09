@@ -1,0 +1,16 @@
+NIGHT 6 — EXPERIMENT 3: proxy-injected "think": false through OpenCode
+STATUS: NOT RUN — precondition failed.
+
+Experiment 3 was conditional on experiment 2 variant (b) or (c) producing tool_calls.
+Neither did. All three replay variants (stream:false; think:false; both) returned byte-
+identical output to the unmodified capture: 372 completion tokens, 1644 chars of
+reasoning, empty content, finish_reason "stop", zero tool_calls, identical usage counters.
+
+That identity is the proof: Ollama 0.33.3's OpenAI-compatibility layer (/v1/chat/
+completions) silently DISCARDS a top-level "think" field. It never reaches the chat
+template, so $.IsThinkSet stays false and the template's built-in /no_think branch is never
+taken. Injecting think:false at a proxy would have changed nothing.
+
+The think field does work on the native /api/chat endpoint; it is only the /v1 path — the
+one OpenCode uses via @ai-sdk/openai-compatible — that drops it. Hence experiment 4
+(bake no-think into the model's TEMPLATE) is the only route that survives the /v1 path.
