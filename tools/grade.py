@@ -108,10 +108,15 @@ def main():
     written = load_csv(a.written)
     milestone = load_csv(a.milestone)
 
+    if not os.path.isdir(a.runs):
+        sys.exit(f"runs directory not found: {a.runs}\n"
+                 f"For a multi-part project, each part has its own runs/ directory. A part "
+                 f"that was never run has none, and it cannot be graded or combined.")
     cat_names = list(cats)
     header = ["student_id", "status", "grad", "best_slot", "hidden_score"] + \
              [f"{c}_pass" for c in cat_names] + ["milestone", "written_raw", "written_score", "total", "note"]
-    w = csv.writer(sys.stdout)
+    # \n, not csv's default \r\n: the carriage returns broke every downstream text check.
+    w = csv.writer(sys.stdout, lineterminator="\n")
     w.writerow(header)
 
     ids = sorted(set(os.listdir(a.runs)) | set(status))

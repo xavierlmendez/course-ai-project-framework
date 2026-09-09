@@ -142,7 +142,7 @@ def cmd_check(a):
         if reasons:
             print(f"{sid}: {'; '.join(reasons)}", file=sys.stderr)
 
-    w = csv.writer(sys.stdout)
+    w = csv.writer(sys.stdout, lineterminator="\n")
     w.writerow(["student_id", "milestone", "note"])
     ids = sorted(set(results) | set(roster))
     for sid in ids:

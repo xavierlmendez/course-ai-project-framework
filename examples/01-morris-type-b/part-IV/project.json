@@ -23,5 +23,8 @@
    "policy": "valid"
   }
  },
- "nonce": "7E2798C6BEA3"
+ "nonce": "379AEEDCD7E2",
+ "part": "IV",
+ "resource_dir": "../resource",
+ "ledger": "../ledger.tsv"
 }

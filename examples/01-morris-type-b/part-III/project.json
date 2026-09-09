@@ -28,5 +28,8 @@
    "policy": "estimate"
   }
  },
- "nonce": "B13279D26FA3"
+ "nonce": "379AEEDCD7E2",
+ "part": "III",
+ "resource_dir": "../resource",
+ "ledger": "../ledger.tsv"
 }

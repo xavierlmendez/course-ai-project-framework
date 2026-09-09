@@ -62,6 +62,10 @@ class BatchAborted(Exception):
     """Too many consecutive environment failures; the batch stopped."""
 
 
+class NothingGraded(Exception):
+    """Every submission was skipped. Almost always a roster or status mismatch."""
+
+
 def now():
     return datetime.datetime.now(datetime.timezone.utc).isoformat(timespec="seconds")
 
@@ -131,7 +135,7 @@ def sh(cmd, timeout=None, cwd=None, dry=False):
 
 def slot_parameters(p, slot):
     """Ask the model server what a slot model's effective parameters actually are."""
-    url = p["ollama_host"].rstrip("/") + "/api/show"
+    url = host_side_ollama(p).rstrip("/") + "/api/show"
     body = json.dumps({"name": f"{p['slot_prefix']}{slot}"}).encode()
     req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=30) as r:
@@ -238,6 +242,27 @@ def host_of(url):
     return url.split("://", 1)[-1].split("/", 1)[0].split(":", 1)[0]
 
 
+# Names that only resolve inside a container. A host-side check that dials one of these
+# fails on a perfectly healthy machine, which is exactly what happened to the slot check.
+CONTAINER_ONLY_HOSTS = ("host.docker.internal", "gateway.docker.internal", "host.containers.internal")
+
+
+def host_side_ollama(p):
+    """The model server's URL as reachable from *this* process, not from the sandbox.
+
+    `ollama_host` is written for the container. Set `ollama_host_local` when the model
+    server is somewhere else entirely (a shared box); otherwise a container-only name is
+    translated to loopback.
+    """
+    if p.get("ollama_host_local"):
+        return p["ollama_host_local"]
+    url = p["ollama_host"]
+    for name in CONTAINER_ONLY_HOSTS:
+        if name in url:
+            return url.replace(name, "127.0.0.1")
+    return url
+
+
 def write_opencode_config(p, workdir, slot_model, temperature=None, seed=None):
     """OpenCode config so the sandbox talks to the pinned slot model with tools auto-approved.
 
@@ -279,11 +304,21 @@ def roster_variant(p, sid):
     path = os.path.join(p["_dir"], v.get("roster", "variants.csv"))
     if not os.path.exists(path):
         return None, f"variant roster not found: {path}"
+    def members(key):
+        """A roster key or a submission directory name, split into student ids.
+        Pairs are written `A+B` in the ledger, `A-B` as a directory, `A,B` in a roster."""
+        out = []
+        for part in re.split(r"[+,\-]", key or ""):
+            part = part.strip().upper()
+            if part:
+                out.append(part)
+        return out
+
+    want = members(sid)
     with open(path, newline="") as fh:
         for row in csv.DictReader(fh):
-            ids = [x.strip().upper() for x in (row.get("student_id") or "").split("+")
-                   for x in x.split(",")]
-            if (sid or "").upper() in ids or (sid or "").upper() == (row.get("student_id") or "").strip().upper():
+            have = members(row.get("student_id"))
+            if want and (want == have or set(want) & set(have)):
                 return (row.get("variant") or "").strip(), None
     return None, f"{sid} is not on the variant roster {os.path.basename(path)}"
 
@@ -490,8 +525,8 @@ def process_type_b(p, sid, sub_dir, out, seeds, run_tag, slots, tests_override, 
     return outcome
 
 
-def process_type_a(p, sid, sub_dir, out, tests_override, sandbox, dry):
-    rp = record_path(out, sid, "a.json")
+def process_type_a(p, sid, sub_dir, out, tests_override, sandbox, dry, run_tag="grading"):
+    rp = record_path(out, sid, "a.json" if run_tag == "grading" else f"{run_tag}-a.json")
     if already_done(rp):
         print(f"  {sid}: done, skipping")
         return "ok"
@@ -499,12 +534,12 @@ def process_type_a(p, sid, sub_dir, out, tests_override, sandbox, dry):
     if why:
         print(f"  {sid}: SKIP ({why})")
         return "skipped"
-    workdir = os.path.join(out, sid, "a-work")
+    workdir = os.path.join(out, sid, ("a" if run_tag == "grading" else run_tag + "-a") + "-work")
     if os.path.exists(workdir):
         shutil.rmtree(workdir)
     shutil.copytree(sub_dir, workdir, ignore=shutil.ignore_patterns(".git"))
     print(f"  {sid}: hidden tests")
-    rec = {"submission": sid, "type": "A", "started": now()}
+    rec = {"submission": sid, "type": "A", "run_tag": run_tag, "started": now()}
     rec["tests"] = run_tests(p, workdir, tests_dir, sandbox, dry)
     rec["ended"] = now()
     rec["complete"] = not dry
@@ -521,11 +556,14 @@ def run_batch(p, subs, out, seeds, run_tag, slots, tests_override, sandbox, dry,
     would mark a whole cohort incomplete against a model server that is down.
     """
     consecutive = 0
+    skipped, ran = [], 0
     for sid, d in subs:
         if ptype == "B":
             outcome = process_type_b(p, sid, d, out, seeds, run_tag, slots, tests_override, sandbox, dry)
         else:
-            outcome = process_type_a(p, sid, d, out, tests_override, sandbox, dry)
+            outcome = process_type_a(p, sid, d, out, tests_override, sandbox, dry, run_tag=run_tag)
+        if outcome == "skipped":
+            skipped.append(sid)
         if outcome == "environment":
             consecutive += 1
             if consecutive >= CONSECUTIVE_FAILURE_LIMIT:
@@ -535,6 +573,13 @@ def run_batch(p, subs, out, seeds, run_tag, slots, tests_override, sandbox, dry,
                     "same command to retry the incomplete slots.")
         elif outcome == "ok":
             consecutive = 0
+            ran += 1
+    if skipped:
+        print(f"\nSKIPPED {len(skipped)} of {len(subs)} submissions: {', '.join(skipped)}",
+              file=sys.stderr)
+    if subs and ran == 0:
+        raise NothingGraded(f"none of the {len(subs)} submissions produced a record")
+    return {"ran": ran, "skipped": skipped}
 
 
 def main():
@@ -602,6 +647,9 @@ def main():
         run_batch(p, subs, a.out, seeds, a.run_tag, slots, a.tests, sandbox, a.dry_run, ptype)
     except BatchAborted as e:
         sys.exit(f"BATCH ABORTED: {e}")
+    except NothingGraded as e:
+        sys.exit(f"NOTHING GRADED: {e}. Check status.csv keys and, for a variants project, "
+                 f"the variant roster.")
     print("done")
 
 

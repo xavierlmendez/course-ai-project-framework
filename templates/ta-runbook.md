@@ -3,9 +3,23 @@
 You have about 65 submissions and one grading week. Every command below runs as written.
 Nothing here requires reading a harness transcript.
 
-Replace `{{PROJECT}}` with the project directory the professor gave you. For a multi-part
-project, `{{PROJECT}}` has a `parts.json` and one `part-*/` directory per part; every
-per-part command is run once per part.
+Replace `{{PROJECT}}` with the project directory the professor gave you.
+
+**Single-part or multi-part.** If `{{PROJECT}}` contains `parts.json`, the project is
+multi-part: each `part-*/` directory is graded on its own and the results are combined once.
+Commands below are marked **[per part]** or **[course]**. Everything student-facing is
+course-level: one `status.csv`, one `written.csv`, one `milestone.csv`, one ledger, one
+resource page, one nonce, and one gradebook.
+
+```
+PARTS=$(python3 -c 'import json,sys;print(" ".join(p["name"] for p in json.load(open(sys.argv[1]))["parts"]))' \
+        {{PROJECT}}/parts.json 2>/dev/null)
+echo "parts: ${PARTS:-none (single-part project)}"
+```
+
+`parts.json` lists only the parts that were built and are to be graded. If it lists a part
+with no `tests/hidden/`, stop and ask the professor: grading around a listed-but-unbuilt part
+silently reweights the others.
 
 ---
 
@@ -24,37 +38,57 @@ docker build -t harness-sandbox tools/sandbox/
 The image pins the harness version. Do not rebuild it with a different pin mid-cohort: the
 temperature schedule depends on that version.
 
-**3. Start the model server and confirm the model is present.**
+**3. Start the model server and confirm the model is present.** [course] Type A projects have
+no model and no seeds; skip to step 4.
 
 ```
-ollama list | grep -F "$(python3 -c 'import json;print(json.load(open("{{PROJECT}}/project.json"))["base_model"])')"
+MODEL=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["base_model"])' \
+        {{PROJECT}}/project.json)      # multi-part: use {{PROJECT}}/part-I/project.json
+echo "model: $MODEL"
+ollama list | grep -F "$MODEL" || echo "NOT PRESENT — run: ollama pull $MODEL"
 ```
 
-If it prints nothing, `ollama pull <the base_model named in project.json>`.
+Pull it now if it is missing. It is several gigabytes, and `--create-slots` on Day 1 will
+otherwise download it silently in the middle of your grading window.
 
-**4. Serve the published resource, and leave it running.** The harness fetches it during
-every regeneration, so it must be up for the whole batch. In its own terminal:
+**4. Serve the published resource, and leave it running.** [course] The harness fetches it
+during every regeneration, so it must be up for the whole batch. One server for the whole
+project, including every part. In its own terminal:
 
 ```
 python3 tools/ledger_server.py --project {{PROJECT}}/project.json \
   --port 8080 --base-url http://host.docker.internal:8080
 ```
 
+For a multi-part project pass any part's `project.json`; every part shares the resource
+directory, the ledger and the nonce.
+
+**Check it is actually serving before you go any further**, because a 404 here fails the
+whole cohort for a reason that is yours, not theirs:
+
+```
+curl -sf http://localhost:8080/ | head -3 || echo "NOT SERVING — check resource_dir in project.json"
+```
+
 The sandbox reaches it at `host.docker.internal:8080`, which is what `resource_host` and
-`resource_port` in `project.json` must name. If the resource is not served, every
-regeneration produces a specification-shaped failure and the whole cohort scores badly for
-a reason that is yours, not theirs.
+`resource_port` in `project.json` must name. Grading two projects at once needs two ports
+and matching `resource_port` values.
 
 **5. Lay out the submissions.**
 
 ```
-{{PROJECT}}/submissions/<student_id>/                 individual
-{{PROJECT}}/submissions/<id1>-<id2>/                  a pair: both ids, hyphen, alphabetical
+{{PROJECT}}/submissions/<student_id>/                 individual        [single-part]
+{{PROJECT}}/submissions/<id1>-<id2>/                  a pair            [single-part]
+{{PROJECT}}/part-I/submissions/<student_id>/          the same names    [multi-part, per part]
 ```
 
-The directory name is the key for `status.csv`, `written.csv`, `milestone.csv` and the
-gradebook. A pair is one directory and one row everywhere. (The ledger records a pair as
-`<id1>+<id2>`; that is the ledger's own format and does not need to match.)
+The directory name is the key for `status.csv`, `written.csv`, `milestone.csv`, the variant
+roster and the gradebook, and it is the same in every part. A pair is one directory and one
+row everywhere: both ids, hyphen, alphabetical.
+
+The ledger records a pair as `<id1>+<id2>` and the variant roster may use either; the tools
+match on any shared member, so you do not have to normalise them. **Do not** grep the
+ledger for the hyphenated pair key: match one partner (step 4 below).
 
 ---
 
@@ -83,12 +117,22 @@ capped at **600 words** each; the specification at 1,500 including any supportin
 **4. Type A only: the ledger gate.** Confirm each student has an entry.
 
 ```
-cut -f2 {{PROJECT}}/ledger.tsv | grep -c "^ABC123456"
+# one student, or one partner of a pair
+cut -f2 {{PROJECT}}/ledger.tsv | grep -c "ABC123456"
+
+# every submission at once: prints the ones with no entry
+for d in {{PROJECT}}/submissions/*/; do
+  sid=$(basename "$d"); first=${sid%%-*}
+  cut -f2 {{PROJECT}}/ledger.tsv | grep -q "$first" || echo "NO LEDGER ENTRY: $sid"
+done
 ```
 
+Match a **single student id**, never the hyphenated pair key: the ledger joins a pair with
+`+`, so grepping `ABC123456-DEF654321` finds nothing and would mark every pair incomplete.
+
 Ledger entries carry the student ID, a timestamp, a run tag and the client address. They do
-**not** carry the nonce, so do not try to match one. Any entry for that student counts; the
-nonce is what the resource page required in order to write the entry in the first place.
+**not** carry the nonce, so do not try to match one. The nonce is what the resource page
+required in order to write the entry at all.
 
 **5. Write `status.csv`.** This is the file that decides what runs.
 
@@ -111,8 +155,11 @@ DDD444444-EEE555555,graded,0,pair
 
 ## Day 1 evening — The batch (unattended)
 
-**1. Get the seeds from the professor** and put `seeds.secret.json` in the project directory.
-Do not paste them into chat, a ticket, or a commit.
+**Type A projects skip steps 1 to 3 entirely.** There is no regeneration, so there are no
+seeds and no slot models. Go to step 4 and add `--type A`.
+
+**1. Get the seeds from the professor** [per part] and put `seeds.secret.json` in each part
+directory. Do not paste them into chat, a ticket, or a commit.
 
 **2. Create the slot models.** They cannot exist before this point, because they are built
 from the seeds.
@@ -121,15 +168,26 @@ from the seeds.
 python3 tools/runner.py --project {{PROJECT}}/project.json --create-slots
 ```
 
+This builds one model per slot from the base model. If the base model is not present it will
+be downloaded first, several gigabytes, which is why step 3 of Day 0 exists.
+
 **3. Confirm the schedule reaches the model.**
 
 ```
 python3 tools/runner.py --project {{PROJECT}}/project.json --verify-slots
 ```
 
-This must print `slot check: ok`. If it does not, the temperatures the handout promises are
-not the ones the model is using, and grading now would be unfair. Re-run `--create-slots`;
-if it still fails, stop and tell the professor.
+This must print `slot check: ok`. It asks the model server what temperature and seed each
+slot model actually has, and fails if they do not match the schedule the handout promises or
+do not differ from one another.
+
+If it reports it could not reach the model server, the project's `ollama_host` is written for
+the sandbox and the check runs on your machine. It translates a container-only name to
+loopback automatically; if your model server is somewhere else, set `ollama_host_local` in
+`project.json` to the URL **you** can reach, and tell the professor so it ships that way.
+
+If it reports a temperature mismatch, re-run `--create-slots`. If that does not fix it, stop
+and tell the professor: grading with a schedule the model is not using would be unfair.
 
 **4. Run the batch.**
 
@@ -141,7 +199,12 @@ python3 tools/runner.py --project {{PROJECT}}/project.json \
 ```
 
 Type A adds `--type A`; it runs the hidden tests once per submission and takes minutes, not
-hours.
+hours. Multi-part runs this once per part, with that part's `project.json`, `submissions/`
+and `runs/`.
+
+**Read the last lines.** The runner prints a `SKIPPED` summary and exits non-zero if nobody
+was graded. A skipped submission is almost always a `status.csv` key that does not match the
+directory name, or a student missing from the variant roster.
 
 **How long it takes.** Measure, do not guess. The professor's calibration run recorded the
 wall-clock time of one regeneration; the batch is roughly that × 3 × the number of
@@ -176,9 +239,19 @@ python3 tools/milestone.py check \
   --status {{PROJECT}}/status.csv > {{PROJECT}}/milestone.csv
 ```
 
-**2. The written component.** Open each `WRITTEN.md` beside its submission and score it with
-`templates/rubric.md`, which gives a mechanical decision rule per band. Ten minutes each;
-time-box it. Record the dimension scores, not a total:
+**2. The written component.** [course] One page per student, scored once. In a multi-part
+project the student writes one `WRITTEN.md`; if the professor asked for one per part, score
+the part the handout names and say so to the professor.
+
+Score with `templates/rubric.md`, which gives a mechanical decision rule per band. Ten
+minutes each; time-box it.
+
+**Graduate rows need the hidden results first.** The prediction dimension compares what the
+student predicted would fail against what did. So for a cohort with graduate students: run
+step 3 once without `--written` to get the hidden scores, score the pages, then run step 3
+again with `--written`. Undergraduate-only cohorts can score in any order.
+
+Record the dimension scores, not a total:
 
 ```
 student_id,accuracy,twist,candor,prediction
@@ -201,24 +274,38 @@ Multi-part: grade each part, then combine once. A part contributes only its hidd
 the milestone and written component are course-level and counted once.
 
 ```
-for P in I II III IV; do
+BOOKS=""
+for P in $PARTS; do
   python3 tools/grade.py --project {{PROJECT}}/part-$P/project.json \
     --runs {{PROJECT}}/part-$P/runs/ --status {{PROJECT}}/status.csv \
-    > {{PROJECT}}/gb-$P.csv
+    > {{PROJECT}}/gb-$P.csv || { echo "part $P failed to grade"; break; }
+  BOOKS="$BOOKS {{PROJECT}}/gb-$P.csv"
 done
 
 python3 tools/combine_parts.py --parts {{PROJECT}}/parts.json \
   --written {{PROJECT}}/written.csv --milestone {{PROJECT}}/milestone.csv \
-  {{PROJECT}}/gb-I.csv {{PROJECT}}/gb-II.csv {{PROJECT}}/gb-III.csv {{PROJECT}}/gb-IV.csv \
-  > {{PROJECT}}/gradebook.csv
+  $BOOKS > {{PROJECT}}/gradebook.csv
 ```
+
+`$PARTS` comes from `parts.json` (top of this document), so the loop grades exactly the parts
+that exist. A per-part gradebook carries the hidden score only; the milestone and written
+component are course-level and are added once by `combine_parts.py`. If `grade.py` stops with
+"runs directory not found", that part was never run.
 
 **4. Check before you send it.** Every row should read `graded` with a total. A row marked
 `incomplete` has a `note` saying what is missing. Fix the input and re-run; do not hand-edit
 the gradebook, because the next run overwrites it.
 
 ```
-awk -F, '$NF!="" || $(NF-1)=="incomplete"' {{PROJECT}}/gradebook.csv
+# rows that are not ready to send: no total, or a note explaining why
+python3 - {{PROJECT}}/gradebook.csv <<'PY'
+import csv, sys
+rows = list(csv.DictReader(open(sys.argv[1], newline="")))
+bad = [r for r in rows if r.get("status") != "graded" or not r.get("total")]
+print(f"{len(rows) - len(bad)} of {len(rows)} ready to send")
+for r in bad:
+    print(f"  {r['student_id']}: {r.get('status')} {r.get('note','')}")
+PY
 ```
 
 ---
@@ -230,6 +317,8 @@ awk -F, '$NF!="" || $(NF-1)=="incomplete"' {{PROJECT}}/gradebook.csv
 3. **Appeals.** A student may request one additional run at the middle temperature, and only
    if they show their work passes the public suite on the reference harness.
 
+**Type B** (the specification is regenerated):
+
 ```
 # set that student's status to `appeal` in status.csv, then:
 python3 tools/runner.py --project {{PROJECT}}/project.json \
@@ -240,8 +329,16 @@ python3 tools/runner.py --project {{PROJECT}}/project.json \
 
 The appeal writes its own record (`appeal-k2.json`) alongside the grading records, so it
 neither overwrites the original nor is skipped as already done. Re-run `grade.py`, which
-considers every complete record and takes the best. Set the status back to `graded` when the
-appeal is resolved.
+considers every complete record and takes the best.
+
+**Type A** grading is deterministic: the same code against the same tests gives the same
+result, so re-running changes nothing. An appeal on a Type A project means one of three
+things, and none of them is a re-run: the student says the hidden tests are wrong (a question
+for the professor), the submission was mis-scored because a required file was missing (fix
+`status.csv` and re-grade), or the written score is disputed (a second reader). If you do
+want a fresh record for the file, `--run-tag appeal` writes `appeal-a.json` beside `a.json`.
+
+Set the status back to `graded` when the appeal is resolved.
 
 ---
 

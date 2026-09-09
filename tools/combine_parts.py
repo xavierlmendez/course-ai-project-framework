@@ -50,7 +50,10 @@ def main():
 
     parts = json.load(open(a.parts))["parts"]
     if len(parts) != len(a.gradebooks):
-        sys.exit(f"{len(parts)} parts in parts.json but {len(a.gradebooks)} gradebooks given")
+        sys.exit(f"{len(parts)} parts in parts.json but {len(a.gradebooks)} gradebooks given.\n"
+                 f"Every part named in parts.json must have been graded. If a part was not "
+                 f"built or not run, remove it from parts.json and say so in the handout: "
+                 f"dropping it here silently reweights the parts that remain.")
     wsum = sum(float(p["weight"]) for p in parts)
     if wsum <= 0:
         sys.exit("part weights sum to zero")
@@ -65,7 +68,7 @@ def main():
     ids = sorted(set().union(*[set(b) for b in books]) | set(written) | set(milestone))
     names = [p["name"] for p in parts]
 
-    w = csv.writer(sys.stdout)
+    w = csv.writer(sys.stdout, lineterminator="\n")
     w.writerow(["student_id", "grad"] + [f"{n}_hidden" for n in names] + [f"{n}_status" for n in names]
                + ["hidden_score", "milestone", "written_raw", "written_score", "total", "status", "note"])
 

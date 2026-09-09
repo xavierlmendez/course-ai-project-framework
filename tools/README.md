@@ -55,7 +55,11 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
   "resource_host": "host.docker.internal",          // the published resource's host …
   "resource_port": 8080,                            // … and its port. The sandbox allowlist is
                                                     //   host:port pairs, never a bare host
-  "ollama_host": "http://host.docker.internal:11434",
+  "ollama_host": "http://host.docker.internal:11434",   // as the *sandbox* reaches it
+  "ollama_host_local": null,            // optional: as *this machine* reaches it, when the
+                                        //   model server is not on the docker host. A
+                                        //   container-only name is translated to loopback
+                                        //   automatically for host-side checks
   "base_model": "qwen2.5-coder:14b",
   "k": 3,
   "temperatures": [0.2, 0.6, 1.0],
@@ -88,7 +92,7 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
 ```
 status.csv     student_id,status,grad,note      # grad is required: 1 for graduate rows
 written.csv    student_id,accuracy,twist,candor[,prediction]    # 0-3 each
-milestone.csv  student_id,milestone             # 1 or 0
+milestone.csv  student_id,milestone,note        # 1 or 0, written by milestone.py check
 variants.csv   student_id,variant               # variant projects only
 ```
 

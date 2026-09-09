@@ -42,5 +42,8 @@
  },
  "wrapper_prompt": "Read SPEC.md in the current directory and carry out its instructions exactly. The finished program must be a single file named {entry} in the current directory. Do not ask questions; make reasonable choices and finish.",
  "sandbox_image": "harness-sandbox",
- "nonce": "379AEEDCD7E2"
+ "nonce": "379AEEDCD7E2",
+ "part": "I",
+ "resource_dir": "../resource",
+ "ledger": "../ledger.tsv"
 }
