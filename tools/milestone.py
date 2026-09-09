@@ -4,11 +4,15 @@
 Two subcommands.
 
     milestone.py record --project project.json --solution DIR --student-id ABC123456 \\
-                        [--regeneration runs/<id>/practice-k1.json] --out milestone.json
+                        [--regeneration runs/<id>/practice-k1.json] [--out FILE]
 
         Run by the **student**. Runs the public suite against a solution directory and
         writes a record naming the student, the project, the harness and model that
         produced it, and the public-suite result.
+
+        --out defaults to milestone-<project name>.json (milestone-<name>-<part>.json
+        when the project sets a "part"), so two projects in one checkout do not
+        overwrite each other's record.
 
         **Type A**: `--solution` is the directory holding the code you are submitting.
 
@@ -24,7 +28,7 @@ Two subcommands.
             python3 tools/milestone.py record --project project.json \\
                     --solution ./practice/my-submission/practice-k1-work \\
                     --regeneration ./practice/my-submission/practice-k1.json \\
-                    --student-id ABC123456 --out milestone.json
+                    --student-id ABC123456
 
         The point of the milestone is that this whole path worked on your machine.
 
@@ -87,6 +91,25 @@ def digest_of(record):
     body = {k: v for k, v in record.items() if k != DIGEST_KEY}
     blob = json.dumps(body, sort_keys=True, separators=(",", ":")).encode()
     return "sha256:" + hashlib.sha256(blob).hexdigest()
+
+
+# Type A projects run no harness. The record says so in as many words rather than
+# naming a model that was never loaded; `check` accepts this (and a bare null).
+TYPE_A_HARNESS = {"type": "A", "model": None,
+                  "note": "Type A: code graded directly; no harness run"}
+
+
+def default_out_name(p):
+    """milestone-<project name>.json, plus -<part> when the project sets one.
+
+    Two projects checked out side by side both defaulted to milestone.json, so the
+    second record overwrote the first. An explicit --out still wins.
+    """
+    bits = [str(p.get("name") or "project")]
+    if p.get("part"):
+        bits.append(str(p["part"]))
+    slug = re.sub(r"[^A-Za-z0-9._-]+", "-", "-".join(bits)).strip("-") or "project"
+    return f"milestone-{slug}.json"
 
 
 def run_public_suite(p, project_dir, solution, timeout):
@@ -171,7 +194,9 @@ def cmd_record(a):
     if ptype == "B":
         harness = harness_evidence(a, p)
     else:
-        harness = {"model": p.get("base_model")}
+        # Type A never runs the harness: the student writes the code and it is graded
+        # directly. Naming base_model here claimed a model that was never loaded.
+        harness = TYPE_A_HARNESS
         if a.regeneration:
             print("note: Type A projects have no regeneration run; --regeneration ignored",
                   file=sys.stderr)
@@ -196,10 +221,11 @@ def cmd_record(a):
         "generated": now(),
     }
     rec[DIGEST_KEY] = digest_of(rec)
-    with open(a.out, "w") as fh:
+    out = a.out or default_out_name(p)
+    with open(out, "w") as fh:
         json.dump(rec, fh, indent=1)
     state = "PASS" if total and passed == total else "FAIL"
-    print(f"{state}: public suite {passed}/{total}. Wrote {a.out}")
+    print(f"{state}: public suite {passed}/{total}. Wrote {out}")
     print("Submit that file. Keep working until it says PASS." if state == "FAIL" else "Submit that file.")
     return 0 if state == "PASS" else 1
 
@@ -223,6 +249,12 @@ def validate(rec, p):
             bad.append("no harness evidence (the record names no regeneration run)")
         elif h.get("entry_present") is not True or h.get("complete") is not True:
             bad.append("no harness evidence (the regeneration run it names did not complete)")
+    else:
+        # Type A: no harness ran, so null (or the Type A note) is the correct value, and
+        # a record claiming a model is claiming something that never happened.
+        h = rec.get("harness")
+        if h is not None and (not isinstance(h, dict) or h.get("model") is not None):
+            bad.append("Type A projects run no harness, but this record claims one")
     pub = rec.get("public") or {}
     if not pub.get("total"):
         bad.append("no public tests were run")
@@ -299,7 +331,8 @@ def main():
     r.add_argument("--regeneration",
                    help="the runner's practice record, runs/<id>/<tag>-k<N>.json. Required "
                         "for Type B: --solution must be that record's work directory")
-    r.add_argument("--out", default="milestone.json")
+    r.add_argument("--out", help="output path; defaults to milestone-<project name>.json "
+                                "(milestone-<name>-<part>.json when the project sets a part)")
     r.set_defaults(fn=cmd_record)
 
     c = sub.add_parser("check", help="TA: validate submitted records into milestone.csv")

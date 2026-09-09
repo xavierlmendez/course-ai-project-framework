@@ -198,6 +198,7 @@ class SlotCase(TempCase):
             return 0, "", "", 0.0
 
         with mock.patch.object(runner, "sh", fake_sh), \
+             mock.patch.object(runner.shutil, "which", side_effect=lambda x: "/usr/bin/" + x), \
              mock.patch.object(runner, "model_server_reachable", return_value=True):
             runner.create_slots(self.p, dry)
         return calls
@@ -242,7 +243,8 @@ class TestSlotCreationTargetsTheProjectsServer(SlotCase):
 class TestUnreachableModelServer(SlotCase):
 
     def test_create_slots_stops_and_names_the_url(self):
-        with mock.patch.object(runner, "model_server_reachable", return_value=False):
+        with mock.patch.object(runner, "model_server_reachable", return_value=False), \
+             mock.patch.object(runner.shutil, "which", side_effect=lambda x: "/usr/bin/" + x):
             with self.assertRaises(SystemExit) as e:
                 runner.create_slots(self.p, False)
         msg = str(e.exception)
@@ -257,6 +259,7 @@ class TestUnreachableModelServer(SlotCase):
                 "--submission", self.path("submissions/ABC123456"),
                 "--out", self.path("runs"), "--practice"]
         with mock.patch.object(sys, "argv", argv), \
+             mock.patch.object(runner.shutil, "which", side_effect=lambda x: "/usr/bin/" + x), \
              mock.patch.object(runner, "model_server_reachable", return_value=False), \
              mock.patch.object(runner, "regenerate") as regenerated:
             with self.assertRaises(SystemExit) as e:

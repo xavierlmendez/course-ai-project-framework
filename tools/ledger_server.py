@@ -32,6 +32,7 @@ ledger is throwaway.
 """
 import argparse
 import datetime
+import errno
 import http.server
 import json
 import os
@@ -187,7 +188,15 @@ def main():
         with open(a.ledger, "w") as fh:
             fh.write(f"# ledger\tnonce={a.nonce}\tstarted={datetime.datetime.now(datetime.timezone.utc).date()}\n")
             fh.write("# utc_timestamp\tstudent_ids\trun_tag\tvariant\tclient\n")
-    srv = http.server.ThreadingHTTPServer((a.bind, a.port), make_handler(os.path.abspath(a.resource), a.ledger, a.nonce, base_url))
+    try:
+        srv = http.server.ThreadingHTTPServer(
+            (a.bind, a.port), make_handler(os.path.abspath(a.resource), a.ledger, a.nonce, base_url))
+    except OSError as e:
+        # EADDRINUSE is 48 on macOS and 98 on Linux; the operator saw a raw traceback.
+        if e.errno not in (errno.EADDRINUSE, 48, 98):
+            raise
+        sys.exit(f"port {a.port} is already in use: another resource server is probably "
+                 "still running (stop it, or pass --port to use another port)")
     print(f"serving {a.resource} on :{a.port}; ledger -> {a.ledger}; nonce {a.nonce}", flush=True)
     srv.serve_forever()
 
