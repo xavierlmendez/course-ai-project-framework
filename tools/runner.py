@@ -24,7 +24,7 @@ resumes with the same command. --dry-run writes <tag>-k<N>.dry.json beside a
 project.json keys (see tools/README.md for the full schema):
   type, entry, python, resource_host, ollama_host, base_model, k, temperatures,
   seeds_file, regeneration_timeout_s, test_timeout_s, hidden_tests, public_tests,
-  categories, wrapper_prompt, sandbox_image, variants{generator}
+  categories, wrapper_prompt, sandbox_image, num_ctx, thinking, variants{generator}
 """
 import argparse
 import csv
@@ -98,6 +98,13 @@ def load_project(path):
     # The agent loop's tool schemas do not fit Ollama's 4096-token default context, and a
     # slot that overflows it silently truncates the prompt (measured 2026-09-08/09).
     p.setdefault("num_ctx", 32768)
+    # A thinking model narrates its tool plan inside <think>, closes the block and ends the
+    # turn without calling a tool, so the agent loop never gets past the first step
+    # (measured 2026-09-09, docs/review/evidence/cpu-run/night6-4.txt). "off" patches the
+    # base model's template in each slot Modelfile; "default" leaves the template alone.
+    p.setdefault("thinking", "off")
+    if p["thinking"] not in ("off", "default"):
+        sys.exit(f'project.json thinking={p["thinking"]!r}: accepted values are "off" and "default"')
     p.setdefault("spec", "SPEC.md")
     p.setdefault("wrapper_prompt", DEFAULT_WRAPPER)
     p.setdefault("slot_prefix", "ref-" + p.get("name", "project") + "-slot")
@@ -186,13 +193,89 @@ def sh(cmd, timeout=None, cwd=None, dry=False, env=None):
 
 # ---------- slot models ----------
 
-def slot_parameters(p, slot):
-    """Ask the model server what a slot model's effective parameters actually are."""
+# The qwen3 chat template already carries a no-think switch, but both halves of it are
+# gated behind $.IsThinkSet, which Ollama's /v1/chat/completions endpoint — the one
+# OpenCode talks to — never sets. `PARAMETER think false` is rejected by Modelfiles and a
+# `"think": false` field in the request body is silently dropped by /v1, so patching the
+# template is the only lever that survives that path (night6 experiments 2 and 4, R620,
+# docs/review/evidence/cpu-run/night6-4.txt).
+NO_THINK_PATCH_A_OLD = '''{{- if and $.IsThinkSet (eq $i $lastUserIdx) }}
+   {{- if $.Think -}}
+      {{- " "}}/think
+   {{- else -}}
+      {{- " "}}/no_think
+   {{- end -}}
+{{- end }}'''
+NO_THINK_PATCH_A_NEW = '''{{- if (eq $i $lastUserIdx) }}
+   {{- " "}}/no_think
+{{- end }}'''
+NO_THINK_PATCH_B_OLD = '{{ if and $.IsThinkSet (not $.Think) -}}'
+NO_THINK_PATCH_B_NEW = '{{ if true -}}'
+
+
+def no_think_missing_message(base_model):
+    return (f"base model {base_model}'s template has no thinking switch to disable; "
+            'set "thinking": "default" in project.json if the model has no thinking mode, '
+            "or pick a model whose template carries the qwen3 switch")
+
+
+def no_think_template(base_template, base_model="the base model"):
+    """The base model's chat template with qwen3's thinking mode switched off.
+
+    Patch A appends ` /no_think` to the last user message unconditionally instead of only
+    when the caller set a thinking flag. Patch B always emits the empty `<think>\\n\\n</think>`
+    prefill on the assistant turn. Both anchors must be present: a template without them is
+    not a template this patch understands, and half a patch would leave thinking on while
+    claiming otherwise.
+    """
+    if NO_THINK_PATCH_A_OLD not in base_template:
+        sys.exit(no_think_missing_message(base_model))
+    if NO_THINK_PATCH_B_OLD not in base_template:
+        sys.exit(no_think_missing_message(base_model))
+    return (base_template
+            .replace(NO_THINK_PATCH_A_OLD, NO_THINK_PATCH_A_NEW)
+            .replace(NO_THINK_PATCH_B_OLD, NO_THINK_PATCH_B_NEW))
+
+
+def base_model_template(p):
+    """Read the base model's chat template from the project's model server."""
+    code, out, err, _ = sh(["ollama", "show", "--template", p["base_model"]], env=ollama_env(p))
+    if code != 0:
+        sys.exit(f"could not read the template of base model {p['base_model']} from "
+                 f"{host_side_ollama(p)}: {(err or '').strip()}. Pull the model "
+                 f"(`ollama pull {p['base_model']}`), or set \"thinking\": \"default\" in "
+                 "project.json to create the slots without patching the template.")
+    return out
+
+
+def slot_thinks(template):
+    """True if a slot template still leaves qwen3's thinking mode on.
+
+    The stock template mentions /no_think inside the gated branch, so the presence of the
+    string proves nothing on its own: the gate itself must be gone.
+    """
+    return not (template
+                and "/no_think" in template
+                and NO_THINK_PATCH_B_NEW in template
+                and NO_THINK_PATCH_A_OLD not in template)
+
+
+def slot_template(p, slot):
+    """The template the model server actually holds for a slot model."""
+    return slot_show(p, slot).get("template") or ""
+
+
+def slot_show(p, slot):
     url = host_side_ollama(p).rstrip("/") + "/api/show"
     body = json.dumps({"name": f"{p['slot_prefix']}{slot}"}).encode()
     req = urllib.request.Request(url, data=body, headers={"Content-Type": "application/json"})
     with urllib.request.urlopen(req, timeout=30) as r:
-        data = json.load(r)
+        return json.load(r)
+
+
+def slot_parameters(p, slot):
+    """Ask the model server what a slot model's effective parameters actually are."""
+    data = slot_show(p, slot)
     params = {}
     for line in (data.get("parameters") or "").splitlines():
         bits = line.split(None, 1)
@@ -240,6 +323,16 @@ def verify_slots(p, seeds):
                 mismatch = str(got_c) != str(want_ctx)
             if mismatch:
                 problems.append(f"slot {i}: effective num_ctx {got_c}, project says {want_ctx}")
+        if p.get("thinking", "off") == "off":
+            # A slot created before the no-think patch reports the right temperature, seed
+            # and context and still never calls a tool, which reads as a harness fault.
+            try:
+                thinks = slot_thinks(slot_template(p, i))
+            except Exception as e:
+                problems.append(f"slot {i}: could not read the template from the model server ({e})")
+            else:
+                if thinks:
+                    problems.append(f"slot {i} still thinks: re-run --create-slots")
         seen[i] = got_t
     distinct = {v for v in seen.values() if v is not None}
     if len(seen) > 1 and len(distinct) == 1:
@@ -281,19 +374,26 @@ def require_model_server(p):
 def create_slots(p, dry):
     seeds = load_seeds(p)
     num_ctx = p.get("num_ctx", 32768)
+    no_think = p.get("thinking", "off") == "off"
     if not dry:
         # Both checks come before the first Modelfile is written: a missing CLI or an
         # unreachable server used to surface halfway through creating the slots.
         require_binary("ollama")
         require_model_server(p)
+    # Read once: every slot patches the same base template.
+    template = no_think_template(base_model_template(p), p["base_model"]) if (no_think and not dry) else None
     for i, (t, s) in enumerate(zip(p["temperatures"], seeds), 1):
         name = f"{p['slot_prefix']}{i}"
         modelfile = (f"FROM {p['base_model']}\nPARAMETER temperature {t}\n"
                      f"PARAMETER seed {s}\nPARAMETER num_ctx {num_ctx}\n")
+        if template is not None:
+            modelfile += f'TEMPLATE """{template}"""\n'
         print(f"creating {name}: temperature={t} seed=<redacted> num_ctx={num_ctx}")
         if dry:
             print(f"FROM {p['base_model']}\nPARAMETER temperature {t}\n"
                   f"PARAMETER seed <redacted>\nPARAMETER num_ctx {num_ctx}")
+            if no_think:
+                print(f"TEMPLATE: no-think (patched from {p['base_model']})")
             continue
         with tempfile.NamedTemporaryFile("w", delete=False, suffix=".Modelfile") as tf:
             tf.write(modelfile)

@@ -16,8 +16,17 @@ ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TOOLS = os.path.join(ROOT, "tools")
 
 
+FIXTURES = os.path.join(os.path.dirname(os.path.abspath(__file__)), "fixtures")
+
+
 def tool(name):
     return os.path.join(TOOLS, name)
+
+
+def qwen3_template():
+    """The stock qwen3:14b chat template, as `ollama show --template` prints it."""
+    with open(os.path.join(FIXTURES, "qwen3-template.txt")) as fh:
+        return fh.read()
 
 
 def run_tool(name, *args, stdin=None, expect_ok=None, env_path=None):

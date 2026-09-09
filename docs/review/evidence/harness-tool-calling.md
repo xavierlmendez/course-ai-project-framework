@@ -147,3 +147,54 @@ disable; both default to 300000), so the runner now writes both into the generat
 only bound that should apply. A GPU box would rarely hit the limit, but a slot that stalled
 would still have been mis-scored as the student's failure rather than an environment one, so
 the fix is not CPU-specific.
+
+## Solved (2026-09-09, R620)
+
+Even on `qwen3:14b` with a 32k context and the header timeout lifted, a full run still made
+zero tool calls. Six experiments on the R620 (CPU-only, Ollama 0.33.3, OpenCode 1.18.29;
+`docs/review/evidence/cpu-run/night6-1.txt` … `night6-4.txt`, timings in `night6-log.txt`)
+found the cause and a fix that runs the whole course workflow end to end.
+
+**Root cause: thinking mode, not the harness.** With thinking on, `qwen3:14b` narrates its
+entire tool plan inside `<think>`, closes the block and emits end-of-turn with zero tool calls
+and zero content. Captured through a logging proxy (experiment 1, 723 s, no tool call, no
+file). It is not a tool-schema, context-window, streaming or timeout problem: the same body
+replayed with thinking off produces a tool call on the first turn. It is also ~13x cheaper —
+372 thinking tokens became 29 useful ones for the same decision.
+
+**Two dead ends.** `PARAMETER think false` is rejected by Modelfiles. A `"think": false` field
+in the request body is silently ignored by Ollama's `/v1/chat/completions`, which is the
+endpoint OpenCode talks to — replays with `think:false` streaming, non-streaming, and both,
+all still returned zero tool calls (experiments 2a–2c, ~230 s each).
+
+**The fix: patch the slot's TEMPLATE.** The stock qwen3 template already carries the no-think
+machinery, but both halves are gated behind `$.IsThinkSet`, which `/v1` never sets. Two edits
+make it unconditional:
+
+- **A** — the block `{{- if and $.IsThinkSet (eq $i $lastUserIdx) }} … /think … /no_think …
+  {{- end }}` becomes an unconditional ` /no_think` appended to the last user message.
+- **B** — `{{ if and $.IsThinkSet (not $.Think) -}}` becomes `{{ if true -}}`, so the empty
+  `<think>\n\n</think>\n\n` prefill is always emitted.
+
+Builder used on the night: `docs/review/evidence/cpu-run/night6-mkmodel.py`; the resulting
+Modelfile is `night6-Modelfile.nothink`.
+
+**The successful run.** Experiment 4a: the real captured OpenCode body (10 tools), non-stream,
+981 s — `finish_reason: tool_calls`, no `reasoning` key at all. Experiment 4b: a full OpenCode
+run, 06:13:13→06:40:53, wall 1660 s, rc 0 — the agent loop ran to completion, nine tool calls
+over nine steps and the program written; content was a stub only because nothing was serving
+the course page. Experiment 4c, with `ledger_server.py` actually serving
+`examples/01-morris-type-b` on 8080: the agent read `SPEC.md`, fetched the course page (200,
+5580 bytes), wrote 4546 bytes of real Python, ran it, iterated — **and signed the ledger**
+(`2026-09-09T08:10:26+00:00  ABC123456  night6  127.0.0.1`). It was still iterating when the
+5400 s cap fired. The only remaining limitation is speed: turn 3 alone took ~55 minutes at
+~3.7 tok/s, so a CPU grading box needs `regeneration_timeout_s` in hours, not the GPU-shaped
+1200.
+
+**Runner change.** `runner.py` now owns this. The project key `thinking` defaults to `"off"`;
+`--create-slots` reads `ollama show --template <base_model>`, applies patches A and B
+(`no_think_template()`, which stops with a clear message if either anchor is missing) and
+writes the result as a `TEMPLATE """…"""` block in every slot Modelfile after the PARAMETER
+lines. `--verify-slots` reads the slot's template back and reports "slot N still thinks:
+re-run --create-slots". `"thinking": "default"` leaves the template untouched, for a base
+model with no thinking mode. Recorded as D-007 in `docs/DECISIONS.md`.

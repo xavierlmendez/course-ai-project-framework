@@ -100,18 +100,27 @@ chosen. The cost is memory: at `num_ctx` 32768 the 14B model occupies about 15 G
 16 GB laptop swaps and the shared course server becomes the recommended route for students who do
 not have the headroom. D-001's model tag is superseded; its rule is not.
 
-## D-007 — `qwen3` thinking mode is left at Ollama's default · 2026-09-09 · status: open
+## D-007 — `qwen3` thinking mode is disabled in the slot template · 2026-09-09 · status: accepted
 
 **Context.** `qwen3:14b` reports `completion, tools, thinking`: it can emit a reasoning block before
-its answer, and Ollama exposes a `think` parameter to turn that off. The tool-calling probe was run
-with `"think": false`; the reference stack does not set it, so regenerations run at whatever default
-Ollama applies to the tag. Thinking plausibly improves specification-following — the property the
-whole project measures — and just as plausibly doubles the wall clock of every regeneration on a CPU
-box, which moves `regeneration_timeout_s`, the calibration numbers and the grading-day budget in the
-TA runbook.
-**Decision.** Not taken. The professor decides before the semester, on measurement: run the
-calibration gate both ways and compare pass rate against wall clock. Until then the default stands
-and is recorded here so that a run's behaviour is not silently attributed to the model tag alone.
-**Consequences.** Whichever way it goes, the choice must be pinned before the seeds are created and
-must not change mid-cohort: the reproducibility promise in §6 covers the weights, the seed, the
-temperature and the wrapper prompt, and a thinking flag changed between slots would break it.
+its answer. Left on, it is not a quality trade-off but a hard failure of the agent loop. Measured on
+the R620 (`docs/review/evidence/cpu-run/night6-4.txt`, log in `night6-log.txt`): the model narrates
+its whole tool plan inside `<think>`, closes the block and emits end-of-turn with zero tool calls and
+zero content, so OpenCode never gets past the first step. It is not a tool-schema, context, streaming
+or timeout problem. Two obvious fixes are dead ends — `PARAMETER think false` is rejected by
+Modelfiles, and Ollama 0.33.3's `/v1/chat/completions`, the endpoint OpenCode uses, silently ignores
+a `"think": false` field. The stock qwen3 template already carries the no-think machinery; both
+halves of it are gated behind `$.IsThinkSet`, which `/v1` never sets.
+**Decision.** Thinking is off, and it is turned off in the slot's `TEMPLATE`, which is the only lever
+that survives the `/v1` path. `runner.py --create-slots` reads `ollama show --template <base_model>`
+and writes the base template into each slot Modelfile with two patches: ` /no_think` is appended to
+the last user message unconditionally, and the empty `<think></think>` prefill is always emitted. The
+project key is `thinking`, default `"off"`; `"default"` leaves the template alone for a base model
+with no thinking mode. `--verify-slots` reports "slot N still thinks: re-run --create-slots".
+**Consequences.** The fix is what made the end-to-end course workflow run on a CPU-only box: nine
+tool calls, the program written, the course page fetched and the ledger signed. It is also ~13x
+cheaper per turn (372 thinking tokens became 29 useful ones for the same decision). The choice must
+still be pinned before the seeds are created and must not change mid-cohort — the reproducibility
+promise in §6 covers the weights, the seed, the temperature and the wrapper prompt, and a thinking
+flag changed between slots would break it. `--create-slots` now depends on the base model being
+present on the model server, since the template is read from it.
