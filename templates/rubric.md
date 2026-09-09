@@ -104,7 +104,10 @@ overlooks another is not a 3.
 
 A student who predicts nothing will fail and is right scores 3: no predictions to hit, no
 misses. A student who predicts everything will fail scores 2 at best, because the unfailed
-categories are wrong predictions.
+categories are wrong predictions. **A hedged prediction is still a prediction of failure:**
+"I may fail `evaluations_count`" or "I am unsure about `evaluations_count`" names that
+category, so it is a hit if that category failed and a wrong prediction if it passed — which
+is why the worked example below scores 1, not 3, when nothing failed.
 
 **Worked example.** From `examples/01-morris-type-b`: the student predicts passing
 `opening_move` and `opening_mill`, is unsure about `evaluations_count` because they saw the

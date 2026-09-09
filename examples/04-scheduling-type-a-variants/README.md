@@ -122,6 +122,12 @@ Canonical vs public: `{'basic': (2, 2), 'overlaps': (1, 1), 'twist_class': (0, 1
 
 grad_large wall time per case for the reference: 0.029 s (limit 10 s).
 
+**The sample submission fails one public test on purpose:** it scores 5/6 on the public suite
+(`twist_class`), because it is the worked example of candor — its WRITTEN.md states the
+limitation and predicts exactly that failure — so it would *not* earn the milestone, which
+requires a clean public suite; do not "fix" it, and if you copy it for a rehearsal expect
+`milestone 0`.
+
 Sample submission `JKL333444` (implements the cooldown, omits the priority exemption; its
 WRITTEN.md predicts the twist_class failure), run through the runner with `--type A --no-sandbox`,
 which exercised the per-variant generator path, then `grade.py`:

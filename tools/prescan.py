@@ -9,7 +9,12 @@ Usage:
 
 Pass --project and the allowed hosts come from the project itself, so the mandatory
 ledger line in every conforming specification is not flagged as an offsite URL.
-Prints one line per submission: FLAG|OK|OVERCAP  <id>  <reasons>
+It also checks that the student id inside the submission matches the submission directory.
+For a pair directory `A-B` **either** member is acceptable, since the specification's ledger
+line names whoever signs. A submission that names no id at all is not reported: only one
+that claims some *other* id and none of its own (`spec-id-mismatch:...`).
+
+Prints one line per submission: FLAG|INCOMPLETE|OK  <id>  <reasons>
 Exit 0 always (the TA decides).
 """
 import argparse
@@ -68,10 +73,41 @@ def scan_text(text, allow):
 
 
 PAGE_FILES = ("PROCESS.md", "WRITTEN.md")
+# A student id as the course writes them: letters then digits, e.g. ABC123456.
+STUDENT_ID = re.compile(r"\b[A-Z]{2,5}[0-9]{4,9}\b")
+# Lines where an id is being claimed rather than merely mentioned.
+ID_LINE = re.compile(r"student[ _-]?id|\bledger\b|\bsign\b", re.I)
+
+
+def members(key):
+    """A submission directory name split into student ids. A pair is `A-B` as a directory,
+    `A+B` in the ledger and `A,B` in a roster; any member identifies the submission."""
+    return [x.strip().upper() for x in re.split(r"[+,\-]", key or "") if x.strip()]
+
+
+def id_check(dir_name, texts):
+    """The runbook's 'the student ID inside the specification matches the submission
+    directory' check. A pair's specification may name **either** member, so any member
+    is acceptable. Reported only when the submission claims some *other* id and none of
+    its own: a specification that names no id at all is not evidence of anything."""
+    own = members(dir_name)
+    if not own:
+        return []
+    blob = "\n".join(texts)
+    upper = blob.upper()
+    if any(m in upper for m in own):
+        return []
+    claimed = []
+    for line in blob.splitlines():
+        if ID_LINE.search(line):
+            claimed += [i for i in STUDENT_ID.findall(line.upper()) if i not in claimed]
+    if claimed:
+        return [f"spec-id-mismatch:{','.join(claimed)}"]
+    return []
 
 
 def scan_submission(path, allow, cap, page_cap=600):
-    hits, words, pages = [], 0, {}
+    hits, words, pages, texts = [], 0, {}, []
     for root, _, files in os.walk(path):
         for f in files:
             if not f.lower().endswith(TEXT_EXT):
@@ -83,6 +119,7 @@ def scan_submission(path, allow, cap, page_cap=600):
             except OSError as e:
                 hits.append(f"unreadable:{f}:{e}")
                 continue
+            texts.append(text)
             rel = os.path.relpath(p, path)
             if rel in PAGE_FILES:
                 pages[rel] = len(text.split())
@@ -94,6 +131,7 @@ def scan_submission(path, allow, cap, page_cap=600):
             hits.append(f"missing:{name}")
         elif pages[name] > page_cap:
             hits.append(f"{name}:over-page-cap:{pages[name]}")
+    hits += id_check(os.path.basename(os.path.normpath(path)), texts)
     return hits, words
 
 

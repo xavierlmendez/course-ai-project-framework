@@ -21,10 +21,12 @@ class TestCombineParts(TempCase):
                                {"parts": [{"name": n, "weight": w} for n, w in weights]})
 
     def make_part_book(self, filename, rows):
-        """rows: (student_id, status, grad, hidden_score)."""
+        """rows: (student_id, status, grad, hidden_score[, note])."""
         lines = [PART_HEADER]
-        for sid, status, grad, hidden in rows:
-            lines.append(f"{sid},{status},{grad},1,{hidden},,,,,")
+        for row in rows:
+            sid, status, grad, hidden = row[:4]
+            note = row[4] if len(row) > 4 else ""
+            lines.append(f"{sid},{status},{grad},1,{hidden},,,,,\"{note}\"")
         return self.write(filename, "\n".join(lines) + "\n")
 
     def test_perfect_student_scores_exactly_100(self):
@@ -97,6 +99,64 @@ class TestCombineParts(TempCase):
                              self.path("gb1.csv"), expect_ok=True)
         row = parse_csv(out)["ABC123456"]
         self.assertAlmostEqual(float(row["written_score"]), 15.0, places=2)
+
+
+class TestPartNotesSurvive(TempCase):
+    """Cold run 4: `grade.py --hidden-only` writes grade-relevant per-part notes such as
+    `1 slot(s) never completed`, and combine_parts dropped them, so the runbook's readiness
+    check reported every row ready to send."""
+
+    make_parts = TestCombineParts.make_parts
+    make_part_book = TestCombineParts.make_part_book
+
+    def combine(self):
+        return run_tool("combine_parts.py", "--parts", self.path("parts.json"),
+                        "--written", self.path("written.csv"),
+                        "--milestone", self.path("milestone.csv"),
+                        self.path("gb1.csv"), self.path("gb2.csv"), expect_ok=True)
+
+    def test_a_part_note_reaches_the_combined_note(self):
+        self.make_parts([("I", 45), ("II", 35)])
+        self.make_part_book("gb1.csv",
+                            [("ABC123456", "graded", 0, 70.0, "1 slot(s) never completed")])
+        self.make_part_book("gb2.csv", [("ABC123456", "graded", 0, 70.0)])
+        self.make_written([("ABC123456", 3, 3, 3, "")])
+        self.make_milestone([("ABC123456", 1)])
+        _, out, _ = self.combine()
+        row = parse_csv(out)["ABC123456"]
+        self.assertEqual(row["status"], "graded")
+        self.assertEqual(row["note"], "I: 1 slot(s) never completed",
+                         "a part's note was dropped from the combined gradebook")
+
+    def test_notes_from_several_parts_are_all_named(self):
+        self.make_parts([("I", 45), ("II", 35)])
+        self.make_part_book("gb1.csv", [("ABC123456", "graded", 0, 70.0, "2 slot(s) never completed")])
+        self.make_part_book("gb2.csv", [("ABC123456", "graded", 0, 70.0, "1 slot(s) never completed")])
+        self.make_written([("ABC123456", 3, 3, 3, "")])
+        self.make_milestone([("ABC123456", 1)])
+        _, out, _ = self.combine()
+        self.assertEqual(parse_csv(out)["ABC123456"]["note"],
+                         "I: 2 slot(s) never completed; II: 1 slot(s) never completed")
+
+    def test_the_missing_clause_still_appears_after_the_part_notes(self):
+        self.make_parts([("I", 45), ("II", 35)])
+        self.make_part_book("gb1.csv",
+                            [("ABC123456", "graded", 0, 70.0, "1 slot(s) never completed")])
+        self.make_part_book("gb2.csv", [("ABC123456", "graded", 0, 70.0)])
+        self.make_written([("ZZZ999999", 3, 3, 3, "")])   # no written row for ABC123456
+        self.make_milestone([("ABC123456", 1)])
+        _, out, _ = self.combine()
+        self.assertEqual(parse_csv(out)["ABC123456"]["note"],
+                         "I: 1 slot(s) never completed; missing: written")
+
+    def test_a_clean_row_still_has_an_empty_note(self):
+        self.make_parts([("I", 45), ("II", 35)])
+        self.make_part_book("gb1.csv", [("ABC123456", "graded", 0, 70.0)])
+        self.make_part_book("gb2.csv", [("ABC123456", "graded", 0, 70.0)])
+        self.make_written([("ABC123456", 3, 3, 3, "")])
+        self.make_milestone([("ABC123456", 1)])
+        _, out, _ = self.combine()
+        self.assertEqual(parse_csv(out)["ABC123456"]["note"], "")
 
 
 class TestPartMode(TempCase):

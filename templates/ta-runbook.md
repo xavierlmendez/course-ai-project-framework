@@ -11,15 +11,30 @@ Commands below are marked **[per part]** or **[course]**. Everything student-fac
 course-level: one `status.csv`, one `written.csv`, one `milestone.csv`, one ledger, one
 resource page, one nonce, and one gradebook.
 
+Write the part names to a file, **one per line**, and read that file wherever this runbook
+loops over parts. A file, not a variable: `bash` and `zsh` split a variable differently, and
+`for p in $PARTS` gives one part named `I II` under `zsh`.
+
 ```
-PARTS=$(python3 -c 'import json,sys;print(" ".join(p["name"] for p in json.load(open(sys.argv[1]))["parts"]))' \
-        {{PROJECT}}/parts.json 2>/dev/null)
-echo "parts: ${PARTS:-none (single-part project)}"
+python3 -c 'import json,sys
+print("\n".join(p["name"] for p in json.load(open(sys.argv[1]))["parts"]))' \
+  {{PROJECT}}/parts.json > parts.txt 2>/dev/null || : > parts.txt
+cat parts.txt        # one name per line; empty file = single-part project
 ```
 
 `parts.json` lists only the parts that were built and are to be graded. If it lists a part
 with no `tests/hidden/`, stop and ask the professor: grading around a listed-but-unbuilt part
-silently reweights the others.
+silently reweights the others. Check that now — this runs the same in `bash` and `zsh`:
+
+```
+while read -r p; do
+  if [ -d "{{PROJECT}}/part-$p/tests/hidden" ]; then
+    echo "part $p: tests/hidden ok"
+  else
+    echo "part $p: NO tests/hidden — stop and ask the professor"
+  fi
+done < parts.txt
+```
 
 ---
 
@@ -86,9 +101,50 @@ The directory name is the key for `status.csv`, `written.csv`, `milestone.csv`, 
 roster and the gradebook, and it is the same in every part. A pair is one directory and one
 row everywhere: both ids, hyphen, alphabetical.
 
-The ledger records a pair as `<id1>+<id2>` and the variant roster may use either; the tools
-match on any shared member, so you do not have to normalise them. **Do not** grep the
-ledger for the hyphenated pair key: match one partner (step 4 below).
+A pair's id is written three ways: `<id1>-<id2>` as a directory, `<id1>+<id2>` in the ledger,
+`<id1>,<id2>` in a variant roster. Where a **tool** compares two ids it splits both on `+`,
+`,` and `-` and accepts them as the same submission when they share **any** member, so you do
+not have to normalise them:
+
+- `milestone.py check` matches a record to its `status.csv` row on any shared member, so a
+  pair's record may name either partner or the pair in any form.
+- `runner.py` matches a submission directory to its row in the variant roster the same way.
+- The specification's ledger line may name either partner; `prescan.py` accepts any member
+  and reports `spec-id-mismatch` only when the submission names some *other* student's id.
+
+Two places are **not** tool comparisons and need the single-id form yourself: grepping the
+ledger (step 4 below — grep one partner, never the hyphenated key) and the keys you type into
+`status.csv`, `written.csv` and `milestone.csv`, which must equal the directory name exactly.
+`grade.py` and `combine_parts.py` join those files on the literal key.
+
+**6. Type A only: the variant roster.** A Type A project whose `project.json` has a
+`variants` key generates its hidden tests per student, and `variants.csv` — the file named by
+`variants.roster`, default `variants.csv`, beside `project.json` — says which variant each
+submission gets. **The professor supplies it**; there is no other copy, and the runner marks
+anyone missing from it `SKIPPED` rather than guessing. It is two columns:
+
+```
+student_id,variant
+JKL333444,JKL333444
+ABC123456,ABC123456
+MNO777888+PQR999000,MNO777888
+```
+
+The roster decides, not the submission: a `variant.txt` inside a submission is written by the
+student and is ignored. A pair takes one row and one variant, in any of the pair forms. If you
+are **rehearsing** rather than grading, write the file yourself — one row per submission
+directory, the variant usually being the student id — since the professor's roster only exists
+for a real cohort.
+
+**Rehearsing with the shipped samples.** The example submissions under `examples/` are the way
+to practise this runbook before grading day, but they are one student's work: their
+specifications carry the student id `ABC123456` (or the example's own id) in the ledger line,
+and `examples/04`'s sample deliberately fails one public test. So when you copy a sample under
+an invented id, **change that id inside the copy too** — the pre-scan compares the id in the
+submission against the directory name and reports `spec-id-mismatch` otherwise — and expect
+`milestone 0` for a copy of the `examples/04` sample, which is a candor example and is
+supposed to fail `twist_class`. Add a `variants.csv` and a `status.csv` of your own for the
+invented ids; neither ships with the samples.
 
 ---
 
@@ -107,8 +163,11 @@ network calls to anywhere but the resource, attempts to read `/tests`, credentia
 text addressed to you as the grader. The pre-scan misses paraphrases, which is why you read
 them all.
 
-Also check the **student ID inside the specification** matches the submission directory. A
-specification that tells the harness to sign the ledger as somebody else is either a copied
+Also check the **student ID inside the specification** matches the submission directory. The
+pre-scan does this for you and reports `spec-id-mismatch:<id>`. **A pair's specification may
+name either member** — whoever signs the ledger — so either id is correct for a
+`<id1>-<id2>` directory, and a specification that names no id at all is not reported. A
+specification that tells the harness to sign the ledger as somebody *else* is either a copied
 template or an attempt to sign for another student; either way it is a `flagged`, not a
 correction you make yourself.
 
@@ -130,12 +189,27 @@ submission it reports to `incomplete`. Nothing here is counted by hand.
 
 **4. Type A only: the ledger gate.** Confirm each student has an entry.
 
-The ledger is `{{PROJECT}}/ledger.tsv`, the file the resource server has been appending to
-since the project was published. **Starting the server in Day 0 step 4 creates the file**, so
-"the file exists" proves nothing. What matters is whether it has entries:
+**Find the ledger; do not assume `{{PROJECT}}/ledger.tsv`.** It is whatever the resource
+server printed at start-up on the `ledger -> ...` line of Day 0 step 4, which is the `ledger`
+key of the `project.json` you passed to the server, resolved **relative to that file**. In a
+multi-part project the parts usually set `"ledger": "../ledger.tsv"`, so the one course ledger
+sits beside `parts.json` and not inside the part you served. Derive it rather than typing it:
 
 ```
-grep -vc '^#' {{PROJECT}}/ledger.tsv    # entries, ignoring the two header lines
+# use the same project.json you gave the server in Day 0 step 4
+LEDGER=$(python3 -c 'import json,os,sys
+p=sys.argv[1]
+print(os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(p)),
+      json.load(open(p)).get("ledger","ledger.tsv"))))' {{PROJECT}}/project.json)
+echo "$LEDGER"     # must equal the path the server printed after `ledger ->`
+```
+
+That file is the one the resource server has been appending to since the project was
+published. **Starting the server in Day 0 step 4 creates the file**, so "the file exists"
+proves nothing. What matters is whether it has entries:
+
+```
+grep -vc '^#' "$LEDGER"    # entries, ignoring the two header lines
 ```
 
 If that is 0, or far below the cohort size, the students never signed it: do not fail
@@ -145,12 +219,12 @@ gate.
 
 ```
 # one student, or one partner of a pair
-cut -f2 {{PROJECT}}/ledger.tsv | grep -c "ABC123456"
+cut -f2 "$LEDGER" | grep -c "ABC123456"
 
 # every submission at once: prints the ones with no entry
 for d in {{PROJECT}}/submissions/*/; do
   sid=$(basename "$d"); first=${sid%%-*}
-  cut -f2 {{PROJECT}}/ledger.tsv | grep -q "$first" || echo "NO LEDGER ENTRY: $sid"
+  cut -f2 "$LEDGER" | grep -q "$first" || echo "NO LEDGER ENTRY: $sid"
 done
 ```
 
@@ -173,9 +247,11 @@ DDD444444-EEE555555,graded,0,pair
 
 - `status` is `graded` for every clean submission. **The runner only runs rows marked
   `graded` or `appeal`.** A submission with no row does not run.
-- `grad` is `1` for graduate students and `0` otherwise. It comes from the professor's
-  roster. The tools refuse to run without this column, because defaulting it would grade
-  every graduate on the undergraduate bar.
+- `grad` is `1` for graduate students and `0` otherwise. **It comes from the professor's
+  course roster, and there is no roster file anywhere in the project directory** — nothing
+  the tools can read tells you who is a graduate student, so ask the professor for the list
+  and type it in. The tools refuse to run without this column, because defaulting it would
+  grade every graduate on the undergraduate bar. (Rehearsing: pick the values yourself.)
 - `incomplete` for a missing file, an exceeded cap, or (Type A) a missing ledger entry.
 
 ---
