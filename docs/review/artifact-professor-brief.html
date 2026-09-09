@@ -89,5 +89,11 @@
   </ul>
 
   <h2>Late results</h2>
-  <p id="late">GPU regeneration timing is appended here when the run finishes.</p>
+  <p><b>Calibration on a GPU (A10G, 2026-09-09).</b> The original reference specification for Part&nbsp;I Opening failed the gate outright: the model fetched the page inside the program instead of with its web tool, never signed the ledger, and looped on failed edits. Rewritten to name the harness tools, keep the program offline, rewrite the file whole and spell out output punctuation, it clears the gate with both candidate models, each in one slot of three.</p>
+  <div class="wrap"><table>
+    <tr><th>Model</th><th>Slots passing all 20 hidden cases</th><th>Three slots took</th><th>GPU memory</th></tr>
+    <tr><td>qwen3:14b, thinking off</td><td class="num">1 of 3</td><td class="num">33 min (one slot hit the 20-minute limit)</td><td class="num">10 GB</td></tr>
+    <tr><td>qwen3-coder:30b</td><td class="num">1 of 3</td><td class="num">7 min</td><td class="num">21 GB</td></tr>
+  </table></div>
+  <p>One slot in three passes by the gate's rule, but the margin is thin: the four specification rules above separate a passing specification from a failing one, and they are now in the student primer. Two scoring defects found on the way (the sandbox could not reach Ollama on Linux; the per-case temp directory was root-only) are fixed. The choice between the two models is decision&nbsp;2: the 14B model fits student laptops; the 30B coder model needs a 24&nbsp;GB grading card and grades five times faster.</p>
 </main>
