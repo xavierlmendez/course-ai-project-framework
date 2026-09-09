@@ -1,0 +1,2 @@
+{"path": "/v1/chat/completions", "keys": ["max_tokens", "messages", "model", "stream", "stream_options"], "temperature": "<ABSENT>", "top_p": "<ABSENT>", "seed": "<ABSENT>", "model": "ref-test-slot1"}
+{"path": "/v1/chat/completions", "keys": ["max_tokens", "messages", "model", "stream", "stream_options", "tool_choice", "tools"], "temperature": "<ABSENT>", "top_p": "<ABSENT>", "seed": "<ABSENT>", "model": "ref-test-slot1"}

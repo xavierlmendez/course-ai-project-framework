@@ -46,11 +46,13 @@ All confirmed by Xavier on 2026-09-08 in the review conversation. Numbered for r
 20. **Tests use the standard library's `unittest`.** The zero-dependency promise is what makes the tools readable on a bare lab machine, and it outweighs matching the engineering-standards pytest config.
 21. **The Type A calibration gate** is the deterministic one: reference passes every hidden test, a canonical solution ignoring the twist fails the twist categories, and per-case timings set the test timeout. No harness run required.
 22. **Stray output removed and example seeds rotated** (2026-09-08), after the recursive-copy bug was found to have written 20 copies of the seeds file into an example's output tree. Nothing had reached git.
-23. **The R620 is the harness verification machine.** It proves that per-slot temperature and seed reach the model and that the OpenCode configuration shape is right. Its own operations notes record no AVX2 and no GPU, so it is a correctness guinea pig, not the grading box; decision 9's dedicated grading machine is still to be named.
+23. **The R620 is the harness verification machine**, container `harness-01` (LXC 102, 192.168.2.12). Measurement on 2026-09-08 confirmed it: the temperature path works, and at 3.07 tok/s it cannot grade a cohort. Decision 9's dedicated grading machine is **still to be named** and is now the plan's largest open decision; the options and the throughput target are in `docs/review/evidence/grading-box.md`.
+24. **F-65 is resolved, not fixed.** The schedule reaches the model today only because OpenCode omits the temperature field. This makes pinning the OpenCode version (F-10) a correctness control rather than a hygiene one, and slice 2.6's self-check must assert the effective temperature differs across slots by observation.
 
 ## 3. Unknowns
 
-- Whether an actual OpenCode regeneration against `qwen2.5-coder:14b` behaves as the runner assumes. No machine in this session can answer it; the calibration checklist is the intended test. Phase 2 reduces the blast radius by pinning the harness version, but the first real calibration run may surface more.
+- ~~Whether an actual OpenCode regeneration behaves as the runner assumes.~~ Partly answered 2026-09-08 on the R620: the provider configuration is right, the model and slot pinning work, and the temperature path holds. Still unmeasured: how a full agentic regeneration behaves under the real timeout, which needs a machine fast enough to finish one.
+- **Which machine grades.** The R620 is too slow by roughly 8 to 10×. Named options are in `docs/review/evidence/grading-box.md`; this blocks the runbook's time budget (decision 9) and therefore Phase 3.
 - Whether the professor's cluster storage class supports the volume mode the ledger needs. Phase 6 states the requirement; only a deploy confirms it.
 - Whether two TAs actually score the rubric's Candor row consistently once decision 12 lands. Only calibration against real submissions settles it; the plan ships the decision rule, not the proof.
 - What the real regeneration wall-clock time is on the grading box. Decision 9 makes the runbook's number come from measurement, so the number is unknown until the first calibration run.
@@ -72,7 +74,7 @@ Decider for every phase: **Xavier**. Each slice is one branch, one PR, one end-t
 | 0.1 | — | Re-verify the 21 unadjudicated findings | — | **Done 2026-09-08**: 20 stand, 1 dropped, 5 new issues |
 | 0.2 | — | Remove stray output, rotate example seeds | — | **Done 2026-09-08** |
 | 0.3 | `chore/baseline-commit` | Initial commit of today's state so fixes diff against what the review examined; Xavier pushes | 0.2 | Repo has a first commit; `git log` shows one baseline |
-| 0.4 | — | Stand up an LXC on the R620 with Ollama and OpenCode, pull the 14B model, run one regeneration, and record whether per-slot temperature and seed reach the model (F-65) | SSH key on the R620 | A measured answer, plus the tokens-per-second number that tells us whether any CPU box can be the grading machine |
+| 0.4 | — | Stand up an LXC on the R620 with Ollama and OpenCode, pull the 14B model, and measure whether per-slot temperature and seed reach the model (F-65) | SSH key on the R620 | **Done 2026-09-08**: they do. OpenCode 1.18.29 sends no temperature, so the Modelfile governs. Evidence in `docs/review/evidence/f65-temperature-path.md`. Measured 3.07 tok/s; the R620 cannot be the grading box (`evidence/grading-box.md`) |
 
 ### Phase 1 — Grading arithmetic is correct and tested · exit when: the fixture-cohort rehearsal produces a hand-checkable gradebook and `pytest` is green · decider: Xavier
 
