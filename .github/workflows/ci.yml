@@ -37,17 +37,15 @@ jobs:
       - name: Rehearsal (a fixture cohort end to end through the grading tools)
         run: python3 scripts/rehearsal.py
 
-      # The only FAIL rows allowed are example 01's Part III and Part IV stubs (BL-01).
-      # As of 2026-09-08 two further rows fail — Part I and Part II twist weights, F-26 and
-      # F-54, closed by fix-plan slice 5.4c — so this step is red until Phase 5 lands.
+      # No FAIL row is allowed. Slice 5.4 built example 01's eight programs, so the
+      # Part III/Part IV stub rows this gate used to allow (BL-01) no longer exist.
       - name: Deterministic checks
         run: |
           python3 scripts/review_checks.py --no-network --out checks.md
           fails=$(grep -c '^| FAIL' checks.md || true)
-          stubs=$(grep '^| FAIL' checks.md | grep -c -e 'part-III' -e 'part-IV' || true)
-          echo "$fails FAIL rows, $stubs of them known stub parts (BL-01)"
+          echo "$fails FAIL rows"
           grep '^| FAIL' checks.md || true
-          if [ "$fails" -gt "$stubs" ]; then
-            echo "FAIL rows beyond the known example 01 Part III/IV stubs (docs/BACKLOG.md BL-01)"
+          if [ "$fails" -gt 0 ]; then
+            echo "review_checks.py reported FAIL rows"
             exit 1
           fi

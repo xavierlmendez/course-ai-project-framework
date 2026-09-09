@@ -12,7 +12,7 @@ A reusable way to give a course project in which students direct an AI harness w
 | [CONTEXT.md](./CONTEXT.md) | Glossary. Every document uses these terms exactly |
 | [templates/](./templates/) | Handout (Type A, Type B), [student primer](./templates/student-primer.md), rubric, twist checklist, calibration checklist, TA runbook, rotation checklist, process-note prompt |
 | [tools/](./tools/) | `runner.py`, `run_tests.py`, `grade.py`, `prescan.py`, `ledger_server.py`, `sandbox/`. Python standard library + Docker + Ollama. [tools/README.md](./tools/README.md) has the `project.json` schema |
-| [examples/01-morris-type-b](./examples/01-morris-type-b/) | The professor's actual Spring 2026 Morris-variant project recast: Type B, multi-part (45/35/10/10), file-argument CLI contract, equivalence policies per category |
+| [examples/01-morris-type-b](./examples/01-morris-type-b/) | The professor's actual Spring 2026 Morris-variant project recast: Type B, eight programs in one directory each (45/35/10/10 across four parts, split evenly between each part's Opening and Game program), file-argument CLI contract, equivalence policies per category |
 | [examples/02-astar-type-a](./examples/02-astar-type-a/) | Type A, published resource, A* with a published movement twist |
 | [examples/03-serialization-type-b-research](./examples/03-serialization-type-b-research/) | Type B, research-pointer variant (external spec + twist, snapshotted) |
 | [examples/04-scheduling-type-a-variants](./examples/04-scheduling-type-a-variants/) | Type A, per-student variant parameters with generated hidden tests |

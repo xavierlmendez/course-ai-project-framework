@@ -57,10 +57,10 @@ curl -s http://127.0.0.1:11434/api/generate -d "{\"model\":\"$MODEL\",\"prompt\"
 ollama ps | tee "$EV/ollama-ps.txt"
 
 # ---------- 3. real Type B regeneration through the sandbox ----------
-log "== 3. real regeneration (sandbox), example 01 part-I"
+log "== 3. real regeneration (sandbox), example 01 part-I-opening"
 cd "$REPO"
 sudo docker build -q -t harness-sandbox tools/sandbox/ >/dev/null 2>&1 && log "sandbox image built" || log "sandbox build FAILED"
-P=/tmp/p1; rm -rf "$P" /tmp/runs; cp -R examples/01-morris-type-b/part-I "$P"; rm -rf "$P/runs"
+P=/tmp/p1; rm -rf "$P" /tmp/runs; cp -R examples/01-morris-type-b/part-I-opening "$P"; rm -rf "$P/runs"
 # use 32k context in the slot models so the harness has room for its tool schemas
 python3 - "$P/project.json" <<'PY'
 import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["num_ctx"]=32768; json.dump(d,open(p,"w"),indent=1)

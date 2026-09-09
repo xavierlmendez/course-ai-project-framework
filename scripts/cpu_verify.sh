@@ -50,7 +50,7 @@ fi
 
 log "== 3. real regeneration (agent loop, no sandbox) with $USE at num_ctx 32768"
 cd "$REPO"
-P=/tmp/p1; rm -rf "$P" /tmp/runs; cp -R examples/01-morris-type-b/part-I "$P"; rm -rf "$P/runs"
+P=/tmp/p1; rm -rf "$P" /tmp/runs; cp -R examples/01-morris-type-b/part-I-opening "$P"; rm -rf "$P/runs"
 python3 - "$P/project.json" "$USE" <<'PY'
 import json,sys; p=sys.argv[1]; d=json.load(open(p)); d["num_ctx"]=32768; d["base_model"]=sys.argv[2]
 d["ollama_host"]="http://127.0.0.1:11434"; d["resource_host"]="127.0.0.1"; json.dump(d,open(p,"w"),indent=1)
