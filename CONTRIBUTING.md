@@ -30,7 +30,7 @@ in `docs/BACKLOG.md` (with the design sketch if one exists) and reference it fro
 
 Every feature or bug fix ships with a test in the same PR. Tests are deterministic: no network,
 no wall clock, no unseeded randomness. A bug fix adds the test that would have caught it first.
-The full standard is `.claude/agents/testing-agent.md`.
+The full standard is the upstream `testing-agent.md` (see the note at the end).
 
 ## Behavioural baseline before a refactor
 
@@ -78,7 +78,7 @@ Three adaptations, and nothing else changes:
 - **Two files named above live upstream, not here.** `.claude/agents/testing-agent.md` (the full
   testing standard) and `.git-blame-ignore-revs` are `engineering-standards` artifacts; this
   repository has neither. The testing rule that binds here is the one stated above and in
-  `CLAUDE.md` — every tool change ships with a deterministic `unittest` in the same slice, and a
+  `AGENTS.md` — every tool change ships with a deterministic `unittest` in the same slice, and a
   fix ships the test that fails before it.
 
 Records here are `docs/DECISIONS.md` plus an ADR under `docs/adr/` when a decision is hard to

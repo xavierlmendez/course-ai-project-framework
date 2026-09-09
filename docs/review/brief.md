@@ -44,8 +44,8 @@ A professor teaching a masters-level CS course can take this repository, follow 
 | Examples | `examples/01–04/**` |
 | Records | `docs/grill/*`, `docs/adr/*`, `docs/research/*`, `docs/verification-2026-09-08.md` |
 | Published artifacts (as documents) | `docs/review/artifact-framework.html`, `docs/review/artifact-primer.html` (local copies) |
-| Portfolio site changes (uncommitted diff) | `/Users/xaviermendez/develop/portfolioWebsite/xavis_projects` (`git status`, `git diff`, untracked dirs `app/api/courseLedger`, `app/api/courseResource`, `app/lib/projectUtils/courseAiFramework`, `app/projects/courseAiFramework`) |
-| Standards | `/Users/xaviermendez/develop/engineering-standards` (CONTRIBUTING, CLAUDE.template, agents/testing-agent, agents/reviewer-agent) |
+| Portfolio site changes (uncommitted diff) | `~/develop/portfolioWebsite/xavis_projects` (`git status`, `git diff`, untracked dirs `app/api/courseLedger`, `app/api/courseResource`, `app/lib/projectUtils/courseAiFramework`, `app/projects/courseAiFramework`) |
+| Standards | `~/develop/engineering-standards` (CONTRIBUTING, CLAUDE.template, agents/testing-agent, agents/reviewer-agent) |
 
 Out: the previous project's own submission folder in `sillyDrive` (source material, not a deliverable); anything requiring an actual OpenCode regeneration (not available on this machine; record as unverifiable, not as a finding).
 
