@@ -107,7 +107,7 @@ def judge_argv(result, out_path, checker, in_path, python, case_dir_name):
         finally:
             os.unlink(actual_path)
     if out_path is None:
-        return False, "no expected stdout and no check.py"
+        return False, "malformed case: no expected stdout and no check.py"
     ok = norm_lines(actual["stdout"]) == norm_lines(open(out_path, encoding="utf-8").read())
     if not ok:
         return False, "stdout mismatch"
@@ -157,8 +157,15 @@ def judge(result, out_path, checker, in_path, python):
             return c.returncode == 0, (c.stdout.decode(errors="replace").strip()[:300] or "checker")
         finally:
             os.unlink(actual_path)
-    with open(out_path) as fh:
-        expected = json.load(fh)
+    if out_path is None:
+        return False, "malformed case: no expected output and no check.py"
+    try:
+        with open(out_path) as fh:
+            expected = json.load(fh)
+    except FileNotFoundError:
+        return False, "malformed case: expected output file is missing"
+    except (json.JSONDecodeError, UnicodeDecodeError) as e:
+        return False, f"malformed case: expected output is not JSON ({e})"
     return actual == expected, ("match" if actual == expected else "mismatch")
 
 
@@ -183,13 +190,18 @@ def main():
     for cat, cases in discover(a.tests).items():
         rec = {"pass": 0, "total": len(cases), "cases": []}
         for name, in_path, out_path, checker, mode in cases:
-            if mode == "argv":
-                args_path = in_path[: -len(".in.txt")] + ".args"
-                r = run_case_argv(a.solution, a.entry, a.python, in_path, args_path, a.timeout)
-                ok, why = judge_argv(r, out_path, checker, in_path, a.python, cat)
-            else:
-                r = run_case(a.solution, a.entry, a.python, in_path, a.timeout)
-                ok, why = judge(r, out_path, checker, in_path, a.python)
+            try:
+                if mode == "argv":
+                    args_path = in_path[: -len(".in.txt")] + ".args"
+                    r = run_case_argv(a.solution, a.entry, a.python, in_path, args_path, a.timeout)
+                    ok, why = judge_argv(r, out_path, checker, in_path, a.python, cat)
+                else:
+                    r = run_case(a.solution, a.entry, a.python, in_path, a.timeout)
+                    ok, why = judge(r, out_path, checker, in_path, a.python)
+            except Exception as e:
+                # One broken case fails that case. It must never stop the other cases,
+                # which would turn a fixture mistake into a zero for every student.
+                r, ok, why = {"wall_s": None}, False, f"case error: {type(e).__name__}: {e}"
             rec["pass"] += int(ok)
             rec["cases"].append({"name": name, "pass": ok, "why": why, "wall_s": r.get("wall_s")})
             if not a.json:

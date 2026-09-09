@@ -6,11 +6,14 @@ Python 3 standard library plus Docker and Ollama. A TA can read every file in on
 |---|---|
 | `run_tests.py` | Runs interface-contract tests against one solution directory. Used by students (public suite), by the milestone, and by the runner inside the sandbox (hidden suite). |
 | `runner.py` | TA batch runner. Type B: K sandboxed regenerations per submission, then hidden tests. Type A: hidden tests once. Also creates the pinned slot models (`--create-slots`). Resumable. |
-| `grade.py` | Turns runner records plus `status.csv`, `written.csv`, `milestone.csv` into `gradebook.csv`. |
-| `combine_parts.py` | Weights per-part gradebooks into one for multi-part projects (`parts.json` holds the weights). |
+| `grade.py` | Turns runner records plus `status.csv`, `written.csv`, `milestone.csv` into `gradebook.csv`. Refuses a `status.csv` with no `grad` column, refuses a written dimension outside 0–3, and marks a row `incomplete` rather than emitting a total that silently omits a component. |
+| `combine_parts.py` | Combines per-part gradebooks. Each part contributes only its **hidden** score, weighted; the milestone and written component are course-level and added once. |
 | `prescan.py` | Flags lines in specifications the safety read must look at closely. Not a safety control. |
 | `ledger_server.py` | Serves the published resource and the write-only ledger endpoint. Reference implementation; port the one route into an existing site if you have one. |
 | `sandbox/` | Docker image: Python, OpenCode, curl, outbound firewall allowlist. |
+| `../tests/` | `python3 -m unittest discover -s tests`. Every test names the finding it guards. No Docker, model or network needed. |
+| `../scripts/rehearsal.py` | Grades a fixture cohort end to end and prints the arithmetic beside the gradebook, so the totals can be checked by hand. |
+| `../scripts/review_checks.py` | The deterministic checks over the examples and the repo. |
 
 ## Layout of a project directory
 
@@ -38,7 +41,12 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
 {
   "name": "morris-b",                   // used to name slot models: ref-morris-b-slot1..3
   "type": "B",                          // "A" or "B"
-  "entry": "solve.py",
+  "entry": "solve.py",                  // the file the harness must produce
+  "spec": "SPEC.md",                    // the specification file the harness is told to read.
+                                        //   Multi-part: "SPEC-part-I.md" and so on, one per part
+  "part": "I",                          // optional. Declaring it puts grade.py in hidden-only
+                                        //   mode: the part scores hidden marks only, and
+                                        //   combine_parts.py adds milestone and written once
   "python": "python3",
   "resource_host": "host.docker.internal",          // allowed outbound host for the published resource
   "ollama_host": "http://host.docker.internal:11434",
@@ -59,8 +67,23 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
   "wrapper_prompt": "Read SPEC.md ... {entry} ...",   // optional; identical for every student
   "sandbox_image": "harness-sandbox",
   "sandbox_memory": "2g",
-  "variants": {"generator": "tests/gen_hidden.py"}    // optional
+  "slot_prefix": "ref-morris-b-slot",   // optional; defaults to "ref-<name>-slot"
+  "extra_allow_hosts": [],              // optional; extra outbound hosts for the sandbox
+  "variants": {                         // optional, for per-student variants
+    "generator": "tests/gen_hidden.py",
+    "roster": "variants.csv"            // student_id,variant. The roster decides; a
+                                        //   variant.txt inside a submission is ignored
+  }
 }
+```
+
+## Cohort files
+
+```
+status.csv     student_id,status,grad,note      # grad is required: 1 for graduate rows
+written.csv    student_id,accuracy,twist,candor[,prediction]    # 0-3 each
+milestone.csv  student_id,milestone             # 1 or 0
+variants.csv   student_id,variant               # variant projects only
 ```
 
 ## Ledger file
@@ -73,6 +96,30 @@ utc_timestamp    student_ids (ABC123456 or ABC123456+DEF654321)    run_tag    va
 
 Filter grading entries with `grep -P '\tgrading-k[123]\t' ledger.tsv`.
 
+## What the runner will refuse
+
+- `--submission` pointing at a directory containing `project.json`. That is a project, not a
+  submission, and copying it into the container would hand the harness the hidden tests, the
+  reference solution and `seeds.secret.json`.
+- An `--out` directory inside the submission tree, which copies a run into itself.
+- `--slot` outside 1..k.
+- A submission with no specification file.
+
+Only the specification and the data files it names by filename are copied into the working
+directory. Files ending in the entry point's extension are never copied, so a student cannot
+ship a finished solution and be graded on it.
+
+## Records and resume
+
+A grading run writes `runs/<id>/k<N>.json`. Any other run tag writes `runs/<id>/<tag>-k<N>.json`,
+so an **appeal** is a record of its own: it neither collides with the grading record nor is
+mistaken for one already done. `grade.py` considers every complete record and takes the best.
+
+A slot whose regeneration failed because the **environment** was broken (model server down,
+docker unreachable, disk full) is written with `"complete": false` and an `incomplete_reason`,
+and is not scored. Re-running the same command retries it. Three such failures in a row abort
+the batch, on the grounds that the machine, not the cohort, is what needs fixing.
+
 ## Commands
 
 ```
@@ -84,6 +131,16 @@ python3 tools/prescan.py submissions/ --allow host.docker.internal
 python3 tools/runner.py --project project.json --submissions submissions/ --status status.csv --out runs/
 python3 tools/grade.py --project project.json --runs runs/ --status status.csv --written written.csv \
         --milestone milestone.csv > gradebook.csv
+
+# multi-part: grade each part (hidden only), then combine once
+python3 tools/grade.py --project part-I/project.json  --runs part-I/runs  --status status.csv > gb-I.csv
+python3 tools/grade.py --project part-II/project.json --runs part-II/runs --status status.csv > gb-II.csv
+python3 tools/combine_parts.py --parts parts.json --written written.csv --milestone milestone.csv \
+        gb-I.csv gb-II.csv > gradebook.csv
+
+# check the tools themselves
+python3 -m unittest discover -s tests
+python3 scripts/rehearsal.py
 ```
 
 ## Things to verify during the calibration run

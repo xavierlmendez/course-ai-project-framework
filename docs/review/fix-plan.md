@@ -76,18 +76,32 @@ Decider for every phase: **Xavier**. Each slice is one branch, one PR, one end-t
 | 0.3 | `chore/baseline-commit` | Initial commit of today's state so fixes diff against what the review examined; Xavier pushes | 0.2 | Repo has a first commit; `git log` shows one baseline |
 | 0.4 | — | Stand up an LXC on the R620 with Ollama and OpenCode, pull the 14B model, and measure whether per-slot temperature and seed reach the model (F-65) | SSH key on the R620 | **Done 2026-09-08**: they do. OpenCode 1.18.29 sends no temperature, so the Modelfile governs. Evidence in `docs/review/evidence/f65-temperature-path.md`. Measured 3.07 tok/s; the R620 cannot be the grading box (`evidence/grading-box.md`) |
 
-### Phase 1 — Grading arithmetic is correct and tested · exit when: the fixture-cohort rehearsal produces a hand-checkable gradebook and `pytest` is green · decider: Xavier
+### Phase 1 — Grading arithmetic is correct and tested · **DONE 2026-09-08** · exit criteria met: 55 tests green, rehearsal exits 0 with every row matching hand arithmetic · decider: Xavier
 
 | Slice | Branch | Change | Depends on | Done when |
 |---|---|---|---|---|
-| 1.1 | `test/tools-baseline` | Add `tests/`, fixtures for a cohort (undergrad, grad, pair, variant, crashed run), and characterization tests that record today's behaviour including the wrong parts, marked `xfail` where a later slice fixes them | — | `pytest -q` green; every Phase 1 finding has a test that currently fails |
-| 1.2 | `fix/grad-column` | `grad` column in the runbook, the rubric, and a roster template; `grade.py` fails loudly when `status.csv` lacks it rather than defaulting to 0 | 1.1 | F-02 test passes; a graduate fixture scores on the graduate denominator |
-| 1.3 | `fix/written-milestone-path` | Runbook produces `written.csv` and `milestone.csv`; every `grade.py` invocation passes both; `grade.py` refuses to emit `total` when a component is missing and marks the row incomplete (decision 11 defines the milestone input) | 1.1 | F-03, F-16 tests pass; the rehearsal gradebook totals 100 |
-| 1.4 | `fix/combine-parts` | Combine hidden scores by part weight, then add milestone and written once (decision 3) | 1.3 | F-04 test passes; a perfect multi-part student scores exactly 100 |
-| 1.5 | `fix/appeal-records` | Key run records on run tag; an appeal writes its own record; `grade.py` prefers it; runner refuses to silently skip | 1.1 | F-05, F-14 tests pass; an appeal changes the grade in the rehearsal |
-| 1.6 | `fix/run-integrity` | Environment failure marks the slot incomplete and the batch continues; a circuit breaker aborts on three consecutive failures; a retry pass resumes incomplete slots (decision 10). Clamp written dimensions; bound `--slot`; one malformed case fails one case | 1.1 | F-13, F-17, F-18, F-57 tests pass; a fixture with three consecutive environment failures aborts, one isolated failure does not |
-| 1.7 | `fix/submission-isolation` | Type B copies the specification plus the data files it names, stripping executables (decision 7); the runner refuses a submission path that contains its own output directory or a `project.json`; variants read from `variants.csv` by student ID (decision 8); Type A code excluded from the word cap | 1.1 | F-11, F-12, F-46 tests pass; a submission containing `solve.py` cannot influence a Type B grade; pointing `--submission` at a project directory is refused rather than copying secrets; an edited `variant.txt` has no effect |
-| 1.8 | `feat/multi-part-specs` | The runner maps a part to its specification file (`SPEC-part-I.md`), and the wrapper prompt names it (decision 19) | 1.1 | A four-part submission in one directory grades correctly; F-01 is resolved by the layout rather than by renaming |
+| 1.1 ✅ | `test/tools-baseline` | Add `tests/`, fixtures for a cohort (undergrad, grad, pair, variant, crashed run), and characterization tests that record today's behaviour including the wrong parts, marked `xfail` where a later slice fixes them | — | `pytest -q` green; every Phase 1 finding has a test that currently fails |
+| 1.2 ✅ | `fix/grad-column` | `grad` column in the runbook, the rubric, and a roster template; `grade.py` fails loudly when `status.csv` lacks it rather than defaulting to 0 | 1.1 | F-02 test passes; a graduate fixture scores on the graduate denominator |
+| 1.3 ◐ | `fix/written-milestone-path` | Runbook produces `written.csv` and `milestone.csv`; every `grade.py` invocation passes both; `grade.py` refuses to emit `total` when a component is missing and marks the row incomplete (decision 11 defines the milestone input) | 1.1 | F-03, F-16 tests pass; the rehearsal gradebook totals 100 |
+| 1.4 ✅ | `fix/combine-parts` | Combine hidden scores by part weight, then add milestone and written once (decision 3) | 1.3 | F-04 test passes; a perfect multi-part student scores exactly 100 |
+| 1.5 ✅ | `fix/appeal-records` | Key run records on run tag; an appeal writes its own record; `grade.py` prefers it; runner refuses to silently skip | 1.1 | F-05, F-14 tests pass; an appeal changes the grade in the rehearsal |
+| 1.6 ✅ | `fix/run-integrity` | Environment failure marks the slot incomplete and the batch continues; a circuit breaker aborts on three consecutive failures; a retry pass resumes incomplete slots (decision 10). Clamp written dimensions; bound `--slot`; one malformed case fails one case | 1.1 | F-13, F-17, F-18, F-57 tests pass; a fixture with three consecutive environment failures aborts, one isolated failure does not |
+| 1.7 ✅ | `fix/submission-isolation` | Type B copies the specification plus the data files it names, stripping executables (decision 7); the runner refuses a submission path that contains its own output directory or a `project.json`; variants read from `variants.csv` by student ID (decision 8); Type A code excluded from the word cap | 1.1 | F-11, F-12, F-46 tests pass; a submission containing `solve.py` cannot influence a Type B grade; pointing `--submission` at a project directory is refused rather than copying secrets; an edited `variant.txt` has no effect |
+| 1.8 ✅ | `feat/multi-part-specs` | The runner maps a part to its specification file (`SPEC-part-I.md`), and the wrapper prompt names it (decision 19) | 1.1 | A four-part submission in one directory grades correctly; F-01 is resolved by the layout rather than by renaming |
+
+**Phase 1 result.** One commit, `fix(tools): phase 1`. 55 standard-library tests, 28 of which failed
+before the change. `scripts/rehearsal.py` grades a fixture cohort (perfect undergraduate, graduate on
+the wider denominator, twist failure, a pair, a missed milestone, an ungraded written component, an
+environment failure, a granted appeal) and every total matches arithmetic computed independently of
+the tools. The four examples still pass their hidden suites and their canonical solutions still fail
+the twist categories. Findings closed: F-02, F-03, F-04, F-05, F-11, F-12, F-13, F-14, F-16, F-17,
+F-18, F-25, F-46, F-47, F-57, and F-50's missing-test-suite half. Slice 1.3 is marked ◐ because the
+tool half is done and the runbook half (actually producing `written.csv` and `milestone.csv`) belongs
+to slice 3.1.
+
+One design conflict surfaced during the rehearsal and was resolved: the new completeness rule marked
+every *part* incomplete, because a part has no milestone or written component by design. `grade.py`
+gained a hidden-only mode, implied by a `part` key in `project.json`.
 
 ### Phase 2 — The grading environment is sealed and pinned · exit when: each sandbox escape test fails before the fix and passes after · decider: Xavier
 

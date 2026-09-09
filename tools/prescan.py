@@ -24,10 +24,17 @@ PATTERNS = [
     ("secrets", re.compile(r"(~/\.ssh|/etc/passwd|\.env\b|api[_-]?key|token=|password)", re.I)),
     ("exfil", re.compile(r"(webhook|ngrok|pastebin|discord\.com/api|telegram)", re.I)),
     ("escape", re.compile(r"(\bdocker\s+(run|exec|cp|sock)|/var/run/|\.\./\.\./|/proc/|/sys/)", re.I)),
+    # A specification that reaches for the graded answers rather than computing them.
+    ("answers", re.compile(r"(/tests\b|\btests/hidden\b|expected[ _-]?output|\.out\.json|answer key)", re.I)),
+    ("dnstool", re.compile(r"\b(dig|nslookup|host)\s+[a-z0-9.-]+\.[a-z]{2,}", re.I)),
     ("encoded", re.compile(r"[A-Za-z0-9+/]{80,}={0,2}")),
 ]
 URL = re.compile(r"https?://([A-Za-z0-9.-]+)", re.I)
 TEXT_EXT = (".md", ".txt", ".json", ".yaml", ".yml", ".py", ".toml", ".cfg", ".ini")
+# Extensions that hold a solution rather than a specification. They are still scanned for
+# malicious content, but they do not count toward the specification's word cap: a Type A
+# submission is code by definition and would otherwise always be over cap.
+CODE_EXT = (".py", ".js", ".ts", ".java", ".c", ".cpp", ".go", ".rs")
 
 
 def allowed(host, allow):
@@ -69,7 +76,7 @@ def scan_submission(path, allow, cap):
                 hits.append(f"unreadable:{f}:{e}")
                 continue
             rel = os.path.relpath(p, path)
-            if rel not in ("PROCESS.md", "WRITTEN.md"):
+            if rel not in ("PROCESS.md", "WRITTEN.md") and not rel.lower().endswith(CODE_EXT):
                 words += len(text.split())
             hits += [f"{rel}:{h}" for h in scan_text(text, allow)]
     return hits, words

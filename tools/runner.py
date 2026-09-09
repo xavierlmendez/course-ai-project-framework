@@ -24,6 +24,7 @@ import csv
 import datetime
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
@@ -32,10 +33,31 @@ import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 DEFAULT_WRAPPER = (
-    "Read SPEC.md in the current directory and carry out its instructions exactly. "
+    "Read {spec} in the current directory and carry out its instructions exactly. "
     "The finished program must be a file named {entry} in the current directory. "
     "Do not ask questions; make reasonable choices and finish."
 )
+
+# How many environment failures in a row before the batch stops. An isolated failure
+# leaves that slot incomplete and the batch continues; a run of them means the machine
+# is broken and continuing would score a whole cohort against a dead model server.
+CONSECUTIVE_FAILURE_LIMIT = 3
+
+# stderr fragments that mean "the environment is broken", not "the specification failed".
+ENVIRONMENT_MARKERS = (
+    "cannot connect to the docker daemon", "docker: error response from daemon",
+    "no such host", "connection refused", "connection reset by peer",
+    "no space left on device", "cannot allocate memory",
+    "error: model", "pull model manifest", "ollama", "executable file not found",
+)
+
+
+class SubmissionError(Exception):
+    """The submission path is not something that may be handed to the harness."""
+
+
+class BatchAborted(Exception):
+    """Too many consecutive environment failures; the batch stopped."""
 
 
 def now():
@@ -57,6 +79,7 @@ def load_project(path):
     p.setdefault("hidden_tests", "tests/hidden")
     p.setdefault("sandbox_image", "harness-sandbox")
     p.setdefault("ollama_host", "http://host.docker.internal:11434")
+    p.setdefault("spec", "SPEC.md")
     p.setdefault("wrapper_prompt", DEFAULT_WRAPPER)
     p.setdefault("slot_prefix", "ref-" + p.get("name", "project") + "-slot")
     return p
@@ -64,6 +87,11 @@ def load_project(path):
 
 def rel(p, key):
     return os.path.join(p["_dir"], p[key])
+
+
+def wrapper_prompt(p):
+    """The instruction handed to the harness. Identical for every student in a part."""
+    return p["wrapper_prompt"].format(entry=p["entry"], spec=p["spec"])
 
 
 def load_seeds(p):
@@ -164,7 +192,23 @@ def write_opencode_config(p, workdir, slot_model):
 
 # ---------- tests ----------
 
-def resolve_tests(p, sub_dir, override, dry):
+def roster_variant(p, sid):
+    """The variant the professor assigned. The roster decides, not the submission:
+    a variant.txt inside a submission is written by the student."""
+    v = p.get("variants") or {}
+    path = os.path.join(p["_dir"], v.get("roster", "variants.csv"))
+    if not os.path.exists(path):
+        return None, f"variant roster not found: {path}"
+    with open(path, newline="") as fh:
+        for row in csv.DictReader(fh):
+            ids = [x.strip().upper() for x in (row.get("student_id") or "").split("+")
+                   for x in x.split(",")]
+            if (sid or "").upper() in ids or (sid or "").upper() == (row.get("student_id") or "").strip().upper():
+                return (row.get("variant") or "").strip(), None
+    return None, f"{sid} is not on the variant roster {os.path.basename(path)}"
+
+
+def resolve_tests(p, sub_dir, override, dry, sid=None):
     """Hidden tests dir, generating per-variant tests if the project uses variants."""
     if override:
         return override, None
@@ -172,10 +216,9 @@ def resolve_tests(p, sub_dir, override, dry):
     v = p.get("variants")
     if not v:
         return base, None
-    vf = os.path.join(sub_dir, "variant.txt")
-    if not os.path.exists(vf):
-        return None, "variant.txt missing in submission"
-    variant = open(vf).read().strip()
+    variant, why = roster_variant(p, sid if sid is not None else os.path.basename(os.path.abspath(sub_dir)))
+    if why:
+        return None, why
     gen_out = tempfile.mkdtemp(prefix="hidden-")
     code, out, err, _ = sh([p["python"], os.path.join(p["_dir"], v["generator"]), "--variant", variant, "--out", gen_out], dry=dry)
     if code not in (0, None) and not dry:
@@ -202,13 +245,79 @@ def run_tests(p, workdir, tests_dir, sandbox, dry):
 
 # ---------- regeneration ----------
 
-def regenerate(p, sub_dir, workdir, slot, seed, run_tag, sandbox, dry):
+def prepare_workdir(p, sub_dir, workdir):
+    """Build the directory the harness runs in.
+
+    Only the part's specification and the data files it names by filename are copied.
+    Anything executable in the target language is left behind, so a student cannot ship
+    a finished solution and be graded on it regardless of what the harness does, and a
+    project directory handed here by mistake cannot leak the hidden tests or the seeds
+    into the container.
+    """
+    sub_dir = os.path.abspath(sub_dir)
+    workdir = os.path.abspath(workdir)
+    if not os.path.isdir(sub_dir):
+        raise SubmissionError(f"submission path is not a directory: {sub_dir}")
+    if os.path.exists(os.path.join(sub_dir, "project.json")):
+        raise SubmissionError(
+            f"{sub_dir} contains project.json, so it is a project directory, not a submission. "
+            "Handing it to the harness would copy the hidden tests and the seeds into the container.")
+    if workdir == sub_dir or workdir.startswith(sub_dir + os.sep):
+        raise SubmissionError(
+            f"the output directory {workdir} is inside the submission {sub_dir}; "
+            "this copies the run into itself. Use --out outside the submission tree.")
+
+    spec_name = p["spec"]
+    spec_path = os.path.join(sub_dir, spec_name)
+    if not os.path.exists(spec_path):
+        raise SubmissionError(f"{sub_dir} has no {spec_name}")
+
     if os.path.exists(workdir):
         shutil.rmtree(workdir)
-    shutil.copytree(sub_dir, workdir, ignore=shutil.ignore_patterns("PROCESS.md", "WRITTEN.md", ".git"))
+    os.makedirs(workdir)
+    shutil.copyfile(spec_path, os.path.join(workdir, spec_name))
+
+    spec_text = open(spec_path, encoding="utf-8", errors="replace").read()
+    code_ext = os.path.splitext(p["entry"])[1].lower()
+    carried = []
+    for name in sorted(os.listdir(sub_dir)):
+        src = os.path.join(sub_dir, name)
+        if not os.path.isfile(src) or name == spec_name:
+            continue
+        if name in ("PROCESS.md", "WRITTEN.md") or name.startswith("."):
+            continue
+        if name.lower().endswith(code_ext):
+            continue                       # executable in the target language
+        if re.match(r"^SPEC[-.].*\.md$", name, re.I):
+            continue                       # another part's specification
+        if name not in spec_text:
+            continue                       # not named by the specification
+        shutil.copyfile(src, os.path.join(workdir, name))
+        carried.append(name)
+    return carried
+
+
+def classify_failure(code, out, err):
+    """Distinguish a broken environment from a specification that did not work."""
+    if code == 0:
+        return None
+    blob = ((err or "") + (out or "")).lower()
+    for marker in ENVIRONMENT_MARKERS:
+        if marker in blob:
+            return f"environment: {marker}"
+    if code == 127:
+        return "environment: harness not installed (exit 127)"
+    return None
+
+
+def regenerate(p, sub_dir, workdir, slot, seed, run_tag, sandbox, dry):
+    if not dry:
+        prepare_workdir(p, sub_dir, workdir)
+    elif not os.path.exists(workdir):
+        os.makedirs(workdir, exist_ok=True)
     slot_model = f"{p['slot_prefix']}{slot}"
     write_opencode_config(p, workdir, slot_model)
-    prompt = p["wrapper_prompt"].format(entry=p["entry"])
+    prompt = wrapper_prompt(p)
     env = {"RUN_TAG": run_tag, "SLOT_MODEL": slot_model, "PROMPT": prompt}
     if sandbox:
         cmd = docker_base(p, workdir, extra_env=env, network=True) + ["regenerate"]
@@ -218,9 +327,13 @@ def regenerate(p, sub_dir, workdir, slot, seed, run_tag, sandbox, dry):
     timed_out = code is None
     if timed_out and sandbox and not dry:
         subprocess.run(["docker", "ps", "-q", "--filter", f"volume={os.path.abspath(workdir)}"], capture_output=True)
-    return {"harness_exit": code, "timed_out": timed_out, "wall_s": round(wall, 1),
-            "harness_stdout_tail": out[-3000:], "harness_stderr_tail": err[-1500:],
-            "entry_present": os.path.exists(os.path.join(workdir, p["entry"]))}
+    rec = {"harness_exit": code, "timed_out": timed_out, "wall_s": round(wall, 1),
+           "harness_stdout_tail": out[-3000:], "harness_stderr_tail": err[-1500:],
+           "entry_present": os.path.exists(os.path.join(workdir, p["entry"]))}
+    env_err = classify_failure(code, out, err) if not timed_out else None
+    if env_err:
+        rec["environment_error"] = env_err
+    return rec
 
 
 def record_path(out, sid, name):
@@ -238,38 +351,65 @@ def already_done(path):
         return False
 
 
+def record_name(run_tag, slot):
+    """Grading writes k<N>.json. Any other run tag writes its own record, so an appeal
+    is not mistaken for a completed grading slot and cannot overwrite one."""
+    return f"k{slot}.json" if run_tag == "grading" else f"{run_tag}-k{slot}.json"
+
+
 def process_type_b(p, sid, sub_dir, out, seeds, run_tag, slots, tests_override, sandbox, dry):
-    tests_dir, why = resolve_tests(p, sub_dir, tests_override, dry)
+    """Returns "ok", "skipped", or "environment" for the batch's failure counter."""
+    tests_dir, why = resolve_tests(p, sub_dir, tests_override, dry, sid=sid)
     if why:
         print(f"  {sid}: SKIP ({why})")
-        return
+        return "skipped"
+    outcome = "ok"
     for slot in slots:
-        rp = record_path(out, sid, f"k{slot}.json")
+        rp = record_path(out, sid, record_name(run_tag, slot))
         if already_done(rp):
             print(f"  {sid} k{slot}: done, skipping")
             continue
-        workdir = os.path.join(out, sid, f"k{slot}-work")
+        workdir = os.path.join(out, sid, f"{run_tag}-k{slot}-work")
         print(f"  {sid} k{slot}: temperature={p['temperatures'][slot-1]} tag={run_tag}-k{slot}")
         rec = {"submission": sid, "type": "B", "slot": slot, "temperature": p["temperatures"][slot - 1],
-               "seed": seeds[slot - 1], "run_tag": f"{run_tag}-k{slot}", "started": now()}
-        rec["regeneration"] = regenerate(p, sub_dir, workdir, slot, seeds[slot - 1], f"{run_tag}-k{slot}", sandbox, dry)
+               "seed": seeds[slot - 1], "run_tag": f"{run_tag}-k{slot}", "started": now(),
+               "tests_dir": os.path.abspath(tests_dir) if tests_dir else None}
+        try:
+            rec["regeneration"] = regenerate(p, sub_dir, workdir, slot, seeds[slot - 1],
+                                             f"{run_tag}-k{slot}", sandbox, dry)
+        except SubmissionError as e:
+            print(f"  {sid}: SKIP ({e})")
+            return "skipped"
+        env_err = rec["regeneration"].get("environment_error")
+        if env_err:
+            # Nothing ran. Leave the slot incomplete so a retry pass picks it up, rather
+            # than scoring the student zero for a machine that was broken.
+            rec["ended"] = now()
+            rec["complete"] = False
+            rec["incomplete_reason"] = env_err
+            with open(rp, "w") as fh:
+                json.dump(rec, fh, indent=2)
+            print(f"  {sid} k{slot}: INCOMPLETE ({env_err})")
+            outcome = "environment"
+            continue
         rec["tests"] = run_tests(p, workdir, tests_dir, sandbox, dry) if rec["regeneration"]["entry_present"] or dry \
             else {"solution_started": False, "categories": {}, "error": "no entry point produced"}
         rec["ended"] = now()
         rec["complete"] = not dry
         with open(rp, "w") as fh:
             json.dump(rec, fh, indent=2)
+    return outcome
 
 
 def process_type_a(p, sid, sub_dir, out, tests_override, sandbox, dry):
     rp = record_path(out, sid, "a.json")
     if already_done(rp):
         print(f"  {sid}: done, skipping")
-        return
-    tests_dir, why = resolve_tests(p, sub_dir, tests_override, dry)
+        return "ok"
+    tests_dir, why = resolve_tests(p, sub_dir, tests_override, dry, sid=sid)
     if why:
         print(f"  {sid}: SKIP ({why})")
-        return
+        return "skipped"
     workdir = os.path.join(out, sid, "a-work")
     if os.path.exists(workdir):
         shutil.rmtree(workdir)
@@ -281,6 +421,31 @@ def process_type_a(p, sid, sub_dir, out, tests_override, sandbox, dry):
     rec["complete"] = not dry
     with open(rp, "w") as fh:
         json.dump(rec, fh, indent=2)
+    return "ok"
+
+
+def run_batch(p, subs, out, seeds, run_tag, slots, tests_override, sandbox, dry, ptype):
+    """Run every submission, stopping if the machine looks broken.
+
+    An isolated environment failure leaves that slot incomplete and the batch carries on.
+    CONSECUTIVE_FAILURE_LIMIT of them in a row raises BatchAborted, because continuing
+    would mark a whole cohort incomplete against a model server that is down.
+    """
+    consecutive = 0
+    for sid, d in subs:
+        if ptype == "B":
+            outcome = process_type_b(p, sid, d, out, seeds, run_tag, slots, tests_override, sandbox, dry)
+        else:
+            outcome = process_type_a(p, sid, d, out, tests_override, sandbox, dry)
+        if outcome == "environment":
+            consecutive += 1
+            if consecutive >= CONSECUTIVE_FAILURE_LIMIT:
+                raise BatchAborted(
+                    f"{consecutive} consecutive environment failures ending at {sid}. "
+                    "Nothing was scored against them; fix the environment and re-run the "
+                    "same command to retry the incomplete slots.")
+        elif outcome == "ok":
+            consecutive = 0
 
 
 def main():
@@ -320,13 +485,17 @@ def main():
 
     os.makedirs(a.out, exist_ok=True)
     seeds = load_seeds(p) if ptype == "B" else None
-    slots = [a.slot] if a.slot else list(range(1, p["k"] + 1))
+    if a.slot is not None:
+        if not 1 <= a.slot <= p["k"]:
+            sys.exit(f"--slot must be between 1 and {p['k']} for this project; got {a.slot}")
+        slots = [a.slot]
+    else:
+        slots = list(range(1, p["k"] + 1))
     print(f"{len(subs)} submissions, type {ptype}, sandbox={'on' if sandbox else 'OFF'}, out={a.out}")
-    for sid, d in subs:
-        if ptype == "B":
-            process_type_b(p, sid, d, a.out, seeds, a.run_tag, slots, a.tests, sandbox, a.dry_run)
-        else:
-            process_type_a(p, sid, d, a.out, a.tests, sandbox, a.dry_run)
+    try:
+        run_batch(p, subs, a.out, seeds, a.run_tag, slots, a.tests, sandbox, a.dry_run, ptype)
+    except BatchAborted as e:
+        sys.exit(f"BATCH ABORTED: {e}")
     print("done")
 
 

@@ -60,8 +60,15 @@ def make_handler(resource_dir, ledger_path, nonce, base_url):
             if path == "/ledger":
                 return self._send(200, FORM, "text/html; charset=utf-8")
             rel = "index.md" if path in ("", "/") else path.lstrip("/")
-            full = os.path.normpath(os.path.join(resource_dir, rel))
-            if not full.startswith(os.path.abspath(resource_dir)) or not os.path.isfile(full):
+            full = os.path.realpath(os.path.join(resource_dir, rel))
+            root = os.path.realpath(resource_dir)
+            # commonpath, not startswith: a sibling directory whose name merely starts with
+            # the resource directory's name (resource-private/) would pass a prefix test.
+            try:
+                contained = os.path.commonpath([full, root]) == root
+            except ValueError:
+                contained = False
+            if not contained or not os.path.isfile(full):
                 return self._send(404, "not found")
             text = open(full, encoding="utf-8").read()
             variant = q.get("v", [""])[0]
