@@ -109,3 +109,41 @@ sandbox, the grading arithmetic and the ledger are all independent of which mode
 What must change is the **model**, and the framework's five criteria for a reference harness
 need a sixth: *the model must emit structured tool calls*, verified before the semester, not
 assumed from a capability flag.
+
+## The replacement model, tested (2026-09-09, R620)
+
+Same box, same Ollama 0.33.3, same prompt and tool definition, `"think": false`:
+
+| model | `num_ctx` | structured tool calls, 5 attempts | generation |
+|---|---|---|---|
+| `qwen2.5-coder:14b` | 4096 | 0 | 3.07 tok/s |
+| `qwen2.5-coder:14b` | 32768 | 0 | |
+| `qwen3:14b` | 32768 | **5** | 3.75 tok/s |
+
+Every `qwen3:14b` reply is a real `tool_calls` entry
+(`docs/review/evidence/cpu-run/tooltest-qwen3-32k.txt`), and Ollama reports the model's
+capabilities as `completion, tools, thinking`. The reference harness instance therefore
+changes from `qwen2.5-coder:14b` to `qwen3:14b`; the sixth criterion above was applied
+before the swap rather than assumed.
+
+## A second, separate defect: OpenCode's five-minute silence limit
+
+The "Unexpected server error" the runner saw on the R620 had a different cause, visible only
+with `opencode run --print-logs --log-level DEBUG`
+(`docs/review/evidence/cpu-run/opencode-diag.log`):
+
+```
+level=ERROR message="stream error" providerID=ollama modelID=qwen3:14b
+  error.error="ProviderHeaderTimeoutError: Provider response headers timed out after 300000ms"
+```
+
+OpenCode 1.18.29 aborts any provider request whose response headers, or next streamed
+chunk, take longer than 300 s. A 14B model on a CPU-only box spends longer than that
+evaluating the harness's first prompt (the system prompt plus tool schemas), so every
+regeneration died at exactly five minutes, before the first token. The installed binary reads
+two provider options, `headerTimeout` and `chunkTimeout` (milliseconds, or `false` to
+disable; both default to 300000), so the runner now writes both into the generated
+`opencode.json` as `regeneration_timeout_s × 1000`. The runner's own wall-clock kill is the
+only bound that should apply. A GPU box would rarely hit the limit, but a slot that stalled
+would still have been mis-scored as the student's failure rather than an environment one, so
+the fix is not CPU-specific.

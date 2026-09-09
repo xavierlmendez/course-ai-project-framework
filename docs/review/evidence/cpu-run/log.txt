@@ -10,3 +10,8 @@ slots ready. Do not commit seeds.secret.json.
 done
 [04:15:14] regeneration wall: 4s
 [04:15:14] == done
+[04:22:59] == night1: fallback model
+success [K[?25h[?2026l
+[04:28:00] tooltest qwen3:14b num_ctx=32768 -> 5/5 structured tool calls
+qwen3:14b eval_count=91 tok_per_s=3.75
+[04:28:27] == night1: OpenCode diagnosis

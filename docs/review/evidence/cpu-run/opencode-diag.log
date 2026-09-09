@@ -1,0 +1,30 @@
+timestamp=2026-09-09T04:28:29.410Z level=INFO run=f057cb26 message="creating instance" directory=/tmp/diag
+timestamp=2026-09-09T04:28:29.413Z level=INFO run=f057cb26 message=fromDirectory directory=/tmp/diag
+timestamp=2026-09-09T04:28:29.438Z level=INFO run=f057cb26 message=bootstrapping directory=/tmp/diag
+timestamp=2026-09-09T04:28:29.453Z level=INFO run=f057cb26 message=loading path=/root/.config/opencode/config.json
+timestamp=2026-09-09T04:28:29.454Z level=INFO run=f057cb26 message=loading path=/root/.config/opencode/opencode.json
+timestamp=2026-09-09T04:28:29.459Z level=INFO run=f057cb26 message=loading path=/root/.config/opencode/opencode.jsonc
+timestamp=2026-09-09T04:28:29.474Z level=INFO run=f057cb26 message=loading path=/tmp/diag/opencode.json
+timestamp=2026-09-09T04:28:29.614Z level=INFO run=f057cb26 message="all LSPs are disabled"
+timestamp=2026-09-09T04:28:29.616Z level=INFO run=f057cb26 message="all formatters are disabled"
+timestamp=2026-09-09T04:28:29.617Z level=INFO run=f057cb26 message=init
+timestamp=2026-09-09T04:28:29.952Z level=INFO run=f057cb26 message=created id=ses_f7b93527fffePVHhWbga7Snqrj slug=curious-pixel version=1.18.29 projectID=global directory=/tmp/diag path=tmp/diag workspaceID=undefined parentID=undefined title="New session - 2026-09-09T04:28:29.952Z" agent=undefined model=undefined metadata=undefined permission="[{\"permission\":\"question\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"plan_enter\",\"pattern\":\"*\",\"action\":\"deny\"},{\"permission\":\"plan_exit\",\"pattern\":\"*\",\"action\":\"deny\"}]" cost=0 tokens.input=0 tokens.output=0 tokens.reasoning=0 tokens.cache.read=0 tokens.cache.write=0 time.created=1788928109952 time.updated=1788928109952
+timestamp=2026-09-09T04:28:29.976Z level=INFO run=f057cb26 message="event connected"
+timestamp=2026-09-09T04:28:30.872Z level=INFO run=f057cb26 message=loop session.id=ses_f7b93527fffePVHhWbga7Snqrj step=0
+timestamp=2026-09-09T04:28:30.894Z level=INFO run=f057cb26 message="shell tool using shell" shell=/bin/bash
+timestamp=2026-09-09T04:28:30.907Z level=INFO run=f057cb26 message=init count=1
+timestamp=2026-09-09T04:28:30.950Z level=INFO run=f057cb26 message=stream providerID=ollama modelID=qwen3:14b session.id=ses_f7b93527fffePVHhWbga7Snqrj small=true agent=title mode=primary
+timestamp=2026-09-09T04:28:30.975Z level=INFO run=f057cb26 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=ollama llm.model=qwen3:14b
+timestamp=2026-09-09T04:28:31.161Z level=INFO run=f057cb26 message="watcher backend" directory=/tmp/diag platform=linux backend=inotify
+timestamp=2026-09-09T04:28:31.206Z level=INFO run=f057cb26 message="project copy refresh started" projectID=global
+timestamp=2026-09-09T04:28:31.212Z level=INFO run=f057cb26 message="project copy refresh done" projectID=global updated=[] removed=[]
+timestamp=2026-09-09T04:28:31.352Z level=INFO run=f057cb26 message="booting location services" directory=/tmp/diag workspaceID=undefined
+timestamp=2026-09-09T04:28:32.550Z level=INFO run=f057cb26 message=process session.id=ses_f7b93527fffePVHhWbga7Snqrj messageID=msg_0846cb11e001jXHTHM1bY32xkF
+timestamp=2026-09-09T04:28:32.553Z level=INFO run=f057cb26 message=stream providerID=ollama modelID=qwen3:14b session.id=ses_f7b93527fffePVHhWbga7Snqrj small=false agent=build mode=primary
+timestamp=2026-09-09T04:28:32.577Z level=INFO run=f057cb26 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=ollama llm.model=qwen3:14b
+timestamp=2026-09-09T04:33:32.594Z level=ERROR run=f057cb26 message="stream error" providerID=ollama modelID=qwen3:14b session.id=ses_f7b93527fffePVHhWbga7Snqrj small=false agent=build mode=primary error.error="ProviderHeaderTimeoutError: Provider response headers timed out after 300000ms"
+timestamp=2026-09-09T04:33:34.634Z level=INFO run=f057cb26 message=stream providerID=ollama modelID=qwen3:14b session.id=ses_f7b93527fffePVHhWbga7Snqrj small=false agent=build mode=primary
+timestamp=2026-09-09T04:33:34.640Z level=INFO run=f057cb26 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=ollama llm.model=qwen3:14b
+timestamp=2026-09-09T04:38:34.653Z level=ERROR run=f057cb26 message="stream error" providerID=ollama modelID=qwen3:14b session.id=ses_f7b93527fffePVHhWbga7Snqrj small=false agent=build mode=primary error.error="ProviderHeaderTimeoutError: Provider response headers timed out after 300000ms"
+timestamp=2026-09-09T04:38:38.924Z level=INFO run=f057cb26 message=stream providerID=ollama modelID=qwen3:14b session.id=ses_f7b93527fffePVHhWbga7Snqrj small=false agent=build mode=primary
+timestamp=2026-09-09T04:38:38.935Z level=INFO run=f057cb26 message="llm runtime selected" llm.runtime=ai-sdk llm.provider=ollama llm.model=qwen3:14b

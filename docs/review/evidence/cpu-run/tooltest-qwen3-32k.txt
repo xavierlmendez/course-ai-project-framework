@@ -1,0 +1,5 @@
+  1: TOOL_CALL [{"id": "call_vl173kvj", "function": {"index": 0, "name": "read_file", "arguments": {"path": "SPEC.md"}}}]
+  2: TOOL_CALL [{"id": "call_vwtmp1ob", "function": {"index": 0, "name": "read_file", "arguments": {"path": "SPEC.md"}}}]
+  3: TOOL_CALL [{"id": "call_lkvtqc5h", "function": {"index": 0, "name": "read_file", "arguments": {"path": "SPEC.md"}}}]
+  4: TOOL_CALL [{"id": "call_y7buqfb8", "function": {"index": 0, "name": "read_file", "arguments": {"path": "SPEC.md"}}}]
+  5: TOOL_CALL [{"id": "call_29yunozd", "function": {"index": 0, "name": "read_file", "arguments": {"path": "SPEC.md"}}}]
