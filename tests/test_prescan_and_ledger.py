@@ -203,5 +203,34 @@ class TestLedgerServer(TempCase):
         self.assertFalse(os.path.exists(ledger), "the ledger file was created inside the repository")
 
 
+class TestLedgerServerFromProject(TempCase):
+    """F-60: the handout's one-line command must start a working practice server."""
+
+    def test_project_supplies_resource_ledger_nonce_and_port(self):
+        self.write("resource/index.md", "nonce: {{NONCE}}\n")
+        self.write_json("project.json", {"name": "demo", "resource_port": 8932})
+        proc = subprocess.Popen(
+            [sys.executable, tool("ledger_server.py"), "--project", self.path("project.json"),
+             "--bind", "127.0.0.1"],
+            stdout=subprocess.PIPE, stderr=subprocess.DEVNULL, text=True)
+        self.addCleanup(proc.terminate)
+        base = "http://127.0.0.1:8932"
+        page = None
+        for _ in range(50):
+            try:
+                page = urllib.request.urlopen(base + "/", timeout=1).read().decode()
+                break
+            except Exception:
+                time.sleep(0.1)
+        self.assertIsNotNone(page, "--project did not start a server on the project's resource_port")
+        nonce = page.split("nonce:")[1].strip()
+        self.assertTrue(nonce and "{{" not in nonce, f"no nonce substituted: {page!r}")
+        data = f"student_id=ABC123456&nonce={nonce}".encode()
+        with urllib.request.urlopen(base + "/ledger", data=data, timeout=5) as r:
+            self.assertEqual(r.status, 200)
+        self.assertIn("ABC123456", open(self.path("ledger.tsv")).read(),
+                      "the ledger was not written beside project.json")
+
+
 if __name__ == "__main__":
     unittest.main()

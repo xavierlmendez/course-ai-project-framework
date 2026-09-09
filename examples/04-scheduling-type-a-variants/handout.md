@@ -8,7 +8,15 @@ Write a program that chooses a maximum-weight set of jobs from a list, where the
 
 The full task, including the twist, is at:
 
-**http://localhost:8080/?v=<your variant>** (from a laptop) or **http://host.docker.internal:8080/?v=<your variant>** (from inside the sandbox)
+**http://localhost:8083/?v=<your variant>** (from a laptop) or **http://host.docker.internal:8083/?v=<your variant>** (from inside the grading sandbox). 8083 is this project's `resource_port`.
+
+To practise at home, start that server yourself from the root of the course repository:
+
+```
+python3 tools/ledger_server.py --project examples/04-scheduling-type-a-variants/project.json --allow-in-repo
+```
+
+It listens on the project's `resource_port`, prints the nonce it is serving, and writes `examples/04-scheduling-type-a-variants/ledger.tsv`. `--allow-in-repo` is needed only because that path is inside a checkout: the server refuses by default so that a real ledger of student IDs is never one `git add .` from being committed, and a practice ledger is throwaway. That is your own ledger; the graded one is the course server your instructor announces.
 
 Your variant is your student ID (pairs: the first partner's ID). Your harness must fetch that page. It contains a nonce and a ledger instruction.
 
@@ -37,9 +45,14 @@ $ echo '{"variant":"demo","jobs":[{"id":"a","start":0,"end":5,"weight":10,"class
 
 Public tests are in `tests/public/`. **They are generated for the variant `demo` (g = 2), not for yours.** Your hidden tests are generated for your variant.
 
+From the root of the course repository:
+
 ```
-python3 tools/run_tests.py --solution . --tests tests/public
+python3 tools/run_tests.py --solution <your dir> \
+  --tests examples/04-scheduling-type-a-variants/tests/public --entry solve.py --timeout 10
 ```
+
+Add `--json` for a machine-readable summary. The milestone (§7) runs this same suite for you and writes a signed record.
 
 Hidden categories (names and counts; cases released after grading):
 
@@ -53,20 +66,31 @@ Hidden categories (names and counts; cases released after grading):
 
 ## 5. AI use
 
-Use any harness you like. The course provides a free reference setup, **OpenCode with `qwen2.5-coder:14b`** on Ollama, install guide at `<INSTALL_URL>`, shared server at `<OLLAMA_HOST>`. Your code is graded, not your tool. You are expected to understand every line you submit; the written component asks you to explain one design decision.
+Use any harness you like. The course provides a free reference setup, **OpenCode on Ollama with the model named in `examples/04-scheduling-type-a-variants/project.json`** (the `base_model` key). <!-- model: from project.json --> The install guide is the [student primer](../../templates/student-primer.md).
+
+If your machine cannot run the model, use the course Ollama server your instructor announces: put its URL in `ollama_host` in your own copy of `project.json` (the shipped value is the one the grading container uses, so it will not resolve on your laptop). Exporting `OLLAMA_HOST` does not redirect OpenCode.
+
+Your code is graded, not your tool. You are expected to understand every line you submit; the written component asks you to explain one design decision.
 
 ## 6. What to submit
 
 | File | Cap |
 |---|---|
 | your solution directory, `solve.py` at its root | — |
-| `variant.txt` containing your variant string | one line |
+| `variant.txt` containing your variant string | one line; a courtesy copy — the roster decides which variant you are graded on |
 | `PROCESS.md` | 1 page, 600 words; required, not graded |
 | `WRITTEN.md` | 1 page, 600 words; graded |
 
 ## 7. Milestone (end of week 1, 10%)
 
-Your solution passes the public suite. Submit the test runner's JSON output. Auto-graded pass/fail.
+Your solution passes the public suite (generated for the variant `demo`, not yours). Produce the signed milestone record and submit it:
+
+```
+python3 tools/milestone.py record --project examples/04-scheduling-type-a-variants/project.json \
+  --solution <your dir> --student-id ABC123456 --out milestone.json
+```
+
+Submit `milestone.json`. Auto-graded pass/fail.
 
 ## 8. Grading
 
@@ -90,4 +114,4 @@ Harness choice, model choice, how the page was fetched, how many times you regen
 
 ## 10. Integrity
 
-Solutions are submitted to {{SIMILARITY_TOOL}}, the institution's similarity checker, and anything it flags goes to the professor under the standard misconduct process. Pairs submit one directory and both sign the ledger. The twist changes every semester. Your resource URL carries a parameter unique to you; hidden tests are generated for your parameter, so a copied solution that hard-codes someone else's g fails your tests.
+Solutions are submitted to MOSS, the institution's similarity checker, and anything it flags goes to the professor under the standard misconduct process. Pairs submit one directory and both sign the ledger. The twist changes every semester. Your resource URL carries a parameter unique to you; hidden tests are generated for your parameter, so a copied solution that hard-codes someone else's g fails your tests.

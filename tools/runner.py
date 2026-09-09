@@ -8,7 +8,13 @@ Type A: run the hidden tests once on the submitted solution, in a sandbox.
     runner.py --project project.json (--submissions DIR | --submission DIR)
               [--out runs/] [--status status.csv] [--run-tag grading]
               [--slot N] [--tests DIR] [--type A|B] [--dry-run] [--no-sandbox]
+    runner.py --project project.json --submission DIR --practice
     runner.py --project project.json --create-slots
+
+--practice is the student command. It needs no TA secret and no prepared machine:
+it runs on the host, tags the run "practice", runs the project's public suite
+instead of the hidden one, writes seeds.practice.json if the secret seeds are not
+there, and creates the pinned slot models if the model server does not have them.
 
 Records: <out>/<submission_id>/k<N>.json (Type B) or <out>/<id>/a.json (Type A).
 A record with "complete": true is skipped on rerun, so an interrupted batch
@@ -24,6 +30,7 @@ import csv
 import datetime
 import json
 import os
+import random
 import re
 import shutil
 import subprocess
@@ -84,6 +91,7 @@ def load_project(path):
     p.setdefault("regeneration_timeout_s", 1200)
     p.setdefault("test_timeout_s", 10)
     p.setdefault("hidden_tests", "tests/hidden")
+    p.setdefault("public_tests", "tests/public")
     p.setdefault("sandbox_image", "harness-sandbox")
     p.setdefault("ollama_host", "http://host.docker.internal:11434")
     p.setdefault("spec", "SPEC.md")
@@ -198,6 +206,70 @@ def create_slots(p, dry):
         if code != 0:
             sys.exit(f"ollama create failed for {name}: {err}")
     print("slots ready. Do not commit seeds.secret.json.")
+
+
+# ---------- practice runs (F-29) ----------
+
+PRACTICE_SEEDS_FILE = "seeds.practice.json"
+
+
+def ensure_practice_seeds(p):
+    """Point the project at seeds a student actually has.
+
+    The grading seeds are secret until grades are out, so a student cannot run the
+    grading command as written. Any three integers give the same temperature
+    schedule with a different draw, which is all a practice run needs. Written once
+    and reused, so a student's practice runs stay comparable to each other.
+    """
+    if os.path.exists(os.path.join(p["_dir"], p["seeds_file"])):
+        return p["seeds_file"]
+    path = os.path.join(p["_dir"], PRACTICE_SEEDS_FILE)
+    if not os.path.exists(path):
+        seeds = [random.randint(1, 2 ** 31 - 1) for _ in range(p["k"])]
+        with open(path, "w") as fh:
+            json.dump({"seeds": seeds}, fh, indent=1)
+            fh.write("\n")
+        print(f"wrote {path}: {p['k']} seeds of your own. The grading seeds are different and secret.")
+    p["seeds_file"] = PRACTICE_SEEDS_FILE
+    return PRACTICE_SEEDS_FILE
+
+
+def slot_models_missing(p):
+    """Slots the model server does not have. A student has created none of them."""
+    missing = []
+    for i in range(1, p["k"] + 1):
+        try:
+            slot_parameters(p, i)
+        except Exception:
+            missing.append(i)
+    return missing
+
+
+def practice_setup(p, a, ptype):
+    """Turn --practice into the flags a student would otherwise have to know.
+
+    Implies --no-sandbox (the grading image is a TA artefact), tags the run
+    "practice" so it can never overwrite a grading record, and runs the public
+    suite, which is the only suite a student has.
+    """
+    a.no_sandbox = True
+    a.skip_slot_check = True
+    if a.run_tag == "grading":
+        a.run_tag = "practice"
+    if not a.tests:
+        a.tests = rel(p, "public_tests")
+        if not os.path.isdir(a.tests) and not a.dry_run:
+            sys.exit(f"--practice runs the public suite, and this project has none at {a.tests}. "
+                     "Pass --tests DIR if yours lives elsewhere.")
+    if ptype != "B":
+        return
+    ensure_practice_seeds(p)
+    if a.dry_run:
+        return
+    missing = slot_models_missing(p)
+    if missing:
+        print(f"slot models {missing} are not on {p['ollama_host']}; creating them")
+        create_slots(p, a.dry_run)
 
 
 # ---------- sandbox ----------
@@ -636,6 +708,10 @@ def main():
                     help="grade without verifying the slot models (not for a graded batch)")
     ap.add_argument("--dry-run", action="store_true", help="print commands, write nothing complete")
     ap.add_argument("--no-sandbox", action="store_true", help="run on the host (practice only; never for grading)")
+    ap.add_argument("--practice", action="store_true",
+                    help="student practice run: implies --no-sandbox and --skip-slot-check, tags the run "
+                         "'practice', runs the public suite, writes seeds.practice.json if the secret seeds "
+                         "are absent, and creates the slot models if the model server has none")
     a = ap.parse_args()
 
     p = load_project(a.project)
@@ -648,8 +724,12 @@ def main():
         print("slot check: " + ("FAILED" if problems else "ok"))
         return 1 if problems else 0
     ptype = a.type or p["type"]
+    if a.practice:
+        practice_setup(p, a, ptype)
     sandbox = not a.no_sandbox
-    if not sandbox:
+    if a.practice:
+        print(f"practice run: tag={a.run_tag}, tests={a.tests}, no sandbox. Not a graded run.")
+    elif not sandbox:
         print("WARNING: --no-sandbox is for student practice runs only", file=sys.stderr)
 
     if a.submission:

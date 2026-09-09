@@ -8,7 +8,15 @@ Write a specification that makes the reference harness produce `solve.py`, an en
 
 The full task, including the rules that differ from standard bencoding, is at:
 
-**http://localhost:8080/** (from inside the grading sandbox: `http://host.docker.internal:8080/`)
+**http://localhost:8082/** (from inside the grading sandbox: `http://host.docker.internal:8082/`). 8082 is this project's `resource_port`.
+
+To practise at home, start that server yourself from the root of the course repository:
+
+```
+python3 tools/ledger_server.py --project examples/03-serialization-type-b-research/project.json --allow-in-repo
+```
+
+It listens on the project's `resource_port`, prints the nonce it is serving, and writes `examples/03-serialization-type-b-research/ledger.tsv`. `--allow-in-repo` is needed only because that path is inside a checkout: the server refuses by default so that a real ledger of student IDs is never one `git add .` from being committed, and a practice ledger is throwaway. That is your own ledger; the graded one is the course server your instructor announces.
 
 It links a snapshot of the external specification. Use the snapshot; the live page is not reachable from the sandbox.
 
@@ -37,10 +45,11 @@ $ echo '{"value": ["spam", "eggs"]}' | python3 solve.py
 
 ## 4. Tests
 
-Public tests are in `tests/public/`. Run them with:
+Public tests are in `examples/03-serialization-type-b-research/tests/public/`. From the root of the course repository:
 
 ```
-python3 tools/run_tests.py --solution <dir> --tests tests/public
+python3 tools/run_tests.py --solution <your dir> \
+  --tests examples/03-serialization-type-b-research/tests/public --entry solve.py --timeout 10
 ```
 
 Hidden categories:
@@ -57,17 +66,20 @@ Hidden categories:
 
 ## 5. The reference harness
 
-Your grade comes from **OpenCode with model `qwen2.5-coder:14b`** on Ollama, run by the TAs. Develop with whatever you like; optimizing for another tool is pointless.
+Your grade comes from **OpenCode on Ollama with the model named in `examples/03-serialization-type-b-research/project.json`** (the `base_model` key), run by the TAs. Develop with whatever you like; optimizing for another tool is pointless. <!-- model: from project.json -->
 
-Install guide: see `tools/README.md` in the course repository. A shared Ollama server is at `http://ollama.cs.example.edu:11434` for anyone whose machine cannot run the model.
+Install guide: the [student primer](../../templates/student-primer.md). Read it before the milestone.
 
-Run your specification the way the TAs will:
+If your machine cannot run the model, use the course Ollama server your instructor announces: set `ollama_host` in your own copy of `project.json` to that URL. The runner writes it into the `opencode.json` it generates, verbatim, so it must be an address the machine you are running on can reach. Exporting `OLLAMA_HOST` does not redirect OpenCode.
+
+Run your specification the way the TAs will, from the root of the course repository:
 
 ```
-python3 tools/runner.py --project project.json --submission <dir> --run-tag practice --tests tests/public --no-sandbox
+python3 tools/runner.py --project examples/03-serialization-type-b-research/project.json \
+  --submission <your dir> --practice
 ```
 
-(The TA run uses secret seeds and the sandbox; yours uses the same temperatures with seeds of your choosing.)
+`--practice` needs nothing you do not have: it runs outside the grading sandbox, tags the run `practice`, runs the **public** suite, writes `seeds.practice.json` with three seeds of your own (the grading seeds are secret until grades are out), and creates the pinned per-temperature models if your Ollama has none. The TA run differs only in the seeds and the sandbox.
 
 ## 6. What to submit
 
@@ -81,7 +93,17 @@ Do **not** submit generated code. It is not graded.
 
 ## 7. Milestone (end of week 1, 10%)
 
-Your specification passes the public suite through the reference harness. Produce the record with `tools/milestone.py record` (its help shows the Type B path, which points at the working directory your practice run produced) and submit it. Auto-graded pass/fail.
+Your specification passes the public suite through the reference harness. Do the `--practice` run in §5, then produce the signed milestone record from the directory it wrote and submit that file:
+
+```
+python3 tools/milestone.py record \
+  --project examples/03-serialization-type-b-research/project.json \
+  --solution runs/<your dir>/practice-k1-work \
+  --regeneration runs/<your dir>/practice-k1.json \
+  --student-id ABC123456 --out milestone.json
+```
+
+Submit `milestone.json`. Auto-graded pass/fail.
 
 ## 8. Grading
 
@@ -106,7 +128,7 @@ Harness choice, model choice, how the page was fetched, the code the harness pro
 
 ## 10. Integrity
 
-Specifications are text and are treated like code: they are submitted to {{SIMILARITY_TOOL}}, the institution's similarity checker, and anything it flags goes to the professor under the standard misconduct process. Pairs submit one directory and both sign the ledger. The twist changes every semester.
+Specifications are text and are treated like code: they are submitted to MOSS, the institution's similarity checker, and anything it flags goes to the professor under the standard misconduct process. Pairs submit one directory and both sign the ledger. The twist changes every semester.
 
 ## 11. Appeals
 
