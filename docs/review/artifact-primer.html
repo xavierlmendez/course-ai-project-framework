@@ -1,0 +1,205 @@
+<title>Harness Primer for Students</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F6F7F4; --paper-2:#EDF0EB; --ink:#1B2230; --ink-2:#4A5563; --ink-3:#77818E;
+  --rule:#D5DAD3; --accent:#0F6E6B; --accent-soft:#DDEBEA; --warn:#8F5F12; --warn-soft:#F3E7CF;
+  --code-bg:#E9ECE6; --callout:#FFFFFF;
+  --display:"Fraunces",Georgia,"Times New Roman",serif;
+  --body:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#151A1E; --paper-2:#1C2227; --ink:#E4E9E7; --ink-2:#AEB7B4; --ink-3:#7D8784;
+    --rule:#2C353A; --accent:#5BB8B2; --accent-soft:#183634; --warn:#D9A44E; --warn-soft:#3A2E16;
+    --code-bg:#1F272C; --callout:#1A2024;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#151A1E; --paper-2:#1C2227; --ink:#E4E9E7; --ink-2:#AEB7B4; --ink-3:#7D8784;
+  --rule:#2C353A; --accent:#5BB8B2; --accent-soft:#183634; --warn:#D9A44E; --warn-soft:#3A2E16;
+  --code-bg:#1F272C; --callout:#1A2024;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:3px}
+a:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{max-width:76ch;margin:0 auto;padding:0 20px 96px}
+header{padding:56px 0 24px;border-bottom:1px solid var(--rule);margin-bottom:36px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-family:var(--display);font-weight:600;font-size:clamp(34px,5vw,50px);line-height:1.05;margin:10px 0 16px;text-wrap:balance;letter-spacing:-.01em}
+.lede{font-size:18.5px;line-height:1.5;color:var(--ink-2);max-width:62ch;margin:0}
+section{margin:0 0 48px}
+h2{font-family:var(--display);font-weight:600;font-size:28px;line-height:1.15;margin:0 0 10px;text-wrap:balance}
+h2 .n{font-family:var(--mono);font-weight:400;font-size:13px;color:var(--ink-3);letter-spacing:.1em;display:block;margin-bottom:8px}
+h3{font-family:var(--body);font-weight:600;font-size:17px;margin:24px 0 8px}
+p{margin:0 0 14px}
+ul,ol{padding-left:22px;margin:0 0 14px}
+li{margin:0 0 6px}
+code{font-family:var(--mono);font-size:.88em;background:var(--code-bg);padding:1px 5px;border-radius:3px}
+pre{font-family:var(--mono);font-size:13.5px;line-height:1.5;background:var(--code-bg);padding:14px 16px;border-radius:4px;overflow-x:auto;margin:0 0 16px}
+pre code{background:none;padding:0;font-size:inherit}
+.tablewrap{overflow-x:auto;margin:0 0 18px}
+table{border-collapse:collapse;width:100%;font-size:14.5px}
+th,td{text-align:left;vertical-align:top;padding:9px 12px 9px 0;border-bottom:1px solid var(--rule)}
+th{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+td:last-child,th:last-child{padding-right:0}
+.three{display:grid;grid-template-columns:1fr;gap:12px;margin:0 0 18px}
+@media (min-width:700px){.three{grid-template-columns:1fr 1fr 1fr}}
+.card{background:var(--paper-2);padding:16px 18px;border-radius:4px}
+.card b{font-family:var(--display);font-size:19px;font-weight:600;display:block;margin-bottom:6px}
+.card p{font-size:14.5px;margin:0;color:var(--ink-2)}
+.callout{background:var(--callout);border:1px solid var(--rule);border-top:3px solid var(--accent);padding:16px 20px;margin:18px 0 22px}
+.callout.warn{border-top-color:var(--warn)}
+.callout .eyebrow{display:block;margin-bottom:6px}
+.callout p:last-child{margin-bottom:0}
+.steps{list-style:none;padding:0;counter-reset:s}
+.steps li{position:relative;padding-left:44px;margin:0 0 12px;counter-increment:s}
+.steps li::before{content:counter(s);position:absolute;left:0;top:0;width:28px;height:28px;border-radius:50%;background:var(--accent);color:#fff;font-family:var(--mono);font-size:13px;display:flex;align-items:center;justify-content:center}
+.reading li{margin-bottom:10px}
+.reading b{font-weight:600}
+footer{border-top:1px solid var(--rule);margin-top:24px;padding-top:16px;font-size:13.5px;color:var(--ink-3);font-family:var(--mono)}
+</style>
+
+<div class="wrap">
+<header>
+  <span class="eyebrow">Student primer · read before the milestone</span>
+  <h1>What the harness does, how to run it, and how to write for it</h1>
+  <p class="lede">The course grades your work by running it through an AI harness under fixed conditions. This page explains what that tool is, how to run the same setup yourself, what the grading run looks like step by step, and where to read more. Commands were checked against vendor documentation on 8 September 2026.</p>
+</header>
+
+<section>
+  <h2><span class="n">§1</span>Chatbot, model, harness: three different things</h2>
+  <div class="three">
+    <div class="card"><b>Model</b><p>The network that turns text into text. <code>qwen2.5-coder:14b</code> is a model. On its own it cannot read a file, run a program, or fetch a page.</p></div>
+    <div class="card"><b>Chatbot</b><p>A model behind a text box. You paste, it answers, you paste again. Everything that touches your files goes through your hands.</p></div>
+    <div class="card"><b>Harness</b><p>A program that runs a model in a loop with tools: read and write files, run shell commands, fetch URLs, feed results back until done. OpenCode is one. So are Claude Code, Gemini CLI, Codex CLI and Aider.</p></div>
+  </div>
+  <p>This project is graded by a harness, not a chatbot. The harness is what fetches the published resource, signs the ledger, writes the program and runs it. Your specification is instructions to the harness, and the harness decides which tools to use to follow them.</p>
+</section>
+
+<section>
+  <h2><span class="n">§2</span>What the reference harness is</h2>
+  <p>The course grades with <b>OpenCode</b> running the <b><code>qwen2.5-coder:14b</code></b> model through <b>Ollama</b> on a machine the TAs control. Three consequences:</p>
+  <ol>
+    <li><b>It is free and local.</b> Ollama runs the model on your laptop or on the shared course server. No account, no card.</li>
+    <li><b>It is small.</b> A 14-billion-parameter model is far weaker than the frontier chat models you may have used. It follows precise instructions well and guesses badly. A specification that works on a frontier model and fails here has left something unsaid.</li>
+    <li><b>It is pinned.</b> The TAs run your specification three times, at temperatures 0.2, 0.6 and 1.0, each with a fixed seed published after grades. Your best run counts.</li>
+  </ol>
+  <p>Develop with whatever you like. The grade comes only from this setup, so anything that only works elsewhere is wasted effort.</p>
+</section>
+
+<section>
+  <h2><span class="n">§3</span>Install and run it yourself</h2>
+  <h3>Ollama and the model</h3>
+  <p>Install Ollama from <a href="https://ollama.com/download">ollama.com/download</a> (Linux: <code>curl -fsSL https://ollama.com/install.sh | sh</code>; macOS: open the disk image; Windows: the installer). Then:</p>
+  <pre><code>ollama pull qwen2.5-coder:14b      # about 9 GB on disk
+ollama run qwen2.5-coder:14b       # a quick chat to confirm it works; /bye to exit</code></pre>
+  <p>If your machine cannot run the 14B model (it needs roughly 9 GB of free memory), use the course server and point OpenCode at it:</p>
+  <pre><code>export OLLAMA_HOST=http://&lt;course-server&gt;:11434</code></pre>
+  <p>Model tags and sizes: <a href="https://ollama.com/library/qwen2.5-coder">ollama.com/library/qwen2.5-coder</a>. CLI reference: <a href="https://docs.ollama.com/cli">docs.ollama.com/cli</a>.</p>
+
+  <h3>OpenCode</h3>
+  <p>Install with one of these (<a href="https://opencode.ai/docs">opencode.ai/docs</a>), then check with <code>opencode --version</code>:</p>
+  <pre><code>curl -fsSL https://opencode.ai/install | bash
+npm install -g opencode-ai
+brew install anomalyco/tap/opencode</code></pre>
+  <p>In the directory holding your work, create <code>opencode.json</code> so OpenCode talks to Ollama. The shape is from <a href="https://opencode.ai/docs/providers">the providers page</a> with the model changed to ours:</p>
+  <pre><code>{
+  "$schema": "https://opencode.ai/config.json",
+  "provider": {
+    "ollama": {
+      "npm": "@ai-sdk/openai-compatible",
+      "name": "Ollama (local)",
+      "options": { "baseURL": "http://localhost:11434/v1" },
+      "models": { "qwen2.5-coder:14b": { "name": "Qwen2.5 Coder 14B" } }
+    }
+  },
+  "model": "ollama/qwen2.5-coder:14b",
+  "share": "disabled"
+}</code></pre>
+  <div class="callout warn">
+    <span class="eyebrow">Keep share off</span>
+    <p>OpenCode's <code>/share</code> command uploads a session to a public URL. Your specification and the course resource must not end up there. <code>"share": "disabled"</code> prevents it (<a href="https://opencode.ai/docs/share">docs</a>).</p>
+  </div>
+
+  <h3>Two ways to run</h3>
+  <p><b>Interactive.</b> Run <code>opencode</code> in your project directory. You get a terminal UI; type a request, watch the tools it calls, ask for changes. Useful commands: <code>/models</code> to confirm the model, <code>/undo</code> to revert the last change, <code>/export</code> to save the conversation as Markdown, <code>/sessions</code> to reopen old ones (<a href="https://opencode.ai/docs/tui">TUI docs</a>).</p>
+  <p><b>Non-interactive.</b> This is how the TAs run you. The wrapper sentence is identical for every student; everything else the harness knows comes from <code>SPEC.md</code> and what it fetches.</p>
+  <pre><code>opencode run -m ollama/qwen2.5-coder:14b "Read SPEC.md in the current directory and carry out its instructions exactly. The finished program must be a file named solve.py in the current directory. Do not ask questions; make reasonable choices and finish."</code></pre>
+  <p>Run the course runner for the full grading shape, tests included:</p>
+  <pre><code>python3 tools/runner.py --project project.json --submission &lt;your dir&gt; --run-tag practice --no-sandbox</code></pre>
+
+  <h3>What the harness can do</h3>
+  <p>OpenCode's built-in tools (<a href="https://opencode.ai/docs/tools">docs</a>): <code>read</code>, <code>write</code>, <code>edit</code>, <code>bash</code>, <code>glob</code>, <code>grep</code>, <code>webfetch</code>, <code>websearch</code>, and a few more. In the grading run, <code>bash</code>, <code>edit</code> and <code>webfetch</code> are allowed without prompting, and the network is limited to the published resource and the model server. Your specification can say "fetch this URL", "run this command", "create this file", and the harness will. It cannot reach anything else.</p>
+</section>
+
+<section>
+  <h2><span class="n">§4</span>The grading run, step by step</h2>
+  <ol class="steps">
+    <li>A TA reads your <code>SPEC.md</code>, the safety read. It is capped at 1,500 words for this reason.</li>
+    <li>The runner copies your submission into a fresh sandbox with no secrets and network only to the resource page and the model.</li>
+    <li>OpenCode starts with the wrapper sentence at slot 1 (temperature 0.2, fixed seed). It reads <code>SPEC.md</code>, fetches the resource, signs the ledger with run tag <code>grading-k1</code>, writes the program.</li>
+    <li>The hidden test suite runs against what it produced, in a container with no network.</li>
+    <li>Steps 3 and 4 repeat for slots 2 and 3. Your hidden-test score is the best of the three.</li>
+    <li>After grades are released you get the hidden tests and the seeds, and you can rerun the exact grading run at home.</li>
+  </ol>
+  <p>A run that exceeds the time limit or produces a program that does not start scores zero for that slot only.</p>
+</section>
+
+<section>
+  <h2><span class="n">§5</span>Writing a specification a small model can follow</h2>
+  <p>These failure patterns were observed when small models were asked to reproduce last year's programs from prompts. Every one is something the prompt left implicit.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>The model…</th><th>Because the specification…</th><th>Fix</th></tr></thead>
+    <tbody>
+      <tr><td>invented its own board or graph constants</td><td>described them in prose</td><td>Put the exact tables in the spec: "copy verbatim, do not recompute"</td></tr>
+      <tr><td>counted the wrong thing</td><td>said "count evaluations"</td><td>Say exactly when the counter increments</td></tr>
+      <tr><td>wrapped the code in Markdown fences</td><td>did not say the output was a file</td><td>"Write the file; do not print code"</td></tr>
+      <tr><td>returned a bound instead of the value</td><td>named the algorithm and stopped</td><td>Spell out the return value and the comparison</td></tr>
+      <tr><td>got a sign or multiplier wrong</td><td>wrote a formula in words</td><td>Write it as an expression</td></tr>
+      <tr><td>checked conditions in the wrong order</td><td>listed them unordered</td><td>Number them: "in this order"</td></tr>
+      <tr><td>used <code>&lt;</code> where <code>==</code> was meant</td><td>said "when down to three"</td><td>Write the comparison</td></tr>
+      <tr><td>wrote output to the wrong place</td><td>said "output the board"</td><td>Name the file, the argument index, the exact line format</td></tr>
+    </tbody>
+  </table></div>
+  <p>Three habits that follow:</p>
+  <ul>
+    <li><b>State the interface contract in full</b>, even though the resource has it. The harness reads your spec first.</li>
+    <li><b>Give one worked example</b> with exact input and exact expected output. Small models anchor on examples.</li>
+    <li><b>Tell it to test.</b> "After writing solve.py, run the public tests and fix failures until they pass." The harness can run commands; use that.</li>
+  </ul>
+  <div class="callout">
+    <span class="eyebrow">The two lines every specification must contain</span>
+    <p>Fetch the published resource at its URL. Sign the ledger with your student ID and the nonce from the page.</p>
+  </div>
+</section>
+
+<section>
+  <h2><span class="n">§6</span>Temperature, seeds, and why "it worked for me" is not an appeal</h2>
+  <p>Temperature scales how random the model's word choices are. At 0.2 the model is nearly repeatable; at 1.0 it wanders. A seed fixes the random draw so the same temperature gives the same output again. Ollama exposes both (<a href="https://docs.ollama.com/modelfile">Modelfile docs</a>), and the course pins them per slot.</p>
+  <p>The grading run is reproducible: same model, seed, temperature and wrapper. If your specification passes at home on the same setup and fails in grading, the difference is the seed, and best-of-three exists to absorb that. If it passes on a frontier chat model and fails here, the difference is the model, and that is the thing the project measures.</p>
+</section>
+
+<section>
+  <h2><span class="n">§7</span>What is and is not graded</h2>
+  <p><b>Graded:</b> what the reference harness produces from your specification, the written component, the milestone. <b>Not graded:</b> which tool you developed with, how many times you regenerated, whether you fetched the resource by hand, your process note, the harness's transcript.</p>
+</section>
+
+<section>
+  <h2><span class="n">§8</span>Further reading</h2>
+  <ul class="reading">
+    <li><b><a href="https://opencode.ai/docs">OpenCode documentation</a></b>. The harness: install, config, tools, permissions, rules files, sharing.</li>
+    <li><b><a href="https://docs.ollama.com">Ollama documentation</a></b>. Running models locally, Modelfiles, the OpenAI-compatible endpoint, serving on a network.</li>
+    <li><b><a href="https://agents.md">AGENTS.md convention</a></b>. The plain-Markdown instructions file harnesses read at startup; OpenCode's <code>/init</code> creates one.</li>
+    <li><b><a href="https://www.anthropic.com/research/building-effective-agents">Anthropic, "Building effective agents"</a></b>. What a harness loop is and when a simpler workflow beats it.</li>
+    <li><b><a href="https://platform.claude.com/docs/en/build-with-claude/prompt-engineering/overview">Claude prompt engineering overview</a></b>. Define success criteria first, then technique.</li>
+    <li><b><a href="https://developers.openai.com/api/docs/guides/prompt-engineering">OpenAI prompt engineering guide</a></b>. Structure, roles, examples.</li>
+    <li><b><a href="https://arxiv.org/abs/2107.03374">Chen et al., "Evaluating Large Language Models Trained on Code"</a></b>. HumanEval and the pass@k metric, which is what best-of-K grading is.</li>
+    <li><b><a href="https://arxiv.org/abs/2310.06770">Jimenez et al., "SWE-bench"</a></b>. How agent harnesses are evaluated on real repositories.</li>
+  </ul>
+</section>
+
+<footer>Part of the course project framework. The Markdown source lives in the framework repo as templates/student-primer.md.</footer>
+</div>

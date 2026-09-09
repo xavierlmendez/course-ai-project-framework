@@ -1,0 +1,97 @@
+#!/usr/bin/env python3
+"""Pre-scan student specifications for lines a TA must read closely.
+
+This is a focusing tool for the safety read, not a safety control. The
+sandbox is the safety control. Standard library only.
+
+Usage:
+    prescan.py SUBMISSIONS_DIR [--allow HOST ...] [--cap 1500]
+Prints one line per submission: FLAG|OK|OVERCAP  <id>  <reasons>
+Exit 0 always (the TA decides).
+"""
+import argparse
+import os
+import re
+import sys
+
+PATTERNS = [
+    ("override", re.compile(r"ignore (all |any )?(previous|prior|above) (instructions|rules)", re.I)),
+    ("override", re.compile(r"(you are now|new instructions|system prompt|disregard)", re.I)),
+    ("grader", re.compile(r"\b(TA|grader|instructor|professor)\b.*\b(give|award|assign|mark)\b.*\b(full|max|100|points|grade)", re.I)),
+    ("shell", re.compile(r"\b(rm -rf|curl\b|wget\b|nc\s+-[a-z]|ncat\b|ssh\s+\S+@|scp\s+\S+@|sudo\b|chmod \+x|base64 -d|eval\(|exec\()", re.I)),
+    ("shell", re.compile(r"(\bsh\b|bash)\s*-c|\|\s*(sh|bash)\b", re.I)),
+    ("network", re.compile(r"\b(socket|urllib|requests\.(get|post)|http\.client|subprocess)\b")),
+    ("secrets", re.compile(r"(~/\.ssh|/etc/passwd|\.env\b|api[_-]?key|token=|password)", re.I)),
+    ("exfil", re.compile(r"(webhook|ngrok|pastebin|discord\.com/api|telegram)", re.I)),
+    ("escape", re.compile(r"(\bdocker\s+(run|exec|cp|sock)|/var/run/|\.\./\.\./|/proc/|/sys/)", re.I)),
+    ("encoded", re.compile(r"[A-Za-z0-9+/]{80,}={0,2}")),
+]
+URL = re.compile(r"https?://([A-Za-z0-9.-]+)", re.I)
+TEXT_EXT = (".md", ".txt", ".json", ".yaml", ".yml", ".py", ".toml", ".cfg", ".ini")
+
+
+def allowed(host, allow):
+    return any(host == h or host.endswith("." + h) for h in allow)
+
+
+LEDGER_CURL = re.compile(r"\bcurl\b[^|;&]*\/ledger\b")
+
+
+def scan_text(text, allow):
+    hits = []
+    for i, line in enumerate(text.splitlines(), 1):
+        hosts = URL.findall(line)
+        # The ledger sign instruction is a curl to an allowed host; it is expected in every spec.
+        ledger_line = bool(LEDGER_CURL.search(line)) and hosts and all(allowed(h, allow) for h in hosts) \
+            and "|" not in line and "$(" not in line
+        for label, rx in PATTERNS:
+            if rx.search(line):
+                if ledger_line and label == "shell":
+                    continue
+                hits.append(f"L{i}:{label}")
+        for host in hosts:
+            if not allowed(host, allow):
+                hits.append(f"L{i}:url:{host}")
+    return hits
+
+
+def scan_submission(path, allow, cap):
+    hits, words = [], 0
+    for root, _, files in os.walk(path):
+        for f in files:
+            if not f.lower().endswith(TEXT_EXT):
+                hits.append(f"binary-or-unknown:{f}")
+                continue
+            p = os.path.join(root, f)
+            try:
+                text = open(p, encoding="utf-8", errors="replace").read()
+            except OSError as e:
+                hits.append(f"unreadable:{f}:{e}")
+                continue
+            rel = os.path.relpath(p, path)
+            if rel not in ("PROCESS.md", "WRITTEN.md"):
+                words += len(text.split())
+            hits += [f"{rel}:{h}" for h in scan_text(text, allow)]
+    return hits, words
+
+
+def main():
+    ap = argparse.ArgumentParser()
+    ap.add_argument("submissions")
+    ap.add_argument("--allow", nargs="*", default=[], help="hosts allowed in URLs (resource host, ollama host)")
+    ap.add_argument("--cap", type=int, default=1500, help="word cap on SPEC.md + supporting files")
+    a = ap.parse_args()
+    for sid in sorted(os.listdir(a.submissions)):
+        p = os.path.join(a.submissions, sid)
+        if not os.path.isdir(p):
+            continue
+        hits, words = scan_submission(p, a.allow, a.cap)
+        status = "FLAG" if hits else "OK"
+        if words > a.cap:
+            status = "OVERCAP" if status == "OK" else "FLAG+OVERCAP"
+        print(f"{status}\t{sid}\twords={words}\t" + " ".join(hits))
+    return 0
+
+
+if __name__ == "__main__":
+    sys.exit(main())

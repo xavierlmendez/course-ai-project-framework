@@ -1,0 +1,427 @@
+<title>Harness Project Framework</title>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,500;9..144,600&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+:root{
+  --paper:#F6F7F4; --paper-2:#EDF0EB; --ink:#1B2230; --ink-2:#4A5563; --ink-3:#77818E;
+  --rule:#D5DAD3; --accent:#0F6E6B; --accent-soft:#DDEBEA; --twist:#8F5F12; --twist-soft:#F3E7CF;
+  --good:#2E7D4F; --code-bg:#E9ECE6; --callout:#FFFFFF;
+  --display:"Fraunces",Georgia,"Times New Roman",serif;
+  --body:"IBM Plex Sans","Helvetica Neue",Arial,sans-serif;
+  --mono:"IBM Plex Mono",Menlo,Consolas,monospace;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){
+    --paper:#151A1E; --paper-2:#1C2227; --ink:#E4E9E7; --ink-2:#AEB7B4; --ink-3:#7D8784;
+    --rule:#2C353A; --accent:#5BB8B2; --accent-soft:#183634; --twist:#D9A44E; --twist-soft:#3A2E16;
+    --good:#6FC28F; --code-bg:#1F272C; --callout:#1A2024;
+  }
+}
+:root[data-theme="dark"]{
+  --paper:#151A1E; --paper-2:#1C2227; --ink:#E4E9E7; --ink-2:#AEB7B4; --ink-3:#7D8784;
+  --rule:#2C353A; --accent:#5BB8B2; --accent-soft:#183634; --twist:#D9A44E; --twist-soft:#3A2E16;
+  --good:#6FC28F; --code-bg:#1F272C; --callout:#1A2024;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--body);font-size:16.5px;line-height:1.55;-webkit-font-smoothing:antialiased}
+a{color:var(--accent);text-decoration-thickness:1px;text-underline-offset:3px}
+a:focus-visible,button:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.wrap{display:grid;grid-template-columns:1fr;gap:0 48px;max-width:1120px;margin:0 auto;padding:0 20px 96px}
+@media (min-width:980px){.wrap{grid-template-columns:220px minmax(0,1fr)}}
+header.masthead{grid-column:1/-1;padding:56px 0 28px;border-bottom:1px solid var(--rule);margin-bottom:40px}
+.eyebrow{font-family:var(--mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3)}
+h1{font-family:var(--display);font-weight:600;font-size:clamp(36px,5vw,54px);line-height:1.05;margin:10px 0 18px;text-wrap:balance;letter-spacing:-.01em}
+.lede{font-size:19px;line-height:1.5;color:var(--ink-2);max-width:62ch;margin:0}
+.meta{display:flex;flex-wrap:wrap;gap:8px 28px;margin-top:22px;font-family:var(--mono);font-size:13px;color:var(--ink-3)}
+.meta b{color:var(--ink);font-weight:500}
+nav.toc{display:none}
+@media (min-width:980px){
+  nav.toc{display:block;position:sticky;top:24px;align-self:start;font-size:13.5px;line-height:1.4}
+  nav.toc ol{list-style:none;padding:0;margin:0;border-left:1px solid var(--rule)}
+  nav.toc li a{display:block;padding:5px 0 5px 14px;color:var(--ink-2);text-decoration:none;border-left:2px solid transparent;margin-left:-1px}
+  nav.toc li a:hover{color:var(--accent);border-left-color:var(--accent)}
+  nav.toc .toc-h{font-family:var(--mono);font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--ink-3);margin:0 0 10px}
+}
+main{min-width:0;max-width:72ch}
+section{margin:0 0 56px}
+h2{font-family:var(--display);font-weight:600;font-size:30px;line-height:1.15;margin:0 0 6px;text-wrap:balance;letter-spacing:-.005em}
+h2 .n{font-family:var(--mono);font-weight:400;font-size:13px;color:var(--ink-3);letter-spacing:.1em;display:block;margin-bottom:8px}
+h3{font-family:var(--body);font-weight:600;font-size:17px;margin:28px 0 8px}
+p{margin:0 0 14px}
+p.summary{font-size:18px;line-height:1.5;color:var(--ink);border-left:3px solid var(--accent);padding-left:18px;margin:18px 0 22px}
+ul,ol{padding-left:22px;margin:0 0 14px}
+li{margin:0 0 6px}
+dfn{font-style:normal;font-weight:600;color:var(--ink)}
+.twist{color:var(--twist);font-weight:600}
+code,kbd{font-family:var(--mono);font-size:.88em;background:var(--code-bg);padding:1px 5px;border-radius:3px}
+pre{font-family:var(--mono);font-size:13.5px;line-height:1.5;background:var(--code-bg);padding:14px 16px;border-radius:4px;overflow-x:auto;margin:0 0 16px}
+pre code{background:none;padding:0;font-size:inherit}
+.tablewrap{overflow-x:auto;margin:0 0 18px}
+table{border-collapse:collapse;width:100%;font-size:14.5px;font-variant-numeric:tabular-nums}
+th,td{text-align:left;vertical-align:top;padding:9px 12px 9px 0;border-bottom:1px solid var(--rule)}
+th{font-family:var(--mono);font-weight:500;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--ink-3)}
+td:last-child,th:last-child{padding-right:0}
+td.num{text-align:right;font-family:var(--mono)}
+.callout{background:var(--callout);border:1px solid var(--rule);border-top:3px solid var(--accent);padding:18px 20px;margin:20px 0 22px}
+.callout.twist{border-top-color:var(--twist)}
+.callout .eyebrow{margin-bottom:8px;display:block}
+.callout p:last-child{margin-bottom:0}
+.rule-big{font-family:var(--display);font-size:22px;line-height:1.3;font-weight:500;margin:0}
+.two{display:grid;grid-template-columns:1fr;gap:18px;margin:0 0 18px}
+@media (min-width:680px){.two{grid-template-columns:1fr 1fr}}
+.type{background:var(--paper-2);padding:18px 20px;border-radius:4px}
+.type h3{margin:0 0 6px;font-family:var(--display);font-size:21px;font-weight:600}
+.type .eyebrow{display:block;margin-bottom:6px}
+.type ul{margin:10px 0 0;padding-left:18px;font-size:15px}
+.schedule{display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin:14px 0 18px}
+.slot{border:1px solid var(--rule);padding:12px 14px;border-radius:4px;background:var(--callout)}
+.slot .eyebrow{display:block;margin-bottom:4px}
+.slot .t{font-family:var(--mono);font-size:22px;font-weight:500}
+.slot .s{font-family:var(--mono);font-size:12px;color:var(--ink-3)}
+.bar{display:flex;height:34px;border-radius:4px;overflow:hidden;margin:12px 0 8px;font-family:var(--mono);font-size:12.5px;color:#fff}
+.bar span{display:flex;align-items:center;justify-content:center;white-space:nowrap}
+.bar .ms{background:var(--ink-3);flex:10}
+.bar .hb{background:var(--accent);flex:35}
+.bar .ht{background:var(--twist);flex:35}
+.bar .wr{background:var(--good);flex:20}
+.legend{font-size:13.5px;color:var(--ink-2);margin:0 0 18px}
+.examples{display:grid;grid-template-columns:1fr;gap:12px;margin:0 0 18px}
+@media (min-width:680px){.examples{grid-template-columns:1fr 1fr}}
+.ex{border:1px solid var(--rule);padding:14px 16px;border-radius:4px}
+.ex .eyebrow{display:block;margin-bottom:4px}
+.ex b{font-family:var(--display);font-size:18px;font-weight:600;display:block;margin-bottom:4px}
+.ex p{font-size:14.5px;margin:0;color:var(--ink-2)}
+.check{list-style:none;padding:0}
+.check li{padding-left:26px;position:relative}
+.check li::before{content:"";position:absolute;left:0;top:7px;width:13px;height:13px;border:1.5px solid var(--accent);border-radius:2px}
+.check li.done::before{background:var(--accent)}
+.check li.done::after{content:"";position:absolute;left:4.5px;top:9px;width:4px;height:7px;border:solid #fff;border-width:0 2px 2px 0;transform:rotate(45deg)}
+footer{grid-column:1/-1;border-top:1px solid var(--rule);margin-top:24px;padding-top:18px;font-size:13.5px;color:var(--ink-3);font-family:var(--mono)}
+@media (prefers-reduced-motion:reduce){*{scroll-behavior:auto}}
+html{scroll-behavior:smooth}
+</style>
+
+<div class="wrap">
+<header class="masthead">
+  <span class="eyebrow">Course project design · Masters-level CS · prepared 8 September 2026</span>
+  <h1>A course project students solve by directing an AI harness, graded by the course, not by the dice</h1>
+  <p class="lede">A reusable framework for projects where students steer an internet-connected agent, no paid subscriptions are needed, TAs can test every submission by script, and two students with the same work get the same grade. Abstracted from course content: the four worked examples cover a board game, A* search, a serialization format, and scheduling, and none of the machinery cares which.</p>
+  <div class="meta">
+    <span>Scale <b>2 TAs · 2 sections · 30–90 students each</b></span>
+    <span>Length <b>3–5 weeks</b></span>
+    <span>Repo <b>~/develop/course-ai-project-framework</b></span>
+  </div>
+</header>
+
+<nav class="toc" aria-label="Contents">
+  <p class="toc-h">Contents</p>
+  <ol>
+    <li><a href="#design">The design</a></li>
+    <li><a href="#why">Why not grade the prompt</a></li>
+    <li><a href="#anatomy">Anatomy of a project</a></li>
+    <li><a href="#types">Two project types</a></li>
+    <li><a href="#harness">The reference harness</a></li>
+    <li><a href="#regen">Regeneration policy</a></li>
+    <li><a href="#calibration">Calibration</a></li>
+    <li><a href="#ledger">The ledger</a></li>
+    <li><a href="#grading">Grading</a></li>
+    <li><a href="#timeline">Timeline</a></li>
+    <li><a href="#safety">Safety and integrity</a></li>
+    <li><a href="#workflow">Professor's workflow</a></li>
+    <li><a href="#effort">TA effort</a></li>
+    <li><a href="#options">Options menu</a></li>
+    <li><a href="#examples">Four examples</a></li>
+    <li><a href="#ships">What ships</a></li>
+  </ol>
+</nav>
+
+<main>
+
+<section id="design">
+  <h2><span class="n">§1</span>The design in one paragraph</h2>
+  <p class="summary">A project is a professor-controlled <dfn>published resource</dfn> carrying a <span class="twist">twist</span> on a well-known problem, plus an <dfn>interface contract</dfn>, a <dfn>public test suite</dfn>, and a <dfn>hidden test suite</dfn> organized in <dfn>test categories</dfn>. Students may develop with any tool they like, but the grade comes only from what the <dfn>reference harness</dfn> does with their work. The reference harness is a free, local, pinnable model, so every <dfn>regeneration</dfn> is reproducible and every submission faces identical conditions. Two <dfn>project types</dfn> share all of this and differ only in the graded object. The published resource instructs the harness to sign a <dfn>ledger</dfn>, which is how "the harness used the internet" becomes a checkable fact rather than a claim.</p>
+  <p>Everything on this page is a consequence of that paragraph. The glossary terms above are used exactly throughout; the repo's <code>CONTEXT.md</code> fixes them.</p>
+</section>
+
+<section id="why">
+  <h2><span class="n">§2</span>Why not grade the prompt</h2>
+  <p>The previous version of this project was a Morris variant on a 23-point board: four parts weighted 45/35/10/10, eight programs, each submitted as a <code>prog.prompt</code> and a <code>prog.py</code>, the Python "generated by ChatGPT" through an interactive session that ended with ChatGPT writing the prompt. The rubric checked four things: the prompt should regenerate a functionally identical program; the program implements the algorithm from class; the output format matches; the program is run and graded on correctness.</p>
+  <p>That design was already most of this framework. Its first check is a Type B regeneration; its fourth is Type A grading. What it left open is every parameter that decides whether the first check passes:</p>
+  <ol>
+    <li><b>Which model</b> regenerates from the prompt. "ChatGPT" spans several models and changes weekly.</li>
+    <li><b>Temperature and sampling.</b> Unspecified, so a regeneration is a draw.</li>
+    <li><b>How many attempts.</b> A prompt that works one time in five is a pass or a fail depending on the grader.</li>
+    <li><b>What "functionally identical" means.</b> Same board and estimate? Same count of positions evaluated? The count depends on move-generation order, which the handout explicitly allows to vary, so two correct programs print different numbers.</li>
+    <li><b>"Not allowed to change the code directly."</b> Unverifiable from the submission.</li>
+    <li><b>"Generated by ChatGPT."</b> Ties the project to one vendor and its paid tiers.</li>
+  </ol>
+  <p>All six share a root cause: the thing that produced the graded output was chosen by the student, not the course. The fix is structural, not a rubric change.</p>
+  <div class="callout">
+    <span class="eyebrow">The one move</span>
+    <p class="rule-big">The course owns the execution. The student owns the specification or the solution; the TAs execute under fixed conditions; the grade comes from that execution and nothing else.</p>
+  </div>
+  <p>Once the course owns the execution, the model is pinned, temperature is a parameter you set, attempts are a policy you choose, "functionally identical" becomes a stated equivalence policy per test category, and model access stops mattering because the graded model is the same for everyone.</p>
+  <p>There is evidence this works at the small-model end. A reproducibility harness built for that project regenerated all eight programs from rewritten prompts on <code>gpt-4o-mini</code> at temperature 0. The first rewrite averaged 60/100 with four programs failing. After ten observed failure patterns were folded into the prompts as explicit constraints, every program scored 100/100 and was deterministic. A specification that a small pinned model can execute is achievable, and writing one is exactly the skill Type B grades.</p>
+  <p>A colleague will ask why the TAs don't simply read and grade the prompt. Because grading a prompt on its merits is exactly the subjective judgment that produces inconsistent grades and appeals. A prompt is a program in a language whose interpreter is a model. You grade programs by running them.</p>
+</section>
+
+<section id="anatomy">
+  <h2><span class="n">§3</span>Anatomy of a project</h2>
+  <p>Every project, regardless of type or domain, has these parts. The professor authors all of them; the templates and the four examples show the shape.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Part</th><th>What it is</th><th>Who sees it</th></tr></thead>
+    <tbody>
+      <tr><td><b>Published resource</b></td><td>A page at a URL you control that states the task and the twist, prints the ledger nonce, and instructs the harness to sign the ledger.</td><td>Everyone</td></tr>
+      <tr><td><b class="twist">Twist</b></td><td>The deliberate deviation from the canonical problem. Lives in the published resource. Not findable online, under a page, breaks the textbook solution on an identifiable input class.</td><td>Everyone</td></tr>
+      <tr><td><b>Interface contract</b></td><td>Language, entry point, I/O. Default: Python 3, <code>solve.py</code>, JSON on stdin and stdout. Alternative, as in the previous project: <code>prog.py in out depth</code> with a fixed stdout format. The test runner supports both.</td><td>Everyone</td></tr>
+      <tr><td><b>Public test suite</b></td><td>A small sample that hints at, but does not exhaust, the twist's edge cases.</td><td>Everyone</td></tr>
+      <tr><td><b>Hidden test suite</b></td><td>The full suite in named, weighted categories. Released after grades are out.</td><td>TAs; students afterward</td></tr>
+      <tr><td><b>Test categories</b></td><td>Names and counts of the hidden groups. Students see names and counts, not cases.</td><td>Everyone</td></tr>
+      <tr><td><b>Reference specification</b></td><td>Your own specification that clears the hidden suite on the reference harness. The calibration gate and the appeals answer key.</td><td>Professor, TAs</td></tr>
+      <tr><td><b>Ledger</b></td><td>Write-only endpoint on your site that appends signed entries to a text file.</td><td>Professor, TAs</td></tr>
+    </tbody>
+  </table></div>
+  <p>The published resource is the only structural lever that forces harness use with internet access. A project with no published resource is a traditional project that permits AI, and the framework says so rather than pretending otherwise.</p>
+</section>
+
+<section id="types">
+  <h2><span class="n">§4</span>Two project types, one set of machinery</h2>
+  <div class="two">
+    <div class="type">
+      <span class="eyebrow">Type A</span>
+      <h3>Mastery Project</h3>
+      <p>Understanding of course content is assured by the difficulty of getting a correct solution, not by TA inspection.</p>
+      <ul>
+        <li><b>Submitted:</b> the solution, a process note, a written component.</li>
+        <li><b>Graded:</b> the solution against the hidden suite, run once. Deterministic.</li>
+        <li><b>Ledger:</b> a gate. No signed entry, submission incomplete.</li>
+        <li><b>Regeneration:</b> none. That is the type's whole appeal.</li>
+      </ul>
+    </div>
+    <div class="type">
+      <span class="eyebrow">Type B</span>
+      <h3>Specification Project</h3>
+      <p>Skill at specifying a problem precisely enough that a harness solves it.</p>
+      <ul>
+        <li><b>Submitted:</b> a <code>SPEC.md</code> of at most 1,500 words, a process note, a written component. No generated code.</li>
+        <li><b>Graded:</b> what the reference harness produces from the specification, best of 3 regenerations.</li>
+        <li><b>Ledger:</b> informational; the TA runner did the fetch.</li>
+        <li><b>The specification carries the sign instruction.</b> Forgetting it is graded behavior.</li>
+      </ul>
+    </div>
+  </div>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Prefer Type A when</th><th>Prefer Type B when</th></tr></thead>
+    <tbody>
+      <tr><td>The learning goal is the algorithm or data structure itself</td><td>The learning goal is precise specification and verification</td></tr>
+      <tr><td>TA time is the binding constraint</td><td>Machine time is available and TA time is not</td></tr>
+      <tr><td>You want deterministic grading and no regeneration policy to explain</td><td>You want the model-access problem removed entirely</td></tr>
+      <tr><td>Students are expected to read and own the code</td><td>Students are expected to reason about what they told the machine</td></tr>
+    </tbody>
+  </table></div>
+  <p>Both can run in the same course on the same published resource: the graduate section on Type B, the undergraduate section on Type A.</p>
+  <h3>The Hybrid, and how the previous project maps</h3>
+  <p>The previous project submitted both the prompt and the code. In this framework that is a <dfn>Hybrid Project</dfn>: the solution is graded as Type A, and the specification is run as a Type B regeneration whose only job is to confirm the solution is reproducible. Two changes from the original rubric: the reproducibility check is a <b>gate, not a score</b>, so a student whose code passes but whose specification cannot reproduce it has submitted code they did not specify; and the rule about not editing code is dropped, because the gate makes it moot. Choose the Hybrid when students must own running code and the specification must still be real. Its cost is that TAs run both paths.</p>
+  <p><b>Multi-part projects.</b> Four parts weighted 45/35/10/10 become one project directory per part, each with its own contract, tests and categories, graded separately and combined by weight. Example 01 shows the shape.</p>
+</section>
+
+<section id="harness">
+  <h2><span class="n">§5</span>The reference harness</h2>
+  <p>The framework does not name a harness. It names criteria, and the professor picks an instance each semester, because free tiers change every few months. A reference harness must be:</p>
+  <ol>
+    <li><b>Free for every student</b>, no card, no paid plan, including practice runs.</li>
+    <li><b>Equipped with built-in web fetch</b>, so the published resource works without wiring.</li>
+    <li><b>Runnable headless</b> from a script, so TAs batch it.</li>
+    <li><b>Temperature-settable</b>, so the schedule in §6 is real.</li>
+    <li><b>Model-pinnable</b>, so the model on day 1 is the model on grading day.</li>
+  </ol>
+  <p>Criterion 1 removes every cloud harness whose free tier can reroute or rotate models mid-semester, and removes Claude Code entirely, which has no free path. Criterion 5 is what makes appeals possible.</p>
+  <h3>This year's instance</h3>
+  <p><b>OpenCode on Ollama, model <code>qwen2.5-coder:14b</code>.</b> OpenCode is the only free open harness surveyed with web fetch and web search built in, headless JSON output, and a pinnable local model. Ollama gives pinned weights plus <code>seed</code> and <code>temperature</code> parameters; per-slot model variants are created from a Modelfile so the pin is harness-independent. 14B is the smallest size to trust with following a one-page resource and satisfying an interface contract. It needs about 9 GB of RAM; the computer lab and the SSH server are the fallback, and the runner takes the Ollama server address as a parameter so a shared server and a laptop produce comparable runs.</p>
+  <p>Documented alternative: Gemini CLI (Google sign-in, 1,000 requests a day, built-in search and fetch, headless, temperature settable) when a local model is not viable. Its free tier may reroute models, so regenerations are not reproducible; the handout would have to say so.</p>
+  <p>Students may develop with anything. The handout says: the grade comes from the reference harness, so optimizing for a paid tool is pointless. They install it by the milestone and run the same runner script the TAs use, minus the secret seeds.</p>
+</section>
+
+<section id="regen">
+  <h2><span class="n">§6</span>Regeneration policy for Type B</h2>
+  <p>Best of K, K = 3, at a fixed temperature schedule, identical for every student. Each slot has a fixed seed, secret until grades are released and published afterward with the hidden tests.</p>
+  <div class="schedule">
+    <div class="slot"><span class="eyebrow">Slot 1</span><div class="t">0.2</div><div class="s">seed s₁ · tag grading-k1</div></div>
+    <div class="slot"><span class="eyebrow">Slot 2</span><div class="t">0.6</div><div class="s">seed s₂ · tag grading-k2</div></div>
+    <div class="slot"><span class="eyebrow">Slot 3</span><div class="t">1.0</div><div class="s">seed s₃ · tag grading-k3</div></div>
+  </div>
+  <ul>
+    <li>The grade is the hidden-test score of the <b>best</b> of the three. Best rather than median because the professor chose to give students the best chance; the fixed schedule and seeds keep it fair. Every specification faced the same three conditions.</li>
+    <li>Secret seeds because published seeds invite seed-fitting. Fixed seeds because a regrade or appeal must rerun bit-for-bit.</li>
+    <li>A run that times out (default 20 minutes, calibrated to twice the reference specification's time) or produces a solution that fails to start scores zero for that run. Best-of-K absorbs it.</li>
+    <li>"Reproducible" means: same weights, seed, temperature and wrapper prompt give the same result unless a tool result or the published resource changed. It does not mean deterministic; an agent loop with web access never is. Freeze the resource during grading.</li>
+  </ul>
+  <p><b>Appeals.</b> One additional regeneration at the middle temperature, granted only if the student shows the specification passes the public suite on the reference harness. Best-of-K makes this rare.</p>
+</section>
+
+<section id="calibration">
+  <h2><span class="n">§7</span>Calibration: the one rule not to skip</h2>
+  <div class="callout twist">
+    <span class="eyebrow">Gate before release</span>
+    <p class="rule-big">Your reference specification must pass every hidden test in at least one of the K regenerations on the reference harness. If it cannot, the twist is too hard for the model, not for the students.</p>
+  </div>
+  <p>Without this rule the grade measures model capability rather than student skill. Fix the twist, the resource wording, or the contract until it passes; do not weaken the tests to fit the model. The calibration run also sets the regeneration timeout and produces the appeals answer key. It costs one afternoon and is the single most important fairness control in the design. The checklist also runs a canonical specification with the twist ignored, which must score visibly low on the twist categories, and an empty one, which must score near zero.</p>
+</section>
+
+<section id="ledger">
+  <h2><span class="n">§8</span>The ledger</h2>
+  <p>The published resource contains an instruction like: <em>before writing any code, sign the course ledger with a POST carrying your student ID and the nonce printed on this page.</em> The endpoint:</p>
+  <ul>
+    <li>accepts <b>one or two student IDs</b> in the form <code>XXXNNNNNN</code> (three letters, six digits), validated by regex; pairs both sign;</li>
+    <li>records a server timestamp and a <b>run tag</b> (<code>practice</code>, <code>grading-k1..k3</code>, <code>appeal</code>), so TA entries are filterable;</li>
+    <li>requires the <b>nonce</b> from the page, which turns "someone hit the endpoint" into "the harness read the page";</li>
+    <li>is <b>write-only</b>. Student IDs are institutional identifiers and do not belong in a public file;</li>
+    <li>returns a plain error on malformed input so a harness can self-correct.</li>
+  </ul>
+  <p>The framework ships a reference ledger server in about 130 lines of standard-library Python that also serves the resource page. If your site already has a service, port the one route. The ledger cannot distinguish a harness fetch from a student typing <code>curl</code>. Don't try; the handout says so under "What is not graded."</p>
+</section>
+
+<section id="grading">
+  <h2><span class="n">§9</span>Grading</h2>
+  <div class="bar" aria-label="Grade composition: milestone 10, hidden tests 70 of which twist categories 35, written 20">
+    <span class="ms">10 milestone</span><span class="hb">35 hidden, other</span><span class="ht">35 hidden, twist</span><span class="wr">20 written</span>
+  </div>
+  <p class="legend">Type A adds the ledger as a gate. The twist categories carry half of the hidden 70 so a canonical solution that ignores the resource cannot collect most of the points from the easy cases.</p>
+  <h3>Equivalence policy</h3>
+  <p>"Functionally identical" is not a test. Every hidden category states what counts as a pass, and its checker implements it.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Policy</th><th>Passes when</th><th>Use for</th></tr></thead>
+    <tbody>
+      <tr><td><code>strict</code></td><td>Output equals the expected output exactly</td><td>Deterministic, order-independent outputs</td></tr>
+      <tr><td><code>estimate</code></td><td>The graded value matches; the choice may differ on ties</td><td>Search problems where several moves share the best value</td></tr>
+      <tr><td><code>ab</code></td><td>Same value as the reference algorithm, strictly fewer evaluations</td><td>Pruning versus exhaustive search</td></tr>
+      <tr><td><code>valid</code></td><td>The output is a legal solution of the stated cost, checked constructively</td><td>Path-finding, scheduling, anything with multiple optima</td></tr>
+    </tbody>
+  </table></div>
+  <p>An output that depends on iteration order, such as a node count, is either removed from the graded output or the contract fixes the order. Grading it against one reference without fixing the order fails correct work.</p>
+  <h3>Written component, one page, under ten minutes to grade</h3>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Dimension, 0–3</th><th>Type A prompt</th><th>Type B prompt</th></tr></thead>
+    <tbody>
+      <tr><td><b>Accuracy</b><br><small>Matches what the submission actually does?</small></td><td>Explain one design decision in the solution.</td><td>Explain how you developed the specification.</td></tr>
+      <tr><td><b>Twist specificity</b><br><small>Names what handles the twist and why?</small></td><td>Which part of your solution handles the twist?</td><td>Which lines of your specification handle the twist?</td></tr>
+      <tr><td><b>Candor</b><br><small>Identifies a real limitation?</small></td><td>Name one input class your solution handles badly.</td><td>Name one thing the harness got wrong and what you changed.</td></tr>
+      <tr><td><b>Prediction</b> <small>(graduate)</small></td><td colspan="2">Before grades: which hidden categories will you fail, and why? Scored against what actually failed.</td></tr>
+    </tbody>
+  </table></div>
+  <p>Candor is what makes a page hard to fake with a model.</p>
+  <h3>Graduate bar, no extra TA load</h3>
+  <p>Same project. One extra hidden category only graduate submissions are run against (a harder twist variant or a performance bound), added to the same arithmetic so the graduate denominator is larger. Plus the prediction dimension above.</p>
+  <h3>Process note</h3>
+  <p>Required with every submission, ungraded by default; a missing note makes the submission incomplete. Two alternatives the professor may choose: fold it into the written component, or grade it separately at about 5%.</p>
+</section>
+
+<section id="timeline">
+  <h2><span class="n">§10</span>Timeline</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Week (of 3 / of 5)</th><th>What happens</th></tr></thead>
+    <tbody>
+      <tr><td>0</td><td>Publish resource, handout, public tests, category names and counts, install guide. Ledger open.</td></tr>
+      <tr><td>1 / 1–2</td><td><b>Milestone</b> at the one-third mark: the student runs the runner script and the public suite passes. Auto-graded pass/fail, 10%. Forces early install and ends the "it worked in ChatGPT" appeal.</td></tr>
+      <tr><td>2 / 3–4</td><td>Development. Office hours are about the specification or solution, never about the reference model's behavior.</td></tr>
+      <tr><td>3 / 5</td><td>Submission. Pre-scan, safety read, runner, gradebook. Grades out; hidden tests and seeds released.</td></tr>
+      <tr><td>+1</td><td>Appeals window.</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="safety">
+  <h2><span class="n">§11</span>Safety and integrity</h2>
+  <p>Every specification is read by a human before it is executed, to catch instructions planted by the student or injected into the student's workflow from a page their own harness fetched. At one TA per 65 students, three controls make that feasible, and one of them is the actual safety control:</p>
+  <ol>
+    <li><b>Sandbox, the real control.</b> Every run executes in a Docker container with outbound network allowed only to the resource host and the Ollama server, no secrets mounted, a fresh filesystem per run. A line the reader misses cannot do damage, so the safety read is an integrity and policy check.</li>
+    <li><b>Length cap.</b> 1,500 words including supporting files. A read takes three to five minutes.</li>
+    <li><b>Pre-scan.</b> A script flags shell commands, URLs outside the allowlist, credential paths, and instruction-override phrasing. The TA reads flagged specifications closely and skims the rest.</li>
+  </ol>
+  <p><b>Integrity.</b> Similarity detection on specifications, treated like code. The twist changes every semester, so cross-semester copying is moot. Per-student variant parameters are an option: each resource URL carries a parameter and hidden tests are generated per parameter, so copying requires understanding to adapt. Example 4 shows what that costs the runner.</p>
+</section>
+
+<section id="workflow">
+  <h2><span class="n">§12</span>The professor's workflow</h2>
+  <ol>
+    <li><b>Author.</b> Pick the type. Write the twist against the checklist, the published resource, the contract, the public and hidden suites with categories and weights. Fill the handout template.</li>
+    <li><b>Calibrate.</b> Write the reference specification. Run the calibration checklist until it clears every hidden test in at least one run. Set the timeout. Lock the seeds.</li>
+    <li><b>Release.</b> Resource live, ledger open, handout out.</li>
+    <li><b>Milestone.</b> Auto-graded from student-run runner output.</li>
+    <li><b>Grade.</b> TAs follow the runbook: pre-scan, safety read, runner, written component, gradebook.</li>
+    <li><b>Release hidden tests and seeds.</b> Appeals window.</li>
+    <li><b>Rotate.</b> Next semester: new twist, nonce, seeds, resource URL, hidden tests; re-verify the reference harness still meets the five criteria.</li>
+  </ol>
+</section>
+
+<section id="effort">
+  <h2><span class="n">§13</span>TA effort at your scale</h2>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Task</th><th>Per submission</th><th>Per TA, 65 students</th></tr></thead>
+    <tbody>
+      <tr><td>Pre-scan</td><td>seconds, scripted</td><td class="num">minutes</td></tr>
+      <tr><td>Safety read</td><td>3–5 min</td><td class="num">~4 h</td></tr>
+      <tr><td>Regeneration, Type B</td><td>3 × 5–10 min machine, unattended</td><td class="num">16–32 machine-h, overnight</td></tr>
+      <tr><td>Hidden tests, Type A</td><td>seconds</td><td class="num">minutes</td></tr>
+      <tr><td>Written component</td><td>≤10 min</td><td class="num">~11 h</td></tr>
+      <tr><td>Gradebook</td><td>scripted</td><td class="num">minutes</td></tr>
+    </tbody>
+  </table></div>
+  <p>About 15 human hours per TA per project, spread over the grading week. Nothing in the design requires a human to read a transcript.</p>
+</section>
+
+<section id="options">
+  <h2><span class="n">§14</span>Options menu</h2>
+  <p>Choices the professor makes per project. Default first.</p>
+  <div class="tablewrap"><table>
+    <thead><tr><th>Decision</th><th>Default</th><th>Alternatives</th></tr></thead>
+    <tbody>
+      <tr><td>Project type</td><td>Type B</td><td>Type A; both in one course; Hybrid (code graded, specification as a reproducibility gate)</td></tr>
+      <tr><td>Project shape</td><td>One part</td><td>Multi-part with weights, one directory per part</td></tr>
+      <tr><td>Interface contract</td><td>JSON on stdin/stdout</td><td>File-argument CLI with fixed stdout format</td></tr>
+      <tr><td>Equivalence policy</td><td><code>strict</code> per category</td><td><code>estimate</code>, <code>ab</code>, <code>valid</code> via a checker</td></tr>
+      <tr><td>Resource mode</td><td>Published resource with the twist</td><td>Research-pointer: resource points to external documentation plus a twist; snapshot the external page</td></tr>
+      <tr><td>Process note</td><td>Required, ungraded</td><td>Is the written component; separately graded ~5%</td></tr>
+      <tr><td>Ledger strength</td><td>Sign with ID + nonce</td><td>A second instruction the harness must follow from the page (also a prompt-injection demonstration, so explain it)</td></tr>
+      <tr><td>Integrity</td><td>Similarity detection + semester rotation</td><td>Per-student variant parameters</td></tr>
+      <tr><td>Regeneration statistic</td><td>Best of 3</td><td>Median; K = 5</td></tr>
+      <tr><td>Graduate bar</td><td>Extra category + prediction</td><td>Higher threshold on the same tests</td></tr>
+      <tr><td>Pairs</td><td>Allowed, both sign</td><td>Individual only</td></tr>
+    </tbody>
+  </table></div>
+</section>
+
+<section id="examples">
+  <h2><span class="n">§15</span>Four worked examples</h2>
+  <p>Each ships with a published resource, a reference solution that passes every hidden test, a canonical solution that scores low on the twist categories, public and hidden suites, a filled handout, and a sample student submission.</p>
+  <div class="examples">
+    <div class="ex"><span class="eyebrow">01 · Type B · multi-part · the previous project</span><b>Morris variant, minimax and alpha-beta</b><p>The professor's actual Spring 2026 project recast: 23-point board, file-argument CLI, four parts at 45/35/10/10, equivalence policies per category, positions-evaluated made order-safe.</p></div>
+    <div class="ex"><span class="eyebrow">02 · Type A · published resource</span><b>A* with a momentum rule</b><p>Every fourth step in a straight run is free. Forces a state augmentation and an adjusted heuristic; canonical A* scores 0 on both twist categories.</p></div>
+    <div class="ex"><span class="eyebrow">03 · Type B · research pointer</span><b>Bencode with three changes</b><p>The resource points at the BitTorrent BEP 3 page, snapshotted, then changes length prefixes, key order, and booleans.</p></div>
+    <div class="ex"><span class="eyebrow">04 · Type A · variant parameters</span><b>Interval scheduling with a cooldown</b><p>Each student's URL carries a variant; the gap rule derives from it and hidden tests are generated per student.</p></div>
+  </div>
+</section>
+
+<section id="ships">
+  <h2><span class="n">§16</span>What ships, and what was verified</h2>
+  <pre><code>framework.md        the professor-facing document this page summarizes
+CONTEXT.md          glossary
+templates/          handout (A, B), rubric, twist + calibration checklists,
+                    TA runbook, rotation checklist, process-note prompt
+tools/              runner.py, run_tests.py, grade.py, combine_parts.py, prescan.py,
+                    ledger_server.py, sandbox/   (Python stdlib + Docker + Ollama)
+examples/01–04      the four projects above
+docs/grill/         the six-round design interview behind every decision
+docs/adr/           the three decisions that were hard to reverse
+docs/research/      free-harness survey; the previous project's rubric and what it left open</code></pre>
+  <ul class="check">
+    <li class="done">Test runner (both contracts, the file-argument one against the previous project's real reference program), grader, part combiner, pre-scan and ledger server against fixtures and all four examples</li>
+    <li class="done">Reference solutions pass every hidden test; canonical solutions fail the twist categories</li>
+    <li class="done">Sandbox builds; tests run unprivileged; firewall blocks outside hosts and admits the resource; a ledger signature from inside the container reaches the file</li>
+    <li class="done">Runner's sandboxed Type A path on examples 02 and 04, including per-variant generation</li>
+    <li>An actual OpenCode regeneration against Ollama <code>qwen2.5-coder:14b</code>. Not installed on the build machine; the calibration checklist covers exactly this</li>
+  </ul>
+</section>
+
+</main>
+<footer>Prepared from the professor's Spring 2026 Project 2 rubric and the constraints given for the next iteration. Every decision and its alternatives are recorded in docs/grill/round-01 through round-07.</footer>
+</div>

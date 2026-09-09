@@ -1,0 +1,7 @@
+seeds.secret.json
+runs/
+ledger.tsv
+course-ledger.tsv
+__pycache__/
+*.pyc
+.DS_Store

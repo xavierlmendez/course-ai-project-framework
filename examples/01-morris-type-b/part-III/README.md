@@ -1,0 +1,1 @@
+Part III (MiniMaxOpeningBlack, MiniMaxGameBlack): built the same way as part-I; not populated in this thin example. The colors_back category exists because the most common failure is returning the colour-swapped board (see PROMPT_TUNING pattern 5).

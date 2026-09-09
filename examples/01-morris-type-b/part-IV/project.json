@@ -1,0 +1,9 @@
+{
+  "name": "morris-p4", "type": "B", "entry": "MiniMaxOpeningImproved.py", "test_timeout_s": 30,
+  "hidden_tests": "tests/hidden", "public_tests": "tests/public",
+  "categories": {
+    "improved_differs": {"weight": 2, "twist": true, "policy": "valid", "note": "positions where the student's own MyStaticEstimation.txt says the improved function picks a different move than the baseline; check.py verifies legality and that the move differs from the baseline reference"},
+    "improved_valid":   {"weight": 2, "policy": "valid", "note": "any legal move; the estimate is student-defined so only legality and format are checked"},
+    "grad_depth4":      {"weight": 1, "grad_only": true, "policy": "valid"}
+  }
+}

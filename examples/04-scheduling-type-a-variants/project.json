@@ -1,0 +1,27 @@
+{
+  "name": "sched-a",
+  "type": "A",
+  "entry": "solve.py",
+  "python": "python3",
+  "resource_host": "host.docker.internal",
+  "ollama_host": "http://host.docker.internal:11434",
+  "base_model": "qwen2.5-coder:14b",
+  "k": 3,
+  "temperatures": [0.2, 0.6, 1.0],
+  "seeds_file": "seeds.secret.json",
+  "regeneration_timeout_s": 1200,
+  "test_timeout_s": 10,
+  "hidden_tests": "tests/hidden",
+  "public_tests": "tests/public",
+  "hidden_points": 70, "milestone_points": 10, "written_points": 20,
+  "categories": {
+    "basic":          {"weight": 1},
+    "overlaps":       {"weight": 1},
+    "twist_cooldown": {"weight": 1, "twist": true},
+    "twist_class":    {"weight": 1, "twist": true},
+    "grad_large":     {"weight": 1, "grad_only": true}
+  },
+  "sandbox_image": "harness-sandbox",
+  "sandbox_memory": "2g",
+  "variants": {"generator": "tests/gen_hidden.py"}
+}
