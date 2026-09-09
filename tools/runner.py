@@ -459,11 +459,12 @@ def regenerate(p, sub_dir, workdir, slot, seed, run_tag, sandbox, dry):
     # the task: it never started. Scoring that as the student's zero would blame a cohort
     # for a broken setup. Measured failure mode: a model that emits its tool call as plain
     # text (docs/review/evidence/harness-tool-calling.md).
-    if not rec["entry_present"] and not env_err and not timed_out and code == 0:
+    if not rec["entry_present"] and not env_err and not timed_out:
         if '"type":"tool"' not in (out or ""):
-            rec["harness_error"] = ("the harness made no tool call and produced no file. "
-                                    "The model is probably not emitting structured tool calls; "
-                                    "run the calibration checklist before grading.")
+            rec["harness_error"] = (
+                f"the harness exited {code} having made no tool call and produced no file. "
+                "Either the model is not emitting structured tool calls or the harness itself "
+                "failed; neither is the student's doing. Run the calibration checklist before grading.")
     return rec
 
 

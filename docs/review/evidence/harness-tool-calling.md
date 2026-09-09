@@ -82,6 +82,26 @@ content. The capability flag describes the template, not the model's behaviour.
    this project had the model until now. This is the failure the gate exists for, found one
    step late.
 
+## The context-size theory, tested and refuted
+
+OpenCode's provider documentation says tool calls that arrive as text are usually a context
+problem: Ollama defaults to 4096 tokens and the tool schemas alone exceed it, so raise
+`num_ctx` to 16k–32k. Tested on the R620 (16 cores, 32 GB, the model fully in RAM at 32k):
+
+| `num_ctx` | structured tool calls, 5 attempts |
+|---|---|
+| 4096 | 0 |
+| 32768 | 0 |
+
+Identical text-only replies at both sizes (`docs/review/evidence/cpu-run/tooltest-*.txt`).
+Context is not the cause. The runner nevertheless now carries `num_ctx` into the slot
+Modelfiles, because 4096 is too small for an agent loop regardless of which model is chosen.
+
+A side observation from the same run: at 32k the 14B model occupies 15 GB rather than 9,
+which on a 16 GB laptop spills to CPU and swaps. Whatever model is chosen, the "students run
+the reference harness on their own machines" story needs either an 8B-class model or the
+shared server.
+
 ## What does not change
 
 The rest of the design is unaffected: the pinning, the seeds, the temperature schedule, the

@@ -8,7 +8,7 @@ set -uo pipefail
 REPO="${REPO:-$HOME/framework}"; EV="$REPO/evidence-cpu"; mkdir -p "$EV"
 MODEL="${MODEL:-qwen2.5-coder:14b}"; ALT="${ALT:-qwen3:14b}"
 log() { echo "[$(date +%H:%M:%S)] $*" | tee -a "$EV/log.txt"; }
-: > "$EV/log.txt"
+[ "${RERUN_STAGE1:-0}" = 1 ] && : > "$EV/log.txt"
 log "== host: $(nproc) cpus, $(free -g | awk '/Mem:/{print $2}') GB; ollama $(ollama --version 2>&1 | grep -o '[0-9.]*$'); opencode $(opencode --version)"
 
 tooltest() { # model num_ctx label -> prints ok count
@@ -25,11 +25,16 @@ tooltest() { # model num_ctx label -> prints ok count
       echo "  $i: text-only: $(echo "$r" | python3 -c 'import json,sys;print((json.load(sys.stdin).get("message",{}).get("content") or "")[:80].replace("\n"," "))')" >> "$EV/tooltest-$label.txt"
     fi
   done
-  log "tooltest $m num_ctx=$ctx -> $ok/5 structured tool calls"; echo "$ok"
+  log "tooltest $m num_ctx=$ctx -> $ok/5 structured tool calls"; echo "$ok" > "$EV/count-$label"
 }
 
 log "== 1. tool calling, $MODEL"
-R4=$(tooltest "$MODEL" 4096 4k); R32=$(tooltest "$MODEL" 32768 32k)
+if [ -s "$EV/count-32k" ] && [ "${RERUN_STAGE1:-0}" = 0 ]; then
+  log "stage 1 evidence exists (4k=$(cat "$EV/count-4k" 2>/dev/null), 32k=$(cat "$EV/count-32k")); skipping"
+else
+  tooltest "$MODEL" 4096 4k; tooltest "$MODEL" 32768 32k
+fi
+R32=$(cat "$EV/count-32k")
 ollama ps | tee "$EV/ollama-ps-32k.txt"
 
 USE="$MODEL"
@@ -37,7 +42,7 @@ if [ "$R32" -lt 4 ]; then
   log "== 2. $MODEL unreliable at 32k ($R32/5); pulling $ALT"
   ollama pull "$ALT" 2>&1 | tail -1
   ollama show "$ALT" | sed -n '/Capabilities/,/^$/p' | tee "$EV/capabilities-alt.txt"
-  RA=$(tooltest "$ALT" 32768 alt-32k)
+  tooltest "$ALT" 32768 alt-32k; RA=$(cat "$EV/count-alt-32k")
   [ "$RA" -ge 4 ] && USE="$ALT"
 else
   log "== 2. skipped: $MODEL calls tools at 32k"

@@ -1,0 +1,2 @@
+NAME                 ID              SIZE     PROCESSOR    CONTEXT    UNTIL              
+qwen2.5-coder:14b    9ec8897f747e    15 GB    100% CPU     32768      4 minutes from now    
