@@ -99,12 +99,28 @@ def discover(tests_dir):
     return cats
 
 
+def hand_case_dir_to(tmp, in_tmp, run_as):
+    """Make the per-case directory usable by the user the solution runs as.
+
+    mkdtemp creates it 0700 for the caller. Inside the sandbox the caller is root and the
+    solution is `runner`, which then can neither read {in} nor write {out}: every
+    argv-files case "crashed" in 14 ms (g5.xlarge, 2026-09-09). Ownership moves to the
+    solution's user; the expected-output files never enter this directory.
+    """
+    if not run_as or os.geteuid() != 0:
+        return
+    ent = pwd.getpwnam(run_as)
+    os.chown(tmp, ent.pw_uid, ent.pw_gid)
+    os.chown(in_tmp, ent.pw_uid, ent.pw_gid)
+
+
 def run_case_argv(solution, entry, python, in_path, args_path, timeout, run_as=None):
     """argv-files contract: python3 entry <args with {in}/{out} substituted>."""
     tmp = tempfile.mkdtemp(prefix="case-")
     in_tmp = os.path.join(tmp, "input.txt")
     out_tmp = os.path.join(tmp, "output.txt")
     shutil.copyfile(in_path, in_tmp)
+    hand_case_dir_to(tmp, in_tmp, run_as)
     args = open(args_path).read().strip().replace("{in}", in_tmp).replace("{out}", out_tmp).split()
     t0 = time.time()
     try:
