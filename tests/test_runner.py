@@ -272,6 +272,7 @@ class TestPracticeRun(TempCase):
         with mock.patch.object(sys, "argv", argv), \
              mock.patch.object(runner, "regenerate", return_value=stub_regeneration()), \
              mock.patch.object(runner, "run_tests", side_effect=capture_tests), \
+             mock.patch.object(runner, "model_server_reachable", return_value=True), \
              mock.patch.object(runner, "slot_parameters", side_effect=RuntimeError("model not found")), \
              mock.patch.object(runner, "create_slots") as created:
             runner.main()

@@ -18,7 +18,8 @@ there, and creates the pinned slot models if the model server does not have them
 
 Records: <out>/<submission_id>/k<N>.json (Type B) or <out>/<id>/a.json (Type A).
 A record with "complete": true is skipped on rerun, so an interrupted batch
-resumes with the same command.
+resumes with the same command. --dry-run writes <tag>-k<N>.dry.json beside a
+<tag>-k<N>-dry-work directory; nothing downstream reads a *.dry.json record.
 
 project.json keys (see tools/README.md for the full schema):
   type, entry, python, resource_host, ollama_host, base_model, k, temperatures,
@@ -94,6 +95,9 @@ def load_project(path):
     p.setdefault("public_tests", "tests/public")
     p.setdefault("sandbox_image", "harness-sandbox")
     p.setdefault("ollama_host", "http://host.docker.internal:11434")
+    # The agent loop's tool schemas do not fit Ollama's 4096-token default context, and a
+    # slot that overflows it silently truncates the prompt (measured 2026-09-08/09).
+    p.setdefault("num_ctx", 32768)
     p.setdefault("spec", "SPEC.md")
     p.setdefault("wrapper_prompt", DEFAULT_WRAPPER)
     p.setdefault("slot_prefix", "ref-" + p.get("name", "project") + "-slot")
@@ -128,6 +132,23 @@ def load_status(path):
         return {r["student_id"]: r for r in csv.DictReader(fh)}
 
 
+# A missing binary raises FileNotFoundError deep inside subprocess, which reached the
+# student as a raw traceback after "slots ready". Each one gets the sentence that says
+# what to install.
+MISSING_TOOL = {
+    "opencode": "opencode is not installed or not on PATH; see templates/student-primer.md",
+    "docker": "docker is not installed or not on PATH; a sandboxed run needs it "
+              "(build the image with `docker build -t harness-sandbox tools/sandbox/`), "
+              "or use --practice to run on the host",
+    "ollama": "the ollama CLI is not installed or not on PATH; see templates/student-primer.md",
+}
+
+
+def missing_tool_message(cmd):
+    exe = os.path.basename(cmd[0]) if cmd else ""
+    return MISSING_TOOL.get(exe, f"{exe or 'the command'} is not installed or not on PATH")
+
+
 def sh(cmd, timeout=None, cwd=None, dry=False, env=None):
     if dry:
         print("  $ " + " ".join(cmd))
@@ -136,6 +157,8 @@ def sh(cmd, timeout=None, cwd=None, dry=False, env=None):
     try:
         r = subprocess.run(cmd, cwd=cwd, env=env, capture_output=True, text=True, timeout=timeout)
         return r.returncode, r.stdout, r.stderr, time.time() - t0
+    except FileNotFoundError:
+        sys.exit(missing_tool_message(cmd))
     except subprocess.TimeoutExpired as e:
         return None, (e.stdout or "") if isinstance(e.stdout, str) else "", (e.stderr or "") if isinstance(e.stderr, str) else "", time.time() - t0
 
@@ -183,6 +206,19 @@ def verify_slots(p, seeds):
             problems.append(f"slot {i}: model has no seed parameter")
         elif seeds and str(got_s) != str(seeds[i - 1]):
             problems.append(f"slot {i}: effective seed does not match seeds.secret.json")
+        want_ctx = p.get("num_ctx", 32768)
+        got_c = params.get("num_ctx")
+        if got_c is None:
+            problems.append(f"slot {i}: model has no num_ctx parameter; it will run at Ollama's "
+                            f"4096 default, which the agent loop's tool schemas do not fit "
+                            f"(project says {want_ctx}). Re-run --create-slots.")
+        else:
+            try:
+                mismatch = int(got_c) != int(want_ctx)
+            except (TypeError, ValueError):
+                mismatch = str(got_c) != str(want_ctx)
+            if mismatch:
+                problems.append(f"slot {i}: effective num_ctx {got_c}, project says {want_ctx}")
         seen[i] = got_t
     distinct = {v for v in seen.values() if v is not None}
     if len(seen) > 1 and len(distinct) == 1:
@@ -190,18 +226,54 @@ def verify_slots(p, seeds):
     return problems
 
 
+def ollama_env(p):
+    """Environment for the `ollama` CLI so it talks to *this project's* model server.
+
+    Without OLLAMA_HOST the CLI targets whatever it defaults to, so a project pointing at
+    a shared box silently created its slot models on the student's own laptop instead.
+    """
+    return dict(os.environ, OLLAMA_HOST=host_side_ollama(p))
+
+
+def model_server_reachable(p):
+    url = host_side_ollama(p).rstrip("/") + "/api/tags"
+    try:
+        with urllib.request.urlopen(url, timeout=10):
+            return True
+    except Exception:
+        return False
+
+
+def unreachable_message(p):
+    return (f"cannot reach the model server at {host_side_ollama(p)} "
+            f"(project.json ollama_host={p['ollama_host']!r}, "
+            f"ollama_host_local={p.get('ollama_host_local')!r}). "
+            "Start Ollama (`ollama serve`), or set `ollama_host` / `ollama_host_local` in "
+            "project.json to the address this machine can reach it on.")
+
+
+def require_model_server(p):
+    if not model_server_reachable(p):
+        sys.exit(unreachable_message(p))
+
+
 def create_slots(p, dry):
     seeds = load_seeds(p)
+    num_ctx = p.get("num_ctx", 32768)
+    if not dry:
+        require_model_server(p)
     for i, (t, s) in enumerate(zip(p["temperatures"], seeds), 1):
         name = f"{p['slot_prefix']}{i}"
-        modelfile = f"FROM {p['base_model']}\nPARAMETER temperature {t}\nPARAMETER seed {s}\n"
-        print(f"creating {name}: temperature={t} seed=<redacted>")
+        modelfile = (f"FROM {p['base_model']}\nPARAMETER temperature {t}\n"
+                     f"PARAMETER seed {s}\nPARAMETER num_ctx {num_ctx}\n")
+        print(f"creating {name}: temperature={t} seed=<redacted> num_ctx={num_ctx}")
         if dry:
-            print(f"FROM {p['base_model']}\nPARAMETER temperature {t}\nPARAMETER seed <redacted>")
+            print(f"FROM {p['base_model']}\nPARAMETER temperature {t}\n"
+                  f"PARAMETER seed <redacted>\nPARAMETER num_ctx {num_ctx}")
             continue
         with tempfile.NamedTemporaryFile("w", delete=False, suffix=".Modelfile") as tf:
             tf.write(modelfile)
-        code, out, err, _ = sh(["ollama", "create", name, "-f", tf.name])
+        code, out, err, _ = sh(["ollama", "create", name, "-f", tf.name], env=ollama_env(p))
         os.unlink(tf.name)
         if code != 0:
             sys.exit(f"ollama create failed for {name}: {err}")
@@ -266,9 +338,10 @@ def practice_setup(p, a, ptype):
     ensure_practice_seeds(p)
     if a.dry_run:
         return
+    require_model_server(p)
     missing = slot_models_missing(p)
     if missing:
-        print(f"slot models {missing} are not on {p['ollama_host']}; creating them")
+        print(f"slot models {missing} are not on {host_side_ollama(p)}; creating them")
         create_slots(p, a.dry_run)
 
 
@@ -341,7 +414,7 @@ def host_side_ollama(p):
     return url
 
 
-def write_opencode_config(p, workdir, slot_model, temperature=None, seed=None):
+def write_opencode_config(p, workdir, slot_model, temperature=None, seed=None, sandbox=True):
     """OpenCode config so the sandbox talks to the pinned slot model with tools auto-approved.
 
     Temperature and seed are pinned in the Ollama Modelfile (see create_slots). They are
@@ -362,7 +435,10 @@ def write_opencode_config(p, workdir, slot_model, temperature=None, seed=None):
                 "npm": "@ai-sdk/openai-compatible",
                 "name": "Ollama (reference)",
                 "options": {
-                    "baseURL": p["ollama_host"].rstrip("/") + "/v1",
+                    # Inside the sandbox the container-only name is what resolves; on the
+                    # host it does not, so a non-sandbox run needs the host-side URL or the
+                    # student would have to edit project.json to practise.
+                    "baseURL": (p["ollama_host"] if sandbox else host_side_ollama(p)).rstrip("/") + "/v1",
                     # OpenCode 1.18.29 aborts a request whose response headers (or next
                     # streamed chunk) take longer than 300 s, "ProviderHeaderTimeoutError".
                     # A 14B model on CPU spends longer than that on the first prompt
@@ -532,7 +608,7 @@ def regenerate(p, sub_dir, workdir, slot, seed, run_tag, sandbox, dry):
         os.makedirs(workdir, exist_ok=True)
     slot_model = f"{p['slot_prefix']}{slot}"
     write_opencode_config(p, workdir, slot_model,
-                          temperature=p["temperatures"][slot - 1], seed=seed)
+                          temperature=p["temperatures"][slot - 1], seed=seed, sandbox=sandbox)
     prompt = wrapper_prompt(p)
     env = {"RUN_TAG": run_tag, "SLOT_MODEL": slot_model, "PROMPT": prompt}
     cname = f"harness-{p.get('name','project')}-{run_tag}-{os.path.basename(os.path.dirname(workdir))}"
@@ -564,7 +640,7 @@ def regenerate(p, sub_dir, workdir, slot, seed, run_tag, sandbox, dry):
     # the task: it never started. Scoring that as the student's zero would blame a cohort
     # for a broken setup. Measured failure mode: a model that emits its tool call as plain
     # text (docs/review/evidence/harness-tool-calling.md).
-    if not rec["entry_present"] and not env_err and not timed_out:
+    if not rec["entry_present"] and not env_err and not timed_out and not dry:
         if '"type":"tool"' not in (out or ""):
             rec["harness_error"] = (
                 f"the harness exited {code} having made no tool call and produced no file. "
@@ -588,10 +664,20 @@ def already_done(path):
         return False
 
 
-def record_name(run_tag, slot):
+def record_name(run_tag, slot, dry=False):
     """Grading writes k<N>.json. Any other run tag writes its own record, so an appeal
-    is not mistaken for a completed grading slot and cannot overwrite one."""
-    return f"k{slot}.json" if run_tag == "grading" else f"{run_tag}-k{slot}.json"
+    is not mistaken for a completed grading slot and cannot overwrite one.
+
+    A --dry-run record is worth keeping (it holds the command lines) but is not a run, so
+    it is named <tag>-k<N>.dry.json; grade.py and milestone.py ignore *.dry.json.
+    """
+    base = f"k{slot}" if run_tag == "grading" else f"{run_tag}-k{slot}"
+    return base + (".dry.json" if dry else ".json")
+
+
+def work_dir_name(run_tag, slot, dry=False):
+    """The directory the harness runs in, beside its record."""
+    return f"{run_tag}-k{slot}" + ("-dry-work" if dry else "-work")
 
 
 def process_type_b(p, sid, sub_dir, out, seeds, run_tag, slots, tests_override, sandbox, dry):
@@ -602,16 +688,17 @@ def process_type_b(p, sid, sub_dir, out, seeds, run_tag, slots, tests_override, 
         return "skipped"
     outcome = "ok"
     for slot in slots:
-        rp = record_path(out, sid, record_name(run_tag, slot))
+        rp = record_path(out, sid, record_name(run_tag, slot, dry))
         if already_done(rp):
             print(f"  {sid} k{slot}: done, skipping")
             continue
-        workdir = os.path.join(out, sid, f"{run_tag}-k{slot}-work")
+        workdir = os.path.join(out, sid, work_dir_name(run_tag, slot, dry))
         print(f"  {sid} k{slot}: temperature={p['temperatures'][slot-1]} tag={run_tag}-k{slot}")
         # The seed value is deliberately not stored: a run record travels with an appeal
         # packet, and the seeds are secret until grades are released.
         rec = {"submission": sid, "type": "B", "slot": slot, "temperature": p["temperatures"][slot - 1],
                "seed_recorded": False, "run_tag": f"{run_tag}-k{slot}", "started": now(),
+               "dry_run": bool(dry),
                "tests_dir": os.path.abspath(tests_dir) if tests_dir else None}
         try:
             rec["regeneration"] = regenerate(p, sub_dir, workdir, slot, seeds[slot - 1],
@@ -641,7 +728,8 @@ def process_type_b(p, sid, sub_dir, out, seeds, run_tag, slots, tests_override, 
 
 
 def process_type_a(p, sid, sub_dir, out, tests_override, sandbox, dry, run_tag="grading"):
-    rp = record_path(out, sid, "a.json" if run_tag == "grading" else f"{run_tag}-a.json")
+    base = "a" if run_tag == "grading" else f"{run_tag}-a"
+    rp = record_path(out, sid, base + (".dry.json" if dry else ".json"))
     if already_done(rp):
         print(f"  {sid}: done, skipping")
         return "ok"
@@ -649,12 +737,13 @@ def process_type_a(p, sid, sub_dir, out, tests_override, sandbox, dry, run_tag="
     if why:
         print(f"  {sid}: SKIP ({why})")
         return "skipped"
-    workdir = os.path.join(out, sid, ("a" if run_tag == "grading" else run_tag + "-a") + "-work")
+    workdir = os.path.join(out, sid, base + ("-dry-work" if dry else "-work"))
     if os.path.exists(workdir):
         shutil.rmtree(workdir)
     shutil.copytree(sub_dir, workdir, ignore=shutil.ignore_patterns(".git"))
     print(f"  {sid}: hidden tests")
-    rec = {"submission": sid, "type": "A", "run_tag": run_tag, "started": now()}
+    rec = {"submission": sid, "type": "A", "run_tag": run_tag, "started": now(),
+           "dry_run": bool(dry)}
     rec["tests"] = run_tests(p, workdir, tests_dir, sandbox, dry)
     rec["ended"] = now()
     rec["complete"] = not dry
