@@ -90,4 +90,26 @@ On-Demand G and VT instances" → 8) remains the way to do a real cohort.
 
 ## 6. Late results
 
-(appended below when the last jobs finished)
+**The Type B regeneration is now proven end to end on the R620 (06:00–08:30 UTC).** Root cause of
+every failed run: qwen3's *thinking* mode. The model narrates its tool plan inside `<think>`,
+closes the block and ends the turn with zero tool calls. Two dead ends were measured: Modelfiles
+reject `PARAMETER think false`, and Ollama 0.33.3's `/v1/chat/completions` (what OpenCode uses)
+silently ignores `"think": false` — three replays of OpenCode's captured request came back byte
+for byte identical. The fix is a slot Modelfile whose `TEMPLATE` is the base template with two
+one-line patches (always append `/no_think` to the last user message; always prefill an empty
+`<think></think>` block). With it, OpenCode made nine tool calls, fetched the course page, wrote
+a real 4.5 KB `MiniMaxOpening.py`, tested it with bash and **signed the ledger**
+(`ABC123456  night6  127.0.0.1`). Evidence: `docs/review/evidence/cpu-run/night6-*.txt`.
+
+Consequences applied tonight (last slice): the runner writes the patched template into every
+slot Modelfile by default (`"thinking": "off"` in project.json; D-007 accepted), and the docs say
+that `regeneration_timeout_s` 1200 is a GPU number — a CPU run took 28 minutes without the
+course page and was still iterating at 90 minutes with it.
+
+**CONFIRM:** the calibration run for the professor's reference specification still has to be
+done on the real grading box; the R620 proves the path, not the pass rate.
+
+**Cold TA run 6** still said "no" for both projects; every item it raised was fixed in the last
+runbook slice (single-part course pre-scan, Type B ledger check after the batch, dry-run-safe
+retry count, real loops for the batch commands, rehearsal note rewritten, record `tests` block
+documented). A seventh run is the next check; the third student walk found the Type A path clean.
