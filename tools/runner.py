@@ -289,7 +289,16 @@ def write_opencode_config(p, workdir, slot_model, temperature=None, seed=None):
             "ollama": {
                 "npm": "@ai-sdk/openai-compatible",
                 "name": "Ollama (reference)",
-                "options": {"baseURL": p["ollama_host"].rstrip("/") + "/v1"},
+                "options": {
+                    "baseURL": p["ollama_host"].rstrip("/") + "/v1",
+                    # OpenCode 1.18.29 aborts a request whose response headers (or next
+                    # streamed chunk) take longer than 300 s, "ProviderHeaderTimeoutError".
+                    # A 14B model on CPU spends longer than that on the first prompt
+                    # (measured on the R620, 2026-09-09). The runner already kills the
+                    # harness at regeneration_timeout_s, so that is the only bound needed.
+                    "headerTimeout": int(p["regeneration_timeout_s"]) * 1000,
+                    "chunkTimeout": int(p["regeneration_timeout_s"]) * 1000,
+                },
                 "models": {slot_model: model_opts},
             }
         },

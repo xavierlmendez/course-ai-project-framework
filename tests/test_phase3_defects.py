@@ -157,3 +157,18 @@ class TestMilestoneForTypeB(TempCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class TestOpenCodeTimeouts(TempCase):
+    """OpenCode 1.18.29 aborts a provider request after 300 s of silence (measured on the
+    R620, 2026-09-09: "ProviderHeaderTimeoutError: Provider response headers timed out after
+    300000ms"). The generated config must lift both timeouts to the runner's own budget."""
+
+    def test_header_and_chunk_timeouts_follow_the_regeneration_budget(self):
+        p = {"ollama_host": "http://host.docker.internal:11434", "regeneration_timeout_s": 1800}
+        runner.write_opencode_config(p, self.dir, "ref-x-slot1", temperature=0.2, seed=7)
+        cfg = json.load(open(os.path.join(self.dir, "opencode.json")))
+        opts = cfg["provider"]["ollama"]["options"]
+        self.assertEqual(opts["headerTimeout"], 1800 * 1000)
+        self.assertEqual(opts["chunkTimeout"], 1800 * 1000)
+        self.assertEqual(opts["baseURL"], "http://host.docker.internal:11434/v1")
