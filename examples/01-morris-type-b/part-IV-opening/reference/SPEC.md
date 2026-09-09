@@ -52,6 +52,7 @@ A module-level counter `positions_evaluated = 0`.
    `Positions evaluated by static estimation: <N>.`
    `MINIMAX estimate: <V>.`
    Printing `Board Position: <board>.` (with a period) fails every test. The third line says `MINIMAX estimate:` in every program, including the alpha-beta ones.
+   `<board>` is the board **after** the move your program chose — the same string you write to the output file — never the board you read from the input file. Printing the input board back is the single most common failure of generated programs and fails every test.
 6. Do not read any file other than `sys.argv[1]`. Do not import anything outside the standard library. One file only.
 7. The improved estimation replaces the baseline everywhere the search evaluates a position. A program that still returns `count('W') - count('B')` is the failure this part is graded on.
 8. Mills and threats are counted over the **18 mills of this board**, diagonal spokes included. Counting them over the textbook 16 lines gives the wrong number of threats.

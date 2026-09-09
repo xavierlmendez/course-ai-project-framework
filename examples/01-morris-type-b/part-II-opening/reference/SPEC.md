@@ -51,6 +51,7 @@ Module-level `positions_evaluated = 0`.
    `Positions evaluated by static estimation: <N>.`
    `MINIMAX estimate: <V>.`
    Printing `Board Position: <board>.` (with a period) fails every test. The third line says `MINIMAX estimate:` in this program too, even though the search is alpha-beta.
+   `<board>` is the board **after** the move your program chose — the same string you write to the output file — never the board you read from the input file. Printing the input board back is the single most common failure of generated programs and fails every test.
 6. Output the file as raw Python. No markdown fences, no prose before or after the code.
 7. Ties between equal-valued moves keep the first generated move; generation order is ascending index for children and for removals.
 8. The static estimation for the opening is exactly `count('W') - count('B')`; no extra terms.

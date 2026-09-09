@@ -54,6 +54,7 @@ A module-level counter `positions_evaluated = 0`.
    `Positions evaluated by static estimation: <N>.`
    `MINIMAX estimate: <V>.`
    Printing `Board Position: <board>.` (with a period) fails every test.
+   `<board>` is the board **after** the move your program chose — the same string you write to the output file — never the board you read from the input file. Printing the input board back is the single most common failure of generated programs and fails every test.
 10. Do not read any file other than `sys.argv[1]`. Do not import anything outside the standard library. One file only.
 
 ## CLI

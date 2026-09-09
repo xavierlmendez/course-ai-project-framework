@@ -52,6 +52,7 @@ A module-level counter `positions_evaluated = 0`.
    `Positions evaluated by static estimation: <N>.`
    `MINIMAX estimate: <V>.`
    Printing `Board Position: <board>.` (with a period) fails every test. The third line says `MINIMAX estimate:` in every program, including the alpha-beta ones.
+   `<board>` is the board **after** the move your program chose — the same string you write to the output file — never the board you read from the input file. Printing the input board back is the single most common failure of generated programs and fails every test.
 6. Do not read any file other than `sys.argv[1]`. Do not import anything outside the standard library. One file only.
 7. **Fail-soft.** Return `best`, never `alpha` or `beta`. Prune on `alpha >= beta`, not `>`.
 8. The estimate printed must equal the MINIMAX estimate for the same board and depth. Pruning changes only the count.

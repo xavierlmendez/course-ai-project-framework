@@ -51,6 +51,7 @@ A module-level counter `positions_evaluated = 0`.
    `Positions evaluated by static estimation: <N>.`
    `MINIMAX estimate: <V>.`
    Printing `Board Position: <board>.` (with a period) fails every test. The third line says `MINIMAX estimate:` in every program, including the alpha-beta ones.
+   `<board>` is the board **after** the move your program chose — the same string you write to the output file — never the board you read from the input file. Printing the input board back is the single most common failure of generated programs and fails every test.
 6. Do not read any file other than `sys.argv[1]`. Do not import anything outside the standard library. One file only.
 7. **Swap the colours back.** The board printed and written to the output file is in the ORIGINAL colours; only the search runs on the swapped board.
 8. The value is *not* swapped back: high means good for Black.
