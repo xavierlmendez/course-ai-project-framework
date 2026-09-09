@@ -7,15 +7,26 @@ Python 3 standard library plus Docker and Ollama. A TA can read every file in on
 | `run_tests.py` | Runs interface-contract tests against one solution directory. Used by students (public suite), by the milestone, and by the runner inside the sandbox (hidden suite). Given `--project project.json` it enforces each category's declared equivalence policy and reports it in the summary. |
 | `runner.py` | TA batch runner. Type B: K sandboxed regenerations per submission, then hidden tests. Type A: hidden tests once. Also creates the pinned slot models (`--create-slots`), and gives students one practice command (`--practice`). Both stop with the URL they tried if the model server is unreachable, and a missing `opencode` or `docker` binary gives a sentence naming what to install, not a traceback. Resumable. |
 | `grade.py` | Turns runner records plus `status.csv`, `written.csv`, `milestone.csv` into `gradebook.csv`. Refuses a `status.csv` with no `grad` column, refuses a written dimension outside 0–3, and marks a row `incomplete` rather than emitting a total that silently omits a component. |
-| `grade_all.py` | Grades a whole project, single-part or multi-part, in one command. Replaces the shell loop, which word-split differently in bash and zsh and silently continued past a part that was never run. |
+| `grade_all.py` | Grades a whole project, single-part or multi-part, in one command. Replaces the shell loop, which word-split differently in bash and zsh and silently continued past a part that was never run. Given `--submissions DIR` (the course-level submissions directory) it runs the fan-out itself first, so the per-program directories always match what the students handed in. Writes one intermediate gradebook per part, `gb-<program>.csv`, beside the project or under `--work`. |
 | `combine_parts.py` | Combines per-part gradebooks. Each part contributes only its **hidden** score, weighted; the milestone and written component are course-level and added once. |
 | `milestone.py` | `record` (student) runs the public suite and writes a milestone record; on a Type B project it requires the runner record of a completed regeneration and embeds it as the record's `harness` block. `check` (TA) validates submitted records into `milestone.csv`, refusing a Type B record with no harness evidence. |
-| `prescan.py` | Flags lines in specifications the safety read must look at closely. Not a safety control. |
-| `ledger_server.py` | Serves the published resource and the write-only ledger endpoint. `--project project.json` takes its resource directory, ledger file, nonce and port from the project, which is the form a handout can give a student. Reference implementation; port the one route into an existing site if you have one. |
+| `fan_out.py` | Turns the **student layout** of a multi-part submission (`submissions/<id>/<program>/SPEC.md`, plus one `WRITTEN.md` and one `PROCESS.md` at the top) into the per-program `part-<program>/submissions/<id>/` directories the runner reads, copying the course-level pages into each. One row per student: programs present/missing, words per `SPEC.md`. Exit 1 with a named reason for any layout problem; `--check` validates without writing. |
+| `prescan.py` | Flags lines in specifications the safety read must look at closely. Not a safety control. `--course DIR` scans the course-level submissions of a multi-part project instead of one part's, one row per student, and is where the single `WRITTEN.md` and `PROCESS.md` are checked. |
+| `ledger_server.py` | Serves the published resource and the write-only ledger endpoint. `--project project.json` takes its resource directory, ledger file, nonce and port from the project, which is the form a handout can give a student. A busy port exits with one sentence — `port N is already in use: another resource server is probably still running (stop it, or pass --port to use another port)` — not a traceback. Reference implementation; port the one route into an existing site if you have one. |
 | `sandbox/` | Docker image: Python, a **pinned** OpenCode, curl, and an outbound allowlist of host:port pairs. Hidden tests are staged root-only; the graded solution runs unprivileged. |
 | `../tests/` | `python3 -m unittest discover -s tests`. Every test names the finding it guards. No Docker, model or network needed. |
 | `../scripts/rehearsal.py` | Grades a fixture cohort end to end and prints the arithmetic beside the gradebook, so the totals can be checked by hand. |
 | `../scripts/review_checks.py` | The deterministic checks over the examples and the repo. |
+
+**When the binary checks happen.** They run before anything is written, because a practice run
+used to create slot models and print "slots ready" before reporting that `opencode` was missing:
+
+- practice mode, and any other non-sandboxed Type B regeneration, checks `opencode` and then
+  `ollama` **before** writing `seeds.practice.json` or creating any slot;
+- a sandboxed run checks `docker` instead, and first;
+- `--create-slots` checks the `ollama` binary **and** that the model server answers, both before
+  the first Modelfile is written;
+- `--dry-run` skips all of these: it prints the command lines and runs nothing.
 
 ## Layout of a project directory
 
@@ -43,6 +54,12 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
                             solve.py (+ files), PROCESS.md, WRITTEN.md              [Type A]
                             variant.txt                                            [variant projects]
 ```
+
+A multi-part project keeps one **course-level** `submissions/<id>/` in the student layout —
+`<program>/SPEC.md` per program, one `WRITTEN.md` and one `PROCESS.md` at the top — and
+`fan_out.py` derives the per-program `part-<program>/submissions/<id>/` from it. Those derived
+directories are generated output: `examples/01-morris-type-b/part-*/submissions/` are gitignored
+and are rebuilt by the fan-out, so nothing there should be edited by hand.
 
 ## `project.json`
 
@@ -187,9 +204,39 @@ Only the specification and the data files it names by filename are copied into t
 directory. Files ending in the entry point's extension are never copied, so a student cannot
 ship a finished solution and be graded on it.
 
+## The milestone record
+
+`milestone.py record` writes `milestone-<project name>.json` — `milestone-<name>-<part>.json` when
+the project sets a `part`, with runs of non-alphanumeric characters collapsed to `-`. `--out` is
+optional and overrides it. Two projects checked out side by side both defaulted to `milestone.json`
+and the second record overwrote the first, which is why the default carries the project's name.
+
+The record's `harness` block is what `check` reads:
+
+```jsonc
+// Type A: no harness runs, and the record says so rather than naming a model
+"harness": {"type": "A", "model": null,
+            "note": "Type A: code graded directly; no harness run"}
+
+// Type B: the evidence that the code measured came out of a run
+"harness": {"model": …, "run_tag": …, "slot": …, "harness_exit": …,
+            "wall_s": …, "entry_present": true, "complete": true, "record": …}
+```
+
+`check` refuses a Type B record with no harness block ("no harness evidence") and a **Type A**
+record that names a model, since no model was ever loaded.
+
+The runner record `record --regeneration` accepts must carry `run_tag`, `complete`, `dry_run`, and
+inside its `regeneration` block `entry_present`, `harness_exit` and `wall_s`, plus `slot` on the
+record; anything missing those is not a runner record and is refused by name.
+
 ## Records and resume
 
-A grading run writes `runs/<id>/k<N>.json` beside its working directory `runs/<id>/grading-k<N>-work`.
+Paths below are the **grading** layout, where the run directory is the submission's id: a grading
+run writes `runs/<id>/k<N>.json` beside its working directory `runs/<id>/grading-k<N>-work`.
+A student's own run is named after their submission directory instead — `mywork/part-I-opening`
+gives `runs/part-I-opening/practice-k1.json` beside `runs/part-I-opening/practice-k1-work`, which
+is the form the handouts use.
 Any other run tag writes `runs/<id>/<tag>-k<N>.json` beside `runs/<id>/<tag>-k<N>-work`, so an
 **appeal** is a record of its own: it neither collides with the grading record nor is mistaken for
 one already done. `grade.py` considers every complete record and takes the best.
@@ -212,22 +259,26 @@ docker build -t harness-sandbox tools/sandbox/
 python3 tools/runner.py --project project.json --create-slots   # OLLAMA_HOST is set from the
                                                                 # project; pins temperature,
                                                                 # seed and num_ctx per slot
-python3 tools/ledger_server.py --project project.json --port 8080 \
-        --base-url http://host.docker.internal:8080
+python3 tools/ledger_server.py --project project.json \
+        --base-url http://host.docker.internal:8080   # port comes from resource_port
 python3 tools/runner.py --project project.json --verify-slots   # is the schedule reaching the model?
+python3 tools/fan_out.py --project . --submissions submissions   # multi-part: student layout
+                                                                 # -> part-*/submissions/<id>/
+python3 tools/prescan.py --course .                              # multi-part, one row per student
 python3 tools/prescan.py submissions/ --project project.json
 python3 tools/runner.py --project project.json --submissions submissions/ --status status.csv --out runs/
 python3 tools/grade.py --project project.json --runs runs/ --status status.csv --written written.csv \
         --milestone milestone.csv > gradebook.csv
 
 # the whole project in one command, single-part or multi-part
-python3 tools/grade_all.py --project . --status status.csv \
+python3 tools/grade_all.py --project . --submissions submissions --status status.csv \
         --written written.csv --milestone milestone.csv > gradebook.csv
 
 # the milestone
 # Type A: --solution is the directory holding the code being submitted.
 python3 tools/milestone.py record --project project.json --solution <dir> \
-        --student-id ABC123456 --out milestone.json          # student
+        --student-id ABC123456                               # student; writes
+                                                             # milestone-<name>.json
 # Type B: --regeneration is REQUIRED and --solution must be that record's own work directory.
 # The record must be a completed runner record (not a *.dry.json one) whose regeneration
 # produced the entry point; the milestone embeds its model, run tag, slot, wall time and file
@@ -237,7 +288,11 @@ python3 tools/milestone.py record --project project.json --solution <dir> \
 python3 tools/milestone.py record --project project.json \
         --solution runs/ABC123456/practice-k1-work \
         --regeneration runs/ABC123456/practice-k1.json \
-        --student-id ABC123456 --out milestone.json          # student, Type B
+        --student-id ABC123456                               # TA/grading layout: the run
+                                                             # directory is the submission id.
+                                                             # A student's own run is named
+                                                             # after their directory instead:
+                                                             # runs/<dir name>/practice-k1.json
 python3 tools/milestone.py check --project project.json --records milestone-records/ \
         --status status.csv > milestone.csv                   # TA
 
@@ -258,12 +313,13 @@ Each tool's own `--help` is the authority; this is the same list in one place.
 |---|---|
 | `runner.py` | `--project` (required) · `--submissions DIR` or `--submission DIR` · `--out` (default `runs`) · `--status` · `--run-tag` (default `grading`) · `--slot N` · `--tests DIR` · `--type A\|B` · `--create-slots` · `--verify-slots` · `--skip-slot-check` · `--dry-run` · `--no-sandbox` · `--practice` |
 | `run_tests.py` | `--solution` `--tests` (required) · `--entry` (default `solve.py`) · `--timeout` (default 10) · `--python` · `--json` · `--project` · `--run-as` |
-| `milestone.py record` | `--project` `--solution` `--student-id` (required) · `--regeneration` (required for Type B) · `--out` (default `milestone.json`) |
+| `milestone.py record` | `--project` `--solution` `--student-id` (required) · `--regeneration` (required for Type B) · `--out` (default `milestone-<project name>.json`, or `milestone-<name>-<part>.json`) |
 | `milestone.py check` | `--project` `--records` (required) · `--status` |
 | `grade.py` | `--project` `--runs` (required) · `--status` · `--written` · `--milestone` · `--hidden-only` |
-| `grade_all.py` | `--project DIR` `--status` (required) · `--written` · `--milestone` · `--work` |
+| `grade_all.py` | `--project DIR` `--status` (required) · `--submissions DIR` (course-level; runs the fan-out first) · `--written` · `--milestone` · `--work` |
+| `fan_out.py` | `--project DIR` `--submissions DIR` (required) · `--check` (validate, write nothing) |
 | `combine_parts.py` | `--parts` (required) · `--written` · `--milestone` · `--hidden-points` (70) · `--milestone-points` (10) · `--written-points` (20) · then the per-part gradebooks, in `parts.json` order |
-| `prescan.py` | `SUBMISSIONS_DIR` (positional) · `--project` · `--allow HOST …` · `--cap` (default 1500) · `--page-cap` (default 600) |
+| `prescan.py` | `SUBMISSIONS_DIR` (positional) or `--course DIR` · `--project` · `--allow HOST …` · `--cap` (default 1500) · `--page-cap` (default 600) |
 | `ledger_server.py` | `--project` (supplies the four below) or `--resource` `--ledger` `--nonce` · `--port` · `--bind` · `--base-url` · `--allow-in-repo` |
 
 ## Things to verify during the calibration run

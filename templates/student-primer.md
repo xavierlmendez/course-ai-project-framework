@@ -102,19 +102,20 @@ python3 tools/runner.py --project project.json --submission <your dir> --practic
 ```
 
 `<your dir>` is the directory holding your submission files, for example `mywork/`. The runner writes
-under `runs/<your dir's name>/`, created beside where you run the command; that is where every record
-and working directory named below appears.
+under `runs/<dir name>/`, created beside where you run the command, where `<dir name>` is the **last
+segment** of `<your dir>` — `mywork/part-I-opening` gives `runs/part-I-opening/`. That is where every
+record and working directory named below appears.
 
-`--practice` is the only runner command you need. It runs on your machine rather than in the grading sandbox, tags the run `practice`, runs the **public** suite (you do not have the hidden one), writes `seeds.practice.json` with three seeds of your own if the secret grading seeds are absent, and creates the pinned per-temperature models if your Ollama does not have them. Its record for slot 1 lands at `runs/<your dir>/practice-k1.json` and its working directory at `runs/<your dir>/practice-k1-work`. The milestone is built from those two:
+`--practice` is the only runner command you need. It runs on your machine rather than in the grading sandbox, tags the run `practice`, runs the **public** suite (you do not have the hidden one), writes `seeds.practice.json` with three seeds of your own if the secret grading seeds are absent, and creates the pinned per-temperature models if your Ollama does not have them. Its record for slot 1 lands at `runs/<dir name>/practice-k1.json` and its working directory at `runs/<dir name>/practice-k1-work`. The milestone is built from those two:
 
 ```
 python3 tools/milestone.py record --project project.json \
-  --solution runs/<your dir>/practice-k1-work \
-  --regeneration runs/<your dir>/practice-k1.json \
-  --student-id <your student ID> --out milestone.json
+  --solution runs/<dir name>/practice-k1-work \
+  --regeneration runs/<dir name>/practice-k1.json \
+  --student-id <your student ID>
 ```
 
-On a Type B project both flags are required and they must belong together: `--regeneration` is the record of a real practice run (never a dry run, whose record is named `*.dry.json`), and `--solution` must be that run's own working directory. A record built from anything else is rejected. `milestone.json` is the file you submit. (Type A: `--solution` is simply the directory you are submitting, and there is no `--regeneration`.)
+On a Type B project both flags are required and they must belong together: `--regeneration` is the record of a real practice run (never a dry run, whose record is named `*.dry.json`), and `--solution` must be that run's own working directory. A record built from anything else is rejected. It writes `milestone-<project name>.json` (`milestone-<name>-<part>.json` when the project sets a part), taking the name from `project.json`; that file is the one you submit, and `--out` overrides the name if you need it to. (Type A: `--solution` is simply the directory you are submitting, and there is no `--regeneration`.)
 
 To read the published resource and sign the ledger from your own machine while practising, start the course's reference server yourself:
 

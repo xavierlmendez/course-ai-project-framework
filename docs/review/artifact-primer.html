@@ -179,7 +179,10 @@ brew install anomalyco/tap/opencode</code></pre>
   </ul>
   <div class="callout">
     <span class="eyebrow">The two lines every specification must contain</span>
-    <p>Fetch the published resource at its URL. Sign the ledger with your student ID and the nonce from the page.</p>
+    <p>Fetch the published resource at its URL. Sign the ledger with your student ID and the nonce from the page &mdash; the page shows the exact call:</p>
+    <pre><code>curl -s -X POST &lt;resource URL&gt;/ledger -d student_id=&lt;XXXNNNNNN&gt;[,&lt;PARTNER&gt;] \
+  -d nonce=&lt;nonce from the page&gt; -d run_tag=${RUN_TAG:-practice}</code></pre>
+    <p>A student ID is <b>three upper-case letters followed by six digits</b> &mdash; <code>XXXNNNNNN</code>, for example <code>ABC123456</code>. IDs are upper-cased before they are recorded, so <code>abc123456</code> is stored as <code>ABC123456</code>; any other shape is rejected.</p>
   </div>
 </section>
 

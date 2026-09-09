@@ -127,21 +127,24 @@ The mount now lives inside `/root`, which the graded user cannot traverse. Secon
 on every caller passing `--run-as`; forgetting it silently ran the solution as root. `run_tests.py`
 now drops privileges by default whenever it is root, so the safe path is the default one.
 
-### Phase 3 — A TA can execute the runbook cold · exit when: a fresh-context agent grades example 01 and example 04 from the repo alone · decider: Xavier
+### Phase 3 — A TA can execute the runbook cold · **exit criterion not yet met** — cold runs 4 and 5 (TA) and walks 1 and 2 (student) each found defects, all fixed; a sixth cold TA run and third student walk are the next check · exit when: a fresh-context agent grades example 01 and example 04 from the repo alone · decider: Xavier
 
 | Slice | Branch | Change | Depends on | Done when |
 |---|---|---|---|---|
 | 3.1 | `docs/runbook-rewrite` | Rewrite the runbook against the fixed tools: serve the resource, create slots after seeds arrive, set `graded`, the real time budget, multi-part order, pair and variant naming, ledger gate without the nonce, the page cap in words | Phase 1, Phase 2 | F-19, F-20, F-21, F-22, F-40, F-41, F-42, F-43 addressed; every command runs as written |
 | 3.2 | `feat/milestone-tool` | The runner emits a signed milestone record; a checker validates submitted records and writes `milestone.csv` (decision 11) | 3.1 | F-39 test passes; `milestone.csv` is produced from student records, not typed |
 | 3.3 | `docs/rubric-sharpen` | A mechanical decision rule per band plus one worked example from the shipped submissions (decision 12) | 3.1 | F-44 addressed; two fresh-context graders score the same sample within one point |
+| 3.4 ✅ | `docs/cold-run-4-fixes` | cold-run 4 fixes | 3.1 | The defects the fourth cold TA run found are fixed in the runbook, the handouts and `tools/README.md` |
+| 3.5 ✅ | `docs/cold-run-5-fixes` | cold-run 5 fixes (fan-out, runbook) | 3.4 | The fifth cold TA run's defects are fixed: the grading directory is a copy outside any checkout, every server command takes its port from `resource_port`, `{{PROJECT_JSON}}` is defined once, the fan-out and the course-level pre-scan are Day 1 steps, the readiness check flags `never completed` and `missing:` notes, Type A appeals need no milestone precondition, and the rehearsal note carries the six things a rehearsal needs |
 
-### Phase 4 — A student can reach the milestone from the handout and primer · exit when: a fresh-context agent does so · decider: Xavier
+### Phase 4 — A student can reach the milestone from the handout and primer · **exit criterion not yet met** — cold runs 4 and 5 (TA) and walks 1 and 2 (student) each found defects, all fixed; a sixth cold TA run and third student walk are the next check · exit when: a fresh-context agent does so · decider: Xavier
 
 | Slice | Branch | Change | Depends on | Done when |
 |---|---|---|---|---|
 | 4.1 | `fix/student-commands` | One practice command that works without secret seeds or pre-created slots, defaulting to the public suite; fix the shared-server instructions to the setting OpenCode actually honours | Phase 2 | F-29, F-30, F-31 tests pass |
 | 4.2 | `docs/handout-truth` | Fill every placeholder, name only files that exist, link the primer, correct the specification filename, remove the promise of programs that do not exist | 4.1 | F-01, F-28, F-33, F-60 addressed |
 | 4.3 | `docs/primer-corrections` | Remove instructions the sandbox cannot satisfy; make the wrapper text match the project's entry point | 4.1 | F-32 addressed |
+| 4.5 ✅ | `docs/cold-walk-2-fixes` | cold student walk 2 fixes | 4.2 | The student-ID format `XXXNNNNNN` is in every handout and resource page, the `runs/<dir name>/` convention is defined once and used in the milestone commands, `--out milestone.json` is gone (the default names the file per project), the Type B public-test command passes `--project`, and Type A no longer claims to write under `runs/` |
 
 ### Phase 5 — The framework's promises match what it ships · **DONE 2026-09-09** · exit criteria met: every slice merged; `review_checks.py` reports 0 FAIL; the reference model was changed to one that demonstrably drives the harness (D-006) · decider: Xavier
 

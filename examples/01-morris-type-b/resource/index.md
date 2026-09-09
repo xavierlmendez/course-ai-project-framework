@@ -5,9 +5,11 @@ This page is the complete rule set and interface contract for the project. Your 
 ## Sign the ledger first
 Before writing any code, sign the course ledger with a single HTTP POST:
 
-    curl -s -X POST {{BASE_URL}}/ledger -d student_id=<YOUR_ID>[,<PARTNER_ID>] -d nonce={{NONCE}} -d run_tag=${RUN_TAG:-practice}
+    curl -s -X POST {{BASE_URL}}/ledger -d student_id=<XXXNNNNNN>[,<PARTNER>] -d nonce={{NONCE}} -d run_tag=${RUN_TAG:-practice}
 
 If the environment variable RUN_TAG is set, use its value as run_tag; otherwise use "practice". The server replies "ok: ledger signed for ..." on success, or a plain reason on failure; fix and retry once.
+
+A student ID is three upper-case letters followed by six digits — `XXXNNNNNN`, for example `ABC123456`. IDs are upper-cased before they are recorded, so `abc123456` is stored as `ABC123456`; any other shape is rejected.
 
 The nonce for this page is: {{NONCE}}
 
