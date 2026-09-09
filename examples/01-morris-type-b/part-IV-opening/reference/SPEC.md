@@ -2,10 +2,17 @@
 
 Produce a single Python 3 file `MiniMaxOpeningImproved.py`, standard library only, that plays White's best opening move by MINIMAX search using the **improved** static estimation from the resource page, not the baseline one.
 
-## Step 0: the published resource and the ledger
+## Step 0: the published resource and the ledger (do these with your tools, now)
 
-1. Fetch `http://host.docker.internal:8080/` (the course resource page) and read all of it. It holds the board, the adjacency table, the 18 mills, the move generators, the static estimations, the output format and the nonce.
-2. Sign the course ledger exactly as the page instructs, with student ID `ABC000000`, the nonce printed on the page, and `run_tag` equal to the environment variable `RUN_TAG` if set, otherwise `practice`. Do this before writing code. If the server replies with an error, correct the request and retry once.
+1. With your **web fetch tool**, fetch `http://host.docker.internal:8080/` and read all of it. It holds the board, the adjacency table, the 18 mills, the move generators, the static estimations, the output format and the nonce. Do not write any code before you have read it.
+2. With your **shell tool**, sign the course ledger by running exactly this command, with the nonce copied from the page:
+   `curl -s -X POST http://host.docker.internal:8080/ledger -d student_id=ABC000000 -d nonce=<nonce from the page> -d "run_tag=${RUN_TAG:-practice}"`
+   The reply must be `ok: ledger signed for ABC000000`. If it is an error, correct the request and run it once more.
+3. The program you write must **never touch the network**: it runs offline, standard library only. Copy the tables you read from the page into constants in the file. Do not `import requests` or fetch the page from inside the program.
+
+## How to write the file
+
+Write `MiniMaxOpeningImproved.py` with your **write tool in one call**, complete from imports to `main()`. If a self-check fails, write the whole corrected file again with the write tool; do not patch it with the edit tool.
 
 ## Board
 
@@ -40,7 +47,11 @@ A module-level counter `positions_evaluated = 0`.
 2. `positions_evaluated` is incremented only where the static estimation is called (depth-0 leaves and childless nodes), never at internal nodes.
 3. Output the file as raw Python. No markdown fences, no prose before or after the code.
 4. Ties between equal-valued moves keep the first generated move; generation order is ascending index for children and for removals, and neighbours in the order the adjacency table lists them.
-5. Print exactly three lines, in the format shown, each ending with a period where shown. The third line says `MINIMAX estimate:` in every program, including the alpha-beta ones.
+5. Print exactly three lines, each on its own line. The first line has **no** trailing period; the second and third end with one:
+   `Board Position: <board>`
+   `Positions evaluated by static estimation: <N>.`
+   `MINIMAX estimate: <V>.`
+   Printing `Board Position: <board>.` (with a period) fails every test. The third line says `MINIMAX estimate:` in every program, including the alpha-beta ones.
 6. Do not read any file other than `sys.argv[1]`. Do not import anything outside the standard library. One file only.
 7. The improved estimation replaces the baseline everywhere the search evaluates a position. A program that still returns `count('W') - count('B')` is the failure this part is graded on.
 8. Mills and threats are counted over the **18 mills of this board**, diagonal spokes included. Counting them over the textbook 16 lines gives the wrong number of threats.
@@ -59,7 +70,14 @@ MINIMAX estimate: <V>.
 
 ## Self-check before finishing
 
-Run the program on input `xxxxxxxxxWxxxxxxBxxxxxx` with depth 3. Expected output:
+With your shell tool, create the input files and run the program twice:
+
+```
+printf 'xxxxxxxxxWxxxxxxBxxxxxx' > in1.txt
+python3 MiniMaxOpeningImproved.py in1.txt out1.txt 3
+```
+
+Expected output:
 
 ```
 Board Position: WxxxxxxxxWxxxxxxBxxxxxx
@@ -67,7 +85,12 @@ Positions evaluated by static estimation: 8056.
 MINIMAX estimate: 6.
 ```
 
-Run the program on input `xxxxxxxxxBWxxxxxxxxxxxx` with depth 3. Expected output:
+```
+printf 'xxxxxxxxxBWxxxxxxxxxxxx' > in2.txt
+python3 MiniMaxOpeningImproved.py in2.txt out2.txt 3
+```
+
+Expected output:
 
 ```
 Board Position: xxxWxxxxxBWxxxxxxxxxxxx
@@ -75,4 +98,4 @@ Positions evaluated by static estimation: 8018.
 MINIMAX estimate: 6.
 ```
 
-If either differs, re-read the corresponding non-negotiable and fix the program before finishing.
+An estimate of `1` on the first board is the baseline estimation, not the improved one. If either output differs, re-read the corresponding non-negotiable, rewrite the whole file with the write tool and run the checks again. Then stop.
