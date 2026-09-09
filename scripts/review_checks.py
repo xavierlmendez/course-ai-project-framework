@@ -242,7 +242,7 @@ def check_repo():
     # tests present?
     tests = glob.glob(os.path.join(ROOT, "tests", "**", "test_*.py"), recursive=True)
     row("PASS" if tests else "FAIL", "tools have a test suite (standards: every feature ships with a test)", f"{len(tests)} test files")
-    for f in ["CLAUDE.md", "CONTRIBUTING.md", "docs/DECISIONS.md", "docs/BACKLOG.md", ".github/workflows/ci.yml", ".pre-commit-config.yaml"]:
+    for f in ["AGENTS.md", "CONTRIBUTING.md", "docs/DECISIONS.md", "docs/BACKLOG.md", ".github/workflows/ci.yml", ".pre-commit-config.yaml"]:
         row("PASS" if os.path.exists(os.path.join(ROOT, f)) else "WARN", f"standards file present: {f}", "")
     todos = []
     for f in tracked:

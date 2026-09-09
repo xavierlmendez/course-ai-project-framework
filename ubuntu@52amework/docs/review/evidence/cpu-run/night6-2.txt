@@ -1,0 +1,49 @@
+EXPERIMENT 2 — replay captured OpenCode body (req-3) directly to Ollama /v1
+captured: stream=True tools=10 tool_choice=auto max_tokens=32000 think_key=False
+
+===== VARIANT a_streamfalse (stream=False think=ABSENT) =====
+wall=230.2s finish_reason=stop usage={"prompt_tokens": 2050, "prompt_tokens_details": {"cached_tokens": 2049}, "completion_tokens": 372, "total_tokens": 2422}
+message keys: ['content', 'reasoning', 'role']
+tool_calls: NONE
+reasoning len=1644 head="Okay, let's tackle this user request. The user wants me to read the SPEC.md file in the current directory and follow its instructions to create a single file named MiniMaxOpening.py. They emphasized not to ask questions and to make reasonable choices.\n\nFirst, I need to use the Read tool to get the c"
+content len=0 head=''
+
+===== VARIANT b_thinkfalse_stream (stream=True think=False) =====
+wall=228.9s finish_reason=stop
+tool_calls deltas: 0
+reasoning len=1644 head="Okay, let's tackle this user request. The user wants me to read the SPEC.md file in the current directory and follow its instructions to create a single file named MiniMaxOpening.py. They emphasized not to ask questions and to make reasonable choices.\n\nFirst, I need to use the Read tool to get the c"
+reasoning tail="correct and follows best practices. Since I can't run tests here, I'll rely on the spec's guidelines. Once the code is written, I'll confirm that the file is saved correctly. No other tools are needed here because the task is straightforward: read the spec, write the code, and save it as specified.\n"
+content len=0 head=''
+
+===== VARIANT c_both (stream=False think=False) =====
+wall=231.1s finish_reason=stop usage={"prompt_tokens": 2050, "prompt_tokens_details": {"cached_tokens": 2049}, "completion_tokens": 372, "total_tokens": 2422}
+message keys: ['content', 'reasoning', 'role']
+tool_calls: NONE
+reasoning len=1644 head="Okay, let's tackle this user request. The user wants me to read the SPEC.md file in the current directory and follow its instructions to create a single file named MiniMaxOpening.py. They emphasized not to ask questions and to make reasonable choices.\n\nFirst, I need to use the Read tool to get the c"
+content len=0 head=''
+NIGHT 6 — EXPERIMENT 2: replay the captured OpenCode body directly to Ollama
+Source body: /tmp/cap1/proxy-req-3.json (10 tools, tool_choice auto, temp 0.2, seed 111)
+Model: ref-morris-p1-q3-slot1. Endpoint: POST http://127.0.0.1:11434/v1/chat/completions
+
+variant                      wall     finish_reason  tool_calls  content  reasoning
+(as captured, stream=true)   ~660s    stop           0           0 chars  1644 chars
+(a) stream:false             230.2s   stop           NONE        0 chars  1644 chars
+(b) think:false, stream:true 228.9s   stop           0           0 chars  1644 chars
+(c) stream:false + think:false 231.1s stop           NONE        0 chars  1644 chars
+
+usage for (a) and (c) is IDENTICAL: prompt_tokens 2050 (cached 2049),
+completion_tokens 372, total 2422. The reasoning string is byte-for-byte the same in all
+four runs (same seed, same prompt).
+
+CONCLUSION: adding "think": false to a /v1/chat/completions body changes NOTHING. Ollama
+0.33.3's OpenAI-compatibility layer discards the field before it reaches the chat template.
+Proof by identity: had it been honoured, the qwen3 template would have appended " /no_think"
+to the last user message and prefilled "<think>\n\n</think>\n\n" on the assistant turn,
+which cannot produce an identical 1644-char reasoning block.
+
+Neither is stream/non-stream the problem: both shapes fail identically. The model simply
+plans inside the think block and then emits EOS.
+
+The `think` parameter DOES work on the native /api/chat endpoint (that is where the earlier
+5/5 tool-call result came from). OpenCode uses /v1 exclusively, so that lever is unavailable
+to it. See night6-3.txt and night6-4.txt.

@@ -1,0 +1,1 @@
+{"variant": "demo", "jobs": [{"id": "j1", "start": 3, "end": 4, "weight": 15, "class": "S"}, {"id": "j2", "start": 12, "end": 19, "weight": 3, "class": "S"}]}

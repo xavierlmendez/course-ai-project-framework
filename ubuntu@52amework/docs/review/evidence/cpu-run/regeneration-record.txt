@@ -1,0 +1,12 @@
+record=/tmp/runs/ABC123456/cpu-k1.json
+entry_present=False exit=1 wall_s=3.7 env_err=None harness_err=None
+complete=True tests={"solution_started": false, "categories": {}, "error": "no entry point produced"}
+tool events in stream: 0
+--- stdout tail ---
+{"type":"error","timestamp":1788927314613,"sessionID":"ses_f7b9f78edfferVD5G9CmcHc8z8","error":{"name":"UnknownError","data":{"message":"Unexpected server error. Check server logs for details.","ref":"err_ef81f4c7"}}}
+
+total 8
+drwxr-xr-x 2 root root   80 Sep  9 04:15 .
+drwxr-xr-x 3 root root   80 Sep  9 04:15 ..
+-rw-r--r-- 1 root root 2221 Sep  9 04:15 SPEC.md
+-rw-r--r-- 1 root root  600 Sep  9 04:15 opencode.json
