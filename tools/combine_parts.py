@@ -1,54 +1,112 @@
 #!/usr/bin/env python3
-"""Combine per-part gradebooks into one, for multi-part projects.
+"""Combine per-part gradebooks into one course gradebook.
 
-A multi-part project (e.g. Part I 45%, Part II 35%, Part III 10%, Part IV 10%)
-is one project directory per part, each with its own project.json, tests and
-runs, graded separately by grade.py. This script weights the per-part totals.
+A multi-part project (Part I 45%, Part II 35%, Part III 10%, Part IV 10%) is one
+project directory per part, each graded on its own by grade.py. Only the
+**hidden-test score** is per-part. The milestone and the written component are
+course-level and are counted once, not once per part.
 
-    combine_parts.py --parts parts.json gradebook_part1.csv gradebook_part2.csv ... > gradebook.csv
+    combined_hidden = sum over parts of (weight_i / sum of weights) * hidden_i
+    total           = combined_hidden + milestone + written
 
-parts.json:  {"parts": [{"name": "I", "weight": 45}, {"name": "II", "weight": 35}, ...]}
-The i-th CSV is the i-th part. Each CSV is grade.py output (columns student_id, status, total, ...).
-Output columns: student_id, <part>_total..., <part>_status..., combined (out of 100), status
-(graded only if every part is graded).
+so a student who is perfect everywhere scores exactly hidden + milestone + written.
+
+    combine_parts.py --parts parts.json --written written.csv --milestone milestone.csv \\
+        gradebook_part1.csv gradebook_part2.csv ... > gradebook.csv
+
+parts.json:    {"parts": [{"name": "I", "weight": 45}, {"name": "II", "weight": 35}, ...]}
+               The i-th CSV is the i-th part.
+written.csv:   student_id,accuracy,twist,candor[,prediction]   (0-3 each)
+milestone.csv: student_id,milestone                            (1 or 0)
+
+Each part gradebook is grade.py output; this reads its `hidden_score`, `status` and
+`grad` columns and ignores its per-part milestone and written columns, which are
+empty when grade.py is run per part.
+
+A row is `graded` only when every part is graded and both course-level components are
+present. Otherwise it is `incomplete` with no total.
 Standard library only.
 """
 import argparse
 import csv
 import json
+import os
 import sys
+
+sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
+from grade import load_csv, written_score  # noqa: E402
 
 
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--parts", required=True)
+    ap.add_argument("--written", help="course-level written.csv")
+    ap.add_argument("--milestone", help="course-level milestone.csv")
+    ap.add_argument("--hidden-points", type=float, default=70.0)
+    ap.add_argument("--milestone-points", type=float, default=10.0)
+    ap.add_argument("--written-points", type=float, default=20.0)
     ap.add_argument("gradebooks", nargs="+")
     a = ap.parse_args()
+
     parts = json.load(open(a.parts))["parts"]
     if len(parts) != len(a.gradebooks):
         sys.exit(f"{len(parts)} parts in parts.json but {len(a.gradebooks)} gradebooks given")
     wsum = sum(float(p["weight"]) for p in parts)
+    if wsum <= 0:
+        sys.exit("part weights sum to zero")
+
     books = []
     for path in a.gradebooks:
         with open(path, newline="") as fh:
             books.append({r["student_id"]: r for r in csv.DictReader(fh)})
-    ids = sorted(set().union(*[set(b) for b in books]))
+    written = load_csv(a.written)
+    milestone = load_csv(a.milestone)
+
+    ids = sorted(set().union(*[set(b) for b in books]) | set(written) | set(milestone))
     names = [p["name"] for p in parts]
+
     w = csv.writer(sys.stdout)
-    w.writerow(["student_id"] + [f"{n}_total" for n in names] + [f"{n}_status" for n in names] + ["combined", "status"])
+    w.writerow(["student_id", "grad"] + [f"{n}_hidden" for n in names] + [f"{n}_status" for n in names]
+               + ["hidden_score", "milestone", "written_raw", "written_score", "total", "status", "note"])
+
     for sid in ids:
-        totals, statuses, combined, complete = [], [], 0.0, True
+        grad = False
+        for b in books:
+            r = b.get(sid)
+            if r and str(r.get("grad", "0")).strip() in ("1", "true", "yes", "grad"):
+                grad = True
+
+        hiddens, statuses, combined, parts_ok = [], [], 0.0, True
         for p, b in zip(parts, books):
             r = b.get(sid)
-            t = r.get("total", "") if r else ""
+            h = r.get("hidden_score", "") if r else ""
             s = r.get("status", "missing") if r else "missing"
-            totals.append(t)
+            hiddens.append(h)
             statuses.append(s)
-            if t == "" or s not in ("graded", "appeal"):
-                complete = False
+            if h == "" or s not in ("graded", "appeal"):
+                parts_ok = False
             else:
-                combined += float(t) * float(p["weight"]) / wsum
-        w.writerow([sid] + totals + statuses + [round(combined, 2) if complete else "", "graded" if complete else "incomplete"])
+                combined += float(h) * float(p["weight"]) / wsum
+
+        hidden_score = round(combined, 2) if parts_ok else ""
+
+        ms = milestone.get(sid, {}).get("milestone", "")
+        ms_score = a.milestone_points if str(ms).strip() == "1" else (0.0 if ms != "" else "")
+
+        wr = written.get(sid)
+        if wr:
+            wr_raw, wr_score = written_score(wr, grad, a.written_points, sid, a.written)
+        else:
+            wr_raw, wr_score = "", ""
+
+        have_all = hidden_score != "" and ms_score != "" and wr_score != ""
+        total = round(hidden_score + ms_score + wr_score, 2) if have_all else ""
+        status = "graded" if have_all else "incomplete"
+        note = "" if have_all else "missing: " + ", ".join(
+            n for n, ok in [("a part", parts_ok), ("milestone", ms_score != ""), ("written", wr_score != "")] if not ok)
+
+        w.writerow([sid, int(grad)] + hiddens + statuses
+                   + [hidden_score, ms_score, wr_raw, wr_score, total, status, note])
 
 
 if __name__ == "__main__":
