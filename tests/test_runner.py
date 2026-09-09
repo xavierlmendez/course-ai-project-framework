@@ -341,5 +341,96 @@ class TestMultiPartSpecs(TempCase):
         self.assertIn("SPEC-part-I.md", prompt)
 
 
+class TestDryRunWithoutSeeds(TempCase):
+    """Cold TA run 7: a Type B --dry-run exited 1 with "seeds file missing" before printing
+    anything, which is exactly the rehearsal the seeds have not arrived for."""
+
+    def setUp(self):
+        super().setUp()
+        self.make_project()
+        self.write("submissions/ABC123456/SPEC.md", "build it")
+        self.make_test_suite("tests/hidden", {"basic": 1})
+
+    def dry_batch(self, *extra):
+        return run_tool("runner.py", "--project", self.path("project.json"),
+                        "--submission", self.path("submissions/ABC123456"),
+                        "--out", self.path("runs"), "--dry-run", "--no-sandbox", *extra)
+
+    def test_a_type_b_dry_run_works_without_the_seeds_file(self):
+        self.assertFalse(os.path.exists(self.path("seeds.secret.json")))
+        code, out, err = self.dry_batch()
+        self.assertEqual(code, 0, f"a dry run without seeds failed:\n{err}")
+        self.assertIn("dry run: seeds.secret.json absent, using placeholders", out)
+        self.assertNotIn("seeds file missing", out + err)
+
+    def test_create_slots_dry_run_works_without_the_seeds_file(self):
+        code, out, err = run_tool("runner.py", "--project", self.path("project.json"),
+                                  "--create-slots", "--dry-run")
+        self.assertEqual(code, 0, f"--create-slots --dry-run without seeds failed:\n{err}")
+        self.assertIn("dry run: seeds.secret.json absent, using placeholders", out)
+        self.assertNotIn("seeds file missing", out + err)
+
+    def test_a_real_run_still_requires_the_seeds_file(self):
+        p = runner.load_project(self.path("project.json"))
+        with self.assertRaises(SystemExit) as e:
+            runner.load_seeds(p)
+        self.assertIn("seeds file missing", str(e.exception))
+        self.assertEqual(runner.load_seeds(p, dry=True), [0, 0, 0],
+                         "a dry run did not fall back to placeholder seeds")
+
+    def test_the_dry_run_still_prints_the_commands(self):
+        _, out, _ = self.dry_batch()
+        self.assertIn("$ ", out, "the dry run printed no commands")
+
+
+class TestSandboxReachesTheModelServer(TempCase):
+    """Cold TA run 7 item 8: on Linux, Ollama binds 127.0.0.1, so the sandbox cannot reach
+    the model server while the host-side --verify-slots dial says ok."""
+
+    def setUp(self):
+        super().setUp()
+        # thinking="default" leaves the slot template alone, so this check is only about
+        # whether the sandbox can reach the model server.
+        self.make_project(thinking="default")
+        self.make_seeds()
+        self.write("submissions/ABC123456/SPEC.md", "build it")
+        self.make_test_suite("tests/hidden", {"basic": 1})
+        self.calls = []
+
+    def fake_sh(self, result):
+        def sh(cmd, timeout=None, cwd=None, dry=False, env=None):
+            self.calls.append(cmd)
+            return result
+        return sh
+
+    def verify(self, sh_result, *extra):
+        argv = ["runner.py", "--project", self.path("project.json"), "--verify-slots", *extra]
+        with mock.patch.object(sys, "argv", argv), \
+             mock.patch.object(runner, "sh", side_effect=self.fake_sh(sh_result)), \
+             mock.patch.object(runner, "slot_parameters",
+                               side_effect=lambda p, i: {"temperature": p["temperatures"][i - 1],
+                                                         "seed": [11, 22, 33][i - 1],
+                                                         "num_ctx": 32768}), \
+             mock.patch.object(runner, "slot_template", return_value=""):
+            return runner.main()
+
+    def test_verify_slots_probes_from_inside_the_sandbox(self):
+        with self.assertRaises(SystemExit) as e:
+            self.verify((7, "", "curl: (7) Failed to connect", 0.1))
+        self.assertIn("the sandbox cannot reach the model server", str(e.exception))
+        self.assertIn("OLLAMA_HOST=0.0.0.0", str(e.exception))
+        probe = self.calls[0]
+        self.assertEqual(probe[0], "docker")
+        self.assertIn("host.docker.internal:host-gateway", probe)
+        self.assertIn("/api/tags", probe[-1])
+
+    def test_a_reachable_sandbox_lets_the_slot_check_run(self):
+        self.assertEqual(self.verify((0, '{"models": []}', "", 0.1)), 0)
+
+    def test_no_sandbox_skips_the_probe(self):
+        self.assertEqual(self.verify((7, "", "", 0.1), "--no-sandbox"), 0)
+        self.assertEqual(self.calls, [], "the host-only run probed the sandbox anyway")
+
+
 if __name__ == "__main__":
     unittest.main()

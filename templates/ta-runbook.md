@@ -11,8 +11,9 @@ first program's, e.g. `{{PROJECT}}/part-I-opening/project.json` — every progra
 nonce, the resource and the ledger, so any of them will do and the first one is the habit.
 
 Replace `{{SIMILARITY_TOOL}}` (Day 3 step 2) with the institution's similarity checker — MOSS,
-Turnitin, or whatever the department runs. The professor fills it in; if the handout does not
-name one, ask before submitting anything.
+Turnitin, or whatever the department runs. **The handout names it** (the shipped example
+handouts name MOSS), so read the handout first; ask the professor only if it does not name one.
+Do not submit anything anywhere until you have that name.
 
 **Single-part or multi-part.** If `{{PROJECT}}` contains `parts.json`, the project is
 multi-part: each `part-*/` directory is graded on its own and the results are combined once.
@@ -73,8 +74,9 @@ refusing to write the ledger inside a repository: <path>
 ```
 
 If you see that on grading day, you are grading inside a checkout: move the copy out rather
-than reaching for the flag. `--allow-in-repo` exists for **rehearsals** on the shipped
-examples, where the ledger is throwaway; never use it on a real cohort.
+than reaching for the flag. Rehearsals belong outside the checkout too, in a copy, for the same
+reason. `--allow-in-repo` exists for a **student** practising inside their own clone, where the
+ledger is theirs and throwaway; never use it on a real cohort.
 
 **2. Build the sandbox image.** [course] One image serves every part.
 
@@ -97,6 +99,14 @@ ollama list | grep -F "$MODEL" || echo "NOT PRESENT — run: ollama pull $MODEL"
 
 Pull it now if it is missing. It is several gigabytes, and `--create-slots` on Day 1 will
 otherwise download it silently in the middle of your grading window.
+
+**On a Linux grading box, make Ollama listen on more than loopback.** By default it binds
+127.0.0.1 only, so the sandbox container cannot reach `host.docker.internal:11434` even though
+`--verify-slots` — which dials from the host side — says ok, and every slot then fails after
+about a minute with OpenCode's "Cannot connect to API". Set `OLLAMA_HOST=0.0.0.0` for the
+ollama service (a systemd override) and restart it. On Docker Desktop (macOS, Windows) this is
+automatic. `--verify-slots` and every sandboxed batch now probe from inside the sandbox and stop
+with that sentence rather than letting the batch fail slot by slot.
 
 The model must be one that emits structured tool calls through the harness (`framework.md` §5,
 criterion 6); that is checked once at calibration, not on grading day. If a whole batch comes back
@@ -148,6 +158,13 @@ curl -sf http://localhost:$PORT/ | head -3 || echo "NOT SERVING — check resour
 
 The sandbox reaches it at `host.docker.internal:$PORT`, which is what `resource_host` and
 `resource_port` in `project.json` name.
+
+**On a variants project your own fetch shows `Your variant is: ****`, and that is normal.**
+The page carries a `{{VARIANT}}` placeholder that the server fills from the `?v=<variant>`
+parameter in the URL each student was given; a bare `curl http://localhost:$PORT/` passes none,
+so the placeholder comes back empty (the four asterisks are the surrounding bold markers). It is
+filled per student only for a signed harness fetch. Nothing is wrong: what you are checking here
+is that the page is served at all.
 
 **5. Lay out the submissions.** [course] Everything students hand in goes under **one**
 course-level `{{PROJECT}}/submissions/` directory, in the layout the handout asked for:
@@ -219,9 +236,13 @@ On a **Type B** example the specification carries that sample id in its ledger l
 against the directory name and reports `spec-id-mismatch` otherwise. On a **Type A** example
 there is no id inside anything to change — the submission is code, and the `variant.txt`
 example 04 ships is written by the student and ignored (the roster decides the variant). Write
-a `status.csv` of your own for the invented ids; none ships with the samples. A rehearsal is
-the one place `--allow-in-repo` is appropriate: the example ledgers sit inside this checkout
-and are throwaway.
+a `status.csv` of your own for the invented ids; none ships with the samples.
+
+**Rehearse in a copy outside the checkout, exactly as you will grade** (Day 0 step 1): `cp -R`
+the example to `~/grading/rehearsal` and work there, so the ledger the server writes is outside
+any git working tree and the rehearsal exercises the same paths grading day will. You then never
+need `--allow-in-repo`. That flag is for a **student** practising inside their own clone, where
+the ledger is theirs and throwaway; it is not a rehearsal shortcut, and never for a real cohort.
 
 Eight more things a rehearsal needs, each of which cost a cold run:
 
@@ -249,14 +270,35 @@ Eight more things a rehearsal needs, each of which cost a cold run:
 - **`variants.csv`: example 04 ships one, and it is the only example that does.** Copy it aside
   before you touch it — overwrite it and you have lost the roster the example's own tests were
   built against — then write your own, one row per invented id (`<id>,<id>` is the usual
-  shape), and put that in place for the rehearsal.
+  shape; a **pair** takes one row, written `A+B,<variant>`), and put that in place for the
+  rehearsal.
 - **A rehearsal without `seeds.secret.json` does not run the harness.** The seeds arrive on
   grading day and nothing in the repository has them, so `--create-slots` and `--verify-slots`
-  have nothing to build from and the batch cannot regenerate anything. Rehearse those steps by
-  recording the commands you would run (`--dry-run` prints them and writes `*.dry.json` records
-  that the grading tools skip), and fabricate the run records the later steps read — one
-  `runs/<id>/k<N>.json` per slot, in the shape `tools/README.md` gives — so that Day 2 has
-  something to grade. What you are rehearsing after the batch is the paperwork, not the model.
+  have nothing to build from and the batch cannot regenerate anything. A **`--dry-run` needs no
+  seeds**: it says `dry run: seeds.secret.json absent, using placeholders`, prints every command
+  it would run, and writes `*.dry.json` records the grading tools skip — so rehearse the batch
+  and `--create-slots --dry-run` that way. Then fabricate the run records the later steps read,
+  in the shape `tools/README.md` gives, so that Day 2 has something to grade:
+
+  ```
+  # Type B, single-part:  one record per slot
+  {{PROJECT}}/runs/<id>/k1.json  k2.json  k3.json
+  # Type B, multi-part:   one runs/ directory per program
+  {{PROJECT}}/part-<program>/runs/<id>/k1.json  k2.json  k3.json
+  # Type A:               one record, no slots, whatever the project's k says
+  {{PROJECT}}/runs/<id>/a.json
+  ```
+
+  A gradable **Type A** record needs only `type` (`"A"`), `run_tag`, `complete` (`true`),
+  `dry_run` (`false`) and a `tests` block; `tools/README.md` "Records and resume" gives the
+  block and the Type B fields. What you are rehearsing after the batch is the paperwork, not
+  the model.
+- **A fabricated Type B work directory needs code in it**, or the milestone below has nothing
+  to record. Copy the program's own `reference/solution/solve.py` (for a multi-part example,
+  `part-<program>/reference/solution/solve.py`) into `runs/<id>/grading-k1-work/`: it is the
+  professor's solution and passes the public suite, so the milestone passes. To rehearse a
+  **failing** milestone instead, copy that program's `canonical/solve.py`, which ignores the
+  twist and is meant to fail the twist tests.
 - **The milestone needs you to play the student side once.** The records students submit do not
   ship with the examples, so make one per invented id before Day 2 step 1. Type A takes the
   submission directory directly; Type B additionally needs the completed regeneration record
@@ -268,10 +310,16 @@ Eight more things a rehearsal needs, each of which cost a cold run:
     --solution {{PROJECT}}/submissions/<id> --student-id <id> \
     --out {{PROJECT}}/milestone-records/<id>.json
 
-  # Type B
+  # Type B, single-part
   python3 tools/milestone.py record --project {{PROJECT_JSON}} \
     --solution {{PROJECT}}/runs/<id>/grading-k1-work \
     --regeneration {{PROJECT}}/runs/<id>/k1.json --student-id <id> \
+    --out {{PROJECT}}/milestone-records/<id>.json
+
+  # Type B, multi-part: the first program's runs directory, the one {{PROJECT_JSON}} names
+  python3 tools/milestone.py record --project {{PROJECT_JSON}} \
+    --solution {{PROJECT}}/part-I-opening/runs/<id>/grading-k1-work \
+    --regeneration {{PROJECT}}/part-I-opening/runs/<id>/k1.json --student-id <id> \
     --out {{PROJECT}}/milestone-records/<id>.json
   ```
 
@@ -758,11 +806,29 @@ neither overwrites the original nor is skipped as already done. `grade_all.py` c
 complete record and takes the best, so the appeal counts only if it beat the original.
 
 **Type A** grading is deterministic: the same code against the same tests gives the same
-result, so re-running changes nothing. An appeal on a Type A project means one of three
-things, and none of them is a re-run: the student says the hidden tests are wrong (a question
-for the professor), the submission was mis-scored because a required file was missing (fix
-`status.csv` and re-grade), or the written score is disputed (a second reader). If you do
-want a fresh record for the file, `--run-tag appeal` writes `appeal-a.json` beside `a.json`.
+result, so re-running changes nothing. An appeal on a Type A project means one of four
+things, and only the last of them puts the runner back to work: the student says the hidden
+tests are wrong (a question for the professor), the submission was mis-scored because a
+required file was missing (fix `status.csv` and re-grade), the written score is disputed (a
+second reader), or —
+
+**the record says `"complete": false`, which is not an appeal at all but a retry.** An
+incomplete record means the environment broke (docker, disk, the machine), not that the code
+failed: nothing was scored against the student. Re-run the **same batch command**, which skips
+complete records and retries incomplete ones, then re-grade:
+
+```
+python3 tools/runner.py --project {{PROJECT_JSON}} --type A \
+  --submissions {{PROJECT}}/submissions/ --status {{PROJECT}}/status.csv \
+  --out {{PROJECT}}/runs/
+```
+
+The Day 2 readiness check flags such a row — `the run never completed` in its `note` — until
+that has been done, so a row like this should never have reached the student in the first
+place; if one did, retry it before discussing the grade.
+
+If you do want a fresh record for the file, `--run-tag appeal` writes `appeal-a.json` beside
+`a.json`.
 
 Set the status back to `graded` when the appeal is resolved.
 
