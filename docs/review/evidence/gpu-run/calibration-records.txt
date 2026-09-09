@@ -1,0 +1,9 @@
+record=/tmp/runs-calib/REF000000/calib-k1.json
+  entry_present=True exit=0 wall_s=51.4 env_err=None log=calib-k1-work.harness.jsonl
+  complete= True  tests: {'evaluations_count': (0, 4), 'grad_depth4': (0, 4), 'opening_mill': (0, 6), 'opening_move': (0, 6)}
+record=/tmp/runs-calib/REF000000/calib-k2.json
+  entry_present=False exit=0 wall_s=32.5 env_err=None log=calib-k2-work.harness.jsonl
+  complete= True  tests: {}
+record=/tmp/runs-calib/REF000000/calib-k3.json
+  entry_present=True exit=0 wall_s=306.3 env_err=None log=calib-k3-work.harness.jsonl
+  complete= True  tests: {'evaluations_count': (0, 4), 'grad_depth4': (0, 4), 'opening_mill': (0, 6), 'opening_move': (0, 6)}

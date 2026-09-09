@@ -1,0 +1,34 @@
+record=/tmp/runs/part-I-opening/gpu-k1.json
+  entry_present=True exit=0 wall_s=75.1 env_err=None harness_err=
+  complete= True  tests: {'evaluations_count': (0, 4), 'grad_depth4': (0, 4), 'opening_mill': (0, 6), 'opening_move': (0, 6)}
+  text tail: ffeLX4uQXVPT4ZCzh","part":{"id":"prt_08638a5d6001q0YOQq5xO8n4QS","reason":"stop","messageID":"msg_08638990a001h6LQH9ACfdNmQq","sessionID":"ses_f79c876f2ffeLX4uQXVPT4ZCzh","type":"step-finish","tokens":{"total":20031,"input":1098,"output":81,"reasoning":0,"cache":{"write":0,"read":18852}},"cost":0}} 
+record=/tmp/runs/part-I-opening/gpu-k2.json
+  entry_present=True exit=0 wall_s=50.4 env_err=None harness_err=
+  complete= True  tests: {'evaluations_count': (0, 4), 'grad_depth4': (0, 4), 'opening_mill': (0, 6), 'opening_move': (0, 6)}
+  text tail: dffeiVNvJsciFdgw3s","part":{"id":"prt_086396d58001BbZHwYVU3J6rDN","reason":"stop","messageID":"msg_0863967a80016VFodSxX0xD8Nu","sessionID":"ses_f79c74f0dffeiVNvJsciFdgw3s","type":"step-finish","tokens":{"total":11981,"input":1707,"output":8,"reasoning":0,"cache":{"write":0,"read":10266}},"cost":0}} 
+record=/tmp/runs/part-I-opening/gpu-k3.json
+  entry_present=True exit=0 wall_s=569.1 env_err=None harness_err=
+  complete= True  tests: {'evaluations_count': (0, 4), 'grad_depth4': (0, 4), 'opening_mill': (0, 6), 'opening_move': (0, 6)}
+  text tail: 323ffeunFes7vQEPWxuA","part":{"id":"prt_08642234b001n3ECa14RAJ164D","reason":"stop","messageID":"msg_08641bb72001XPH8AAZojQL1E1","sessionID":"ses_f79c68323ffeunFes7vQEPWxuA","type":"step-finish","tokens":{"total":29969,"input":29879,"output":86,"reasoning":0,"cache":{"write":0,"read":4}},"cost":0}} 
+/tmp/runs/part-I-opening/gpu-k1-work/:
+drwxrwxr-x 2 ubuntu ubuntu 4096 Sep  9 12:50 .
+drwxrwxr-x 5 ubuntu ubuntu 4096 Sep  9 13:01 ..
+-rw-r--r-- 1 ubuntu ubuntu 2805 Sep  9 12:50 MiniMaxOpening.py
+-rw-rw-r-- 1 ubuntu ubuntu 2221 Sep  9 12:49 SPEC.md
+-rw-rw-r-- 1 ubuntu ubuntu  693 Sep  9 12:49 opencode.json
+
+/tmp/runs/part-I-opening/gpu-k2-work/:
+drwxrwxr-x 2 ubuntu ubuntu 4096 Sep  9 12:51 .
+drwxrwxr-x 5 ubuntu ubuntu 4096 Sep  9 13:01 ..
+-rw-r--r-- 1 ubuntu ubuntu 4785 Sep  9 12:51 MiniMaxOpening.py
+-rw-rw-r-- 1 ubuntu ubuntu 2221 Sep  9 12:50 SPEC.md
+-rw-rw-r-- 1 ubuntu ubuntu  693 Sep  9 12:50 opencode.json
+
+/tmp/runs/part-I-opening/gpu-k3-work/:
+drwxrwxr-x 2 ubuntu ubuntu 4096 Sep  9 12:53 .
+drwxrwxr-x 5 ubuntu ubuntu 4096 Sep  9 13:01 ..
+-rw-r--r-- 1 ubuntu ubuntu 3828 Sep  9 13:00 MiniMaxOpening.py
+-rw-rw-r-- 1 ubuntu ubuntu 2221 Sep  9 12:51 SPEC.md
+-rw-r--r-- 1 ubuntu ubuntu   23 Sep  9 12:53 input.txt
+-rw-rw-r-- 1 ubuntu ubuntu  693 Sep  9 12:51 opencode.json
+-rw-r--r-- 1 ubuntu ubuntu   24 Sep  9 13:00 output.txt
