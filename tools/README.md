@@ -8,6 +8,7 @@ Python 3 standard library plus Docker and Ollama. A TA can read every file in on
 | `runner.py` | TA batch runner. Type B: K sandboxed regenerations per submission, then hidden tests. Type A: hidden tests once. Also creates the pinned slot models (`--create-slots`). Resumable. |
 | `grade.py` | Turns runner records plus `status.csv`, `written.csv`, `milestone.csv` into `gradebook.csv`. Refuses a `status.csv` with no `grad` column, refuses a written dimension outside 0–3, and marks a row `incomplete` rather than emitting a total that silently omits a component. |
 | `combine_parts.py` | Combines per-part gradebooks. Each part contributes only its **hidden** score, weighted; the milestone and written component are course-level and added once. |
+| `milestone.py` | `record` (student) runs the public suite and writes a milestone record; `check` (TA) validates submitted records into `milestone.csv`. |
 | `prescan.py` | Flags lines in specifications the safety read must look at closely. Not a safety control. |
 | `ledger_server.py` | Serves the published resource and the write-only ledger endpoint. Reference implementation; port the one route into an existing site if you have one. |
 | `sandbox/` | Docker image: Python, a **pinned** OpenCode, curl, and an outbound allowlist of host:port pairs. Hidden tests are staged root-only; the graded solution runs unprivileged. |
@@ -42,6 +43,9 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
   "name": "morris-b",                   // used to name slot models: ref-morris-b-slot1..3
   "type": "B",                          // "A" or "B"
   "entry": "solve.py",                  // the file the harness must produce
+  "nonce": "A1B2C3D4E5F6",              // printed on the resource page and required by the
+                                        //   ledger. Lives here only; ledger_server.py --project
+                                        //   reads it, so rotation changes one line
   "spec": "SPEC.md",                    // the specification file the harness is told to read.
                                         //   Multi-part: "SPEC-part-I.md" and so on, one per part
   "part": "I",                          // optional. Declaring it puts grade.py in hidden-only
@@ -147,7 +151,7 @@ the batch, on the grounds that the machine, not the cohort, is what needs fixing
 ```
 docker build -t harness-sandbox tools/sandbox/
 python3 tools/runner.py --project project.json --create-slots
-python3 tools/ledger_server.py --resource resource/ --ledger ledger.tsv --nonce <NONCE> --port 8080 \
+python3 tools/ledger_server.py --project project.json --port 8080 \
         --base-url http://host.docker.internal:8080
 python3 tools/runner.py --project project.json --verify-slots   # is the schedule reaching the model?
 python3 tools/prescan.py submissions/ --project project.json
@@ -160,6 +164,12 @@ python3 tools/grade.py --project part-I/project.json  --runs part-I/runs  --stat
 python3 tools/grade.py --project part-II/project.json --runs part-II/runs --status status.csv > gb-II.csv
 python3 tools/combine_parts.py --parts parts.json --written written.csv --milestone milestone.csv \
         gb-I.csv gb-II.csv > gradebook.csv
+
+# the milestone
+python3 tools/milestone.py record --project project.json --solution <dir> \
+        --student-id ABC123456 --out milestone.json          # student
+python3 tools/milestone.py check --project project.json --records milestone-records/ \
+        --status status.csv > milestone.csv                   # TA
 
 # check the tools themselves
 python3 -m unittest discover -s tests

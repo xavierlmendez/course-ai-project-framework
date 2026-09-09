@@ -93,6 +93,30 @@ class TestLedgerServer(TempCase):
         except urllib.error.HTTPError as e:
             return e.code, e.read().decode()
 
+    def test_project_supplies_resource_ledger_and_nonce(self):
+        """The nonce lives in project.json only, so rotation has one thing to change."""
+        os.makedirs(self.path("resource"), exist_ok=True)
+        self.write("resource/index.md", "nonce: {{NONCE}}\n")
+        self.make_project(nonce="FROMPROJECT", ledger="ledger.tsv")
+        port = 8933
+        proc = subprocess.Popen(
+            [sys.executable, tool("ledger_server.py"), "--project", self.path("project.json"),
+             "--port", str(port), "--bind", "127.0.0.1"],
+            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
+        self.addCleanup(proc.terminate)
+        base = f"http://127.0.0.1:{port}"
+        for _ in range(50):
+            try:
+                body = urllib.request.urlopen(base + "/", timeout=1).read().decode()
+                break
+            except Exception:
+                time.sleep(0.1)
+        else:
+            self.fail("server never came up")
+        self.assertIn("FROMPROJECT", body, "the nonce did not come from project.json")
+        status, reply = self.post(base, student_id="ABC123456", nonce="FROMPROJECT")
+        self.assertEqual(status, 200, reply)
+
     def test_valid_signature_is_recorded(self):
         base = self.start()
         status, body = self.post(base, student_id="ABC123456", nonce="N0NCE42", run_tag="practice")

@@ -17,7 +17,11 @@ ledger entries to a text file. Standard library only.
 The ledger file is never served. Read it on the server.
 
 Usage:
+    ledger_server.py --project project.json [--port 8080] [--base-url URL]
     ledger_server.py --resource DIR --ledger FILE --nonce STRING [--port 8080]
+
+With --project the resource directory, ledger path and nonce are read from the project,
+so the nonce lives in exactly one place and the rotation checklist has one thing to change.
 """
 import argparse
 import datetime
@@ -118,13 +122,24 @@ def make_handler(resource_dir, ledger_path, nonce, base_url):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--resource", required=True)
-    ap.add_argument("--ledger", required=True)
-    ap.add_argument("--nonce", required=True)
+    ap.add_argument("--project", help="project.json; supplies resource, ledger and nonce")
+    ap.add_argument("--resource")
+    ap.add_argument("--ledger")
+    ap.add_argument("--nonce")
     ap.add_argument("--port", type=int, default=8080)
     ap.add_argument("--bind", default="0.0.0.0")
     ap.add_argument("--base-url", help="absolute URL students/harnesses use to reach this server (substituted for {{BASE_URL}})")
     a = ap.parse_args()
+    if a.project:
+        proj = json.load(open(a.project))
+        pdir = os.path.dirname(os.path.abspath(a.project))
+        a.resource = a.resource or os.path.join(pdir, proj.get("resource_dir", "resource"))
+        a.ledger = a.ledger or os.path.join(pdir, proj.get("ledger", "ledger.tsv"))
+        a.nonce = a.nonce or proj.get("nonce")
+    missing = [n for n in ("resource", "ledger", "nonce") if not getattr(a, n)]
+    if missing:
+        ap.error("missing " + ", ".join("--" + m for m in missing)
+                 + " (or pass --project project.json, which supplies all three)")
     base_url = (a.base_url or f"http://localhost:{a.port}").rstrip("/")
     if not os.path.exists(a.ledger):
         with open(a.ledger, "w") as fh:
