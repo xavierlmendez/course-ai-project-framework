@@ -19,9 +19,15 @@ parts.json:    {"parts": [{"name": "I", "weight": 45}, {"name": "II", "weight": 
 written.csv:   student_id,accuracy,twist,candor[,prediction]   (0-3 each)
 milestone.csv: student_id,milestone                            (1 or 0)
 
-Each part gradebook is grade.py output; this reads its `hidden_score`, `status` and
-`grad` columns and ignores its per-part milestone and written columns, which are
+Each part gradebook is grade.py output; this reads its `hidden_score`, `status`, `records`
+and `grad` columns and ignores its per-part milestone and written columns, which are
 empty when grade.py is run per part.
+
+The combined gradebook carries `<part>_hidden` and `<part>_records` per part and **one**
+course-level `status`. `<part>_records` is that part's count of complete records (`3`, or
+`2 (1 never completed)`, or `missing` when the part has no row for the student): a fact
+about the part. There is deliberately no `<part>_status`; it used to copy the course-level
+status into every program, so an appeal scoped to one part read `appeal` on all eight.
 
 A row is `graded` only when every part is graded and both course-level components are
 present. Otherwise it is `incomplete` with no total.
@@ -97,7 +103,7 @@ def main():
     names = [p["name"] for p in parts]
 
     w = csv.writer(sys.stdout, lineterminator="\n")
-    w.writerow(["student_id", "grad"] + [f"{n}_hidden" for n in names] + [f"{n}_status" for n in names]
+    w.writerow(["student_id", "grad"] + [f"{n}_hidden" for n in names] + [f"{n}_records" for n in names]
                + ["hidden_score", "milestone", "written_raw", "written_score", "total", "status", "note"])
 
     for sid in ids:
@@ -107,7 +113,7 @@ def main():
             if r and str(r.get("grad", "0")).strip() in ("1", "true", "yes", "grad"):
                 grad = True
 
-        hiddens, statuses, combined, parts_ok = [], [], 0.0, True
+        hiddens, records, combined, parts_ok = [], [], 0.0, True
         part_notes = []
         for p, b in zip(parts, books):
             r = b.get(sid)
@@ -120,7 +126,11 @@ def main():
             if n:
                 part_notes.append((p["name"], n))
             hiddens.append(h)
-            statuses.append(s)
+            # What the part contributed, as evidence rather than as a status: the number of
+            # complete records it was scored from, and the incomplete ones in brackets. The
+            # old `<part>_status` column copied the course-level status into all eight
+            # programs, so an appeal scoped to one part read `appeal` on every one of them.
+            records.append(r.get("records", "") if r else "missing")
             if h == "" or s not in ("graded", "appeal"):
                 parts_ok = False
             else:
@@ -147,7 +157,7 @@ def main():
                                 ("written", wr_score != "")] if not ok))
         note = "; ".join(pieces)
 
-        w.writerow([sid, int(grad)] + hiddens + statuses
+        w.writerow([sid, int(grad)] + hiddens + records
                    + [hidden_score, ms_score, wr_raw, wr_score, total, status, note])
 
 
