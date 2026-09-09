@@ -135,6 +135,22 @@ class TestLedgerServer(TempCase):
             self.assertNotIn("not servable", body, "a sibling directory was served")
         except urllib.error.HTTPError as e:
             self.assertIn(e.code, (400, 403, 404))
+    def test_ledger_inside_a_repository_is_refused(self):
+        """F-48: a ledger under a working tree is one `git add .` from committing
+        student IDs, so the server refuses unless --allow-in-repo is given."""
+        os.makedirs(self.path("repo/.git"), exist_ok=True)
+        os.makedirs(self.path("resource"), exist_ok=True)
+        self.write("resource/index.md", "nonce: {{NONCE}}\n")
+        ledger = os.path.join(self.dir, "repo", "ledger.tsv")
+        cmd = [sys.executable, tool("ledger_server.py"), "--resource", self.path("resource"),
+               "--ledger", ledger, "--nonce", "N0NCE42", "--port", "8932", "--bind", "127.0.0.1"]
+        try:
+            p = subprocess.run(cmd, capture_output=True, text=True, timeout=20)
+        except subprocess.TimeoutExpired:
+            self.fail("the server started with its ledger inside a repository")
+        self.assertNotEqual(p.returncode, 0, "the server accepted a ledger inside a repository")
+        self.assertIn("student ID", (p.stdout + p.stderr).replace("student IDs", "student ID"))
+        self.assertFalse(os.path.exists(ledger), "the ledger file was created inside the repository")
 
 
 if __name__ == "__main__":
