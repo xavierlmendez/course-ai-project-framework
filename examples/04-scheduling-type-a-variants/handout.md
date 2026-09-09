@@ -8,7 +8,15 @@ Write a program that chooses a maximum-weight set of jobs from a list, where the
 
 The full task, including the twist, is at:
 
-**http://localhost:8080/?v=<your variant>** (from a laptop) or **http://host.docker.internal:8080/?v=<your variant>** (from inside the sandbox)
+**http://localhost:8080/?v=<your variant>** (from a laptop) or **http://host.docker.internal:8080/?v=<your variant>** (from inside the grading sandbox)
+
+To practise at home, start that server yourself from the root of the course repository:
+
+```
+python3 tools/ledger_server.py --project examples/04-scheduling-type-a-variants/project.json --port 8080
+```
+
+It prints the nonce it is serving and writes `examples/04-scheduling-type-a-variants/ledger.tsv`. That is your own ledger; the graded one is the course server your instructor announces.
 
 Your variant is your student ID (pairs: the first partner's ID). Your harness must fetch that page. It contains a nonce and a ledger instruction.
 
@@ -37,9 +45,14 @@ $ echo '{"variant":"demo","jobs":[{"id":"a","start":0,"end":5,"weight":10,"class
 
 Public tests are in `tests/public/`. **They are generated for the variant `demo` (g = 2), not for yours.** Your hidden tests are generated for your variant.
 
+From the root of the course repository:
+
 ```
-python3 tools/run_tests.py --solution . --tests tests/public
+python3 tools/run_tests.py --solution <your dir> \
+  --tests examples/04-scheduling-type-a-variants/tests/public --entry solve.py --timeout 10
 ```
+
+Add `--json` for the machine-readable summary the milestone asks for.
 
 Hidden categories (names and counts; cases released after grading):
 
@@ -53,20 +66,24 @@ Hidden categories (names and counts; cases released after grading):
 
 ## 5. AI use
 
-Use any harness you like. The course provides a free reference setup, **OpenCode with `qwen2.5-coder:14b`** on Ollama, install guide at `<INSTALL_URL>`, shared server at `<OLLAMA_HOST>`. Your code is graded, not your tool. You are expected to understand every line you submit; the written component asks you to explain one design decision.
+Use any harness you like. The course provides a free reference setup, **OpenCode on Ollama with the model named in `examples/04-scheduling-type-a-variants/project.json`** (the `base_model` key). <!-- model: from project.json --> The install guide is the [student primer](../../templates/student-primer.md).
+
+If your machine cannot run the model, use the course Ollama server your instructor announces: put its URL in `ollama_host` in your own copy of `project.json` (the shipped value is the one the grading container uses, so it will not resolve on your laptop). Exporting `OLLAMA_HOST` does not redirect OpenCode.
+
+Your code is graded, not your tool. You are expected to understand every line you submit; the written component asks you to explain one design decision.
 
 ## 6. What to submit
 
 | File | Cap |
 |---|---|
 | your solution directory, `solve.py` at its root | — |
-| `variant.txt` containing your variant string | one line |
+| `variant.txt` containing your variant string | one line; a courtesy copy — the roster decides which variant you are graded on |
 | `PROCESS.md` | 1 page; required, not graded |
 | `WRITTEN.md` | 1 page; graded |
 
 ## 7. Milestone (end of week 1, 10%)
 
-Your solution passes the public suite. Submit the test runner's JSON output. Auto-graded pass/fail.
+Your solution passes the public suite (generated for the variant `demo`, not yours). Run the §4 command with `--json` added and submit the JSON it prints. Auto-graded pass/fail.
 
 ## 8. Grading
 

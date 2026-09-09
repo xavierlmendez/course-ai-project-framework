@@ -40,7 +40,7 @@ $ echo '{{EXAMPLE_INPUT}}' | python3 {{ENTRY}}
 Public tests are in `tests/public/`. Run them with:
 
 ```
-python3 tools/run_tests.py --solution <dir> --tests tests/public
+python3 tools/run_tests.py --solution <dir> --tests tests/public --entry {{ENTRY}}
 ```
 
 Hidden tests are organized in these categories. You see the names and counts; the cases are released after grading.
@@ -51,17 +51,25 @@ Hidden tests are organized in these categories. You see the names and counts; th
 
 ## 5. The reference harness
 
-Your grade comes from **{{HARNESS}} with model `{{MODEL}}`**, run by the TAs. Develop with whatever you like; optimizing for another tool is pointless.
+Your grade comes from **{{HARNESS}} with the model named in `project.json` (`base_model`: `{{MODEL}}`)**, run by the TAs. Develop with whatever you like; optimizing for another tool is pointless.
 
-Install guide: {{INSTALL_URL}}. Read the [student primer](./student-primer.md) first: it explains what the harness does, how to run the grading setup yourself, and how to write for a small model. A shared Ollama server is at `{{OLLAMA_HOST}}` for anyone whose machine cannot run the model.
+Install guide: the [student primer](./student-primer.md). Read it first: it explains what the harness does, how to run the grading setup yourself, and how to write for a small model.
+
+A shared Ollama server is at `{{OLLAMA_HOST}}` for anyone whose machine cannot run the model. To use it, set `ollama_host` in `project.json` (or in your own copy of it) to that URL; the runner writes it into the `opencode.json` it generates. Exporting `OLLAMA_HOST` does not redirect OpenCode.
 
 Run your specification the way the TAs will:
 
 ```
-python3 tools/runner.py --project project.json --submission <dir> --run-tag practice
+python3 tools/runner.py --project project.json --submission <your dir> --practice
 ```
 
-(The TA run uses secret seeds; yours uses the same temperatures with seeds of your choosing.)
+`--practice` is the whole student path: it runs on your machine instead of the grading sandbox, tags the run `practice` so it can never be mistaken for a graded one, runs the **public** suite (the hidden one is not yours to have), writes `seeds.practice.json` with three seeds of your own if the secret grading seeds are not there, and creates the pinned per-temperature models if your Ollama does not have them. The TA run differs only in the seeds and the sandbox.
+
+To read the published resource and sign the ledger from your own machine while practising, start the course's reference server yourself:
+
+```
+python3 tools/ledger_server.py --project project.json --port {{RESOURCE_PORT}}
+```
 
 ## 6. What to submit
 
@@ -78,7 +86,7 @@ Do **not** submit generated code. It is not graded.
 
 ## 7. Milestone ({{MILESTONE_DATE}}, 10%)
 
-Your specification passes the public suite through the reference harness. Submit the runner's JSON record. Auto-graded pass/fail.
+Your specification passes the public suite through the reference harness: the `--practice` command in §5, which runs exactly that suite. Submit the record it writes for the first slot, `runs/<your dir>/practice-k1.json`. Auto-graded pass/fail.
 
 ## 8. Grading
 

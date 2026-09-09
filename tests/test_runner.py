@@ -235,6 +235,73 @@ class TestSlotArguments(TempCase):
         self.assertNotEqual(code, 0, "--slot 4 was accepted for a K=3 project")
 
 
+class TestPracticeRun(TempCase):
+    """F-29, F-30: the student practice command must work with no TA secret, no
+    prepared slot models, and no hidden tests."""
+
+    def setUp(self):
+        super().setUp()
+        self.make_project()
+        self.write("submissions/ABC123456/SPEC.md", "build it")
+        self.make_test_suite("tests/public", {"basic": 1})
+        self.seen = []
+
+    def practice(self, *extra):
+        """Run main() as a student would, with the harness and the model server stubbed."""
+        def capture_tests(p, workdir, tests_dir, sandbox, dry):
+            self.seen.append((tests_dir, sandbox))
+            return {"solution_started": True, "categories": {"basic": {"pass": 1, "total": 1}}}
+
+        argv = ["runner.py", "--project", self.path("project.json"),
+                "--submission", self.path("submissions/ABC123456"),
+                "--out", self.path("runs"), "--practice", *extra]
+        with mock.patch.object(sys, "argv", argv), \
+             mock.patch.object(runner, "regenerate", return_value=stub_regeneration()), \
+             mock.patch.object(runner, "run_tests", side_effect=capture_tests), \
+             mock.patch.object(runner, "slot_parameters", side_effect=RuntimeError("model not found")), \
+             mock.patch.object(runner, "create_slots") as created:
+            runner.main()
+        return created
+
+    def test_practice_runs_the_public_suite_without_the_secret_seeds(self):
+        self.assertFalse(os.path.exists(self.path("seeds.secret.json")))
+        self.practice()
+        self.assertTrue(self.seen, "the practice run never ran any tests")
+        tests_dir, sandbox = self.seen[0]
+        self.assertEqual(os.path.realpath(tests_dir), os.path.realpath(self.path("tests/public")),
+                         f"the practice run did not target the public suite; it used {tests_dir}")
+        self.assertFalse(sandbox, "the practice run tried to use the grading sandbox")
+        self.assertFalse(os.path.exists(self.path("seeds.secret.json")),
+                         "the practice run demanded the TA's secret seeds")
+
+    def test_practice_writes_its_own_seeds_file(self):
+        self.practice()
+        seeds = json.load(open(self.path("seeds.practice.json")))["seeds"]
+        self.assertEqual(len(seeds), 3)
+        self.assertTrue(all(isinstance(s, int) for s in seeds), seeds)
+
+    def test_practice_creates_the_slot_models_when_they_are_missing(self):
+        created = self.practice()
+        self.assertTrue(created.called,
+                        "the practice run assumed the pinned slot models already existed")
+
+    def test_practice_record_cannot_overwrite_a_grading_record(self):
+        self.practice()
+        files = sorted(os.listdir(os.path.join(self.path("runs"), "ABC123456")))
+        self.assertEqual(files, ["practice-k1.json", "practice-k2.json", "practice-k3.json"], files)
+
+    def test_practice_keeps_the_secret_seeds_when_a_ta_has_them(self):
+        self.make_seeds()
+        self.practice()
+        self.assertFalse(os.path.exists(self.path("seeds.practice.json")),
+                         "a project with real seeds got a practice seeds file anyway")
+
+    def test_explicit_tests_override_still_wins(self):
+        self.make_test_suite("tests/other", {"basic": 1})
+        self.practice("--tests", self.path("tests/other"))
+        self.assertEqual(os.path.realpath(self.seen[0][0]), os.path.realpath(self.path("tests/other")))
+
+
 class TestMultiPartSpecs(TempCase):
     """Decision 19: one submission directory, one specification file per part."""
 

@@ -4,6 +4,7 @@
   "entry": "solve.py",
   "python": "python3",
   "resource_host": "host.docker.internal",
+  "resource_port": 8080,
   "ollama_host": "http://host.docker.internal:11434",
   "base_model": "qwen2.5-coder:14b",
   "k": 3,

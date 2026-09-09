@@ -18,6 +18,9 @@ The ledger file is never served. Read it on the server.
 
 Usage:
     ledger_server.py --resource DIR --ledger FILE --nonce STRING [--port 8080]
+    ledger_server.py --project project.json [--port 8080]      # practice server:
+        resource/ and ledger.tsv beside project.json, port from its resource_port,
+        nonce from its "nonce" key or a random practice nonce that is printed.
 """
 import argparse
 import datetime
@@ -25,6 +28,7 @@ import http.server
 import json
 import os
 import re
+import secrets
 import urllib.parse
 
 ID_RE = re.compile(r"^[A-Z]{3}[0-9]{6}$")
@@ -116,22 +120,50 @@ def make_handler(resource_dir, ledger_path, nonce, base_url):
     return H
 
 
+def from_project(a):
+    """Fill --resource, --ledger, --nonce and --port from a project.json.
+
+    The one-line form a handout can give a student: everything the server needs is
+    already in the project directory. An explicit flag still wins. The nonce is a
+    per-semester secret the professor passes with --nonce; without one, a random
+    nonce is generated and printed, which is all a practice server needs because the
+    page it serves and the entries it accepts then agree with each other.
+    """
+    d = os.path.dirname(os.path.abspath(a.project))
+    with open(a.project) as fh:
+        proj = json.load(fh)
+    a.resource = a.resource or os.path.join(d, proj.get("resource_dir", "resource"))
+    a.ledger = a.ledger or os.path.join(d, proj.get("ledger_file", "ledger.tsv"))
+    a.nonce = a.nonce or proj.get("nonce") or ("practice-" + secrets.token_hex(4))
+    if a.port is None:
+        a.port = proj.get("resource_port", 8080)
+    return a
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--resource", required=True)
-    ap.add_argument("--ledger", required=True)
-    ap.add_argument("--nonce", required=True)
-    ap.add_argument("--port", type=int, default=8080)
+    ap.add_argument("--project", help="project.json; fills --resource, --ledger, --nonce and --port")
+    ap.add_argument("--resource")
+    ap.add_argument("--ledger")
+    ap.add_argument("--nonce")
+    ap.add_argument("--port", type=int)
     ap.add_argument("--bind", default="0.0.0.0")
     ap.add_argument("--base-url", help="absolute URL students/harnesses use to reach this server (substituted for {{BASE_URL}})")
     a = ap.parse_args()
+    if a.project:
+        from_project(a)
+    missing = [f for f in ("resource", "ledger", "nonce") if not getattr(a, f)]
+    if missing:
+        ap.error("give --project, or " + " and ".join("--" + m for m in missing))
+    if a.port is None:
+        a.port = 8080
     base_url = (a.base_url or f"http://localhost:{a.port}").rstrip("/")
     if not os.path.exists(a.ledger):
         with open(a.ledger, "w") as fh:
             fh.write(f"# ledger\tnonce={a.nonce}\tstarted={datetime.datetime.now(datetime.timezone.utc).date()}\n")
             fh.write("# utc_timestamp\tstudent_ids\trun_tag\tvariant\tclient\n")
     srv = http.server.ThreadingHTTPServer((a.bind, a.port), make_handler(os.path.abspath(a.resource), a.ledger, a.nonce, base_url))
-    print(f"serving {a.resource} on :{a.port}; ledger -> {a.ledger}")
+    print(f"serving {a.resource} on :{a.port}; ledger -> {a.ledger}; nonce {a.nonce}")
     srv.serve_forever()
 
 

@@ -1,16 +1,24 @@
 # CS Artificial Intelligence Project 2: Morris Game, Variant (Specification Project)
 
-*Four parts, eight programs. Each part is graded separately and combined with the weights below. Keep the section order.*
+*Four parts, one program each. Each part is graded separately and combined with the weights below.*
 
 ## 1. The task
 
-Write specifications from which the reference harness produces programs that play the opening and midgame of a Morris variant by MINIMAX and ALPHA-BETA search, for White and for Black, with the class's static estimation and then with an improved one of your own. The complete rules, the board, and the exact algorithms are on the published resource; this handout does not repeat them.
+Write specifications from which the reference harness produces programs that play the **opening** of a Morris variant by MINIMAX and ALPHA-BETA search, for White and then for Black, with the class's static estimation and then with an improved one of your own. The complete rules, the board, and the exact algorithms are on the published resource; this handout does not repeat them. All four parts concern the opening phase only.
 
 ## 2. The published resource and the ledger
 
 The full task, including the board that differs from the textbook nine men's morris board, is at:
 
-**http://localhost:8080/** (from a laptop) · **http://host.docker.internal:8080/** (from inside the sandbox)
+**http://localhost:8080/** (from a laptop) · **http://host.docker.internal:8080/** (from inside the grading sandbox)
+
+To practise at home, start that server yourself from the root of the course repository:
+
+```
+python3 tools/ledger_server.py --project examples/01-morris-type-b/part-I/project.json --port 8080
+```
+
+It prints the nonce it is serving, writes `examples/01-morris-type-b/part-I/ledger.tsv`, and is your own ledger, not the course one. The graded ledger is the course server your instructor announces.
 
 Your harness must fetch that page. It contains a nonce and a ledger instruction.
 
@@ -23,7 +31,7 @@ We cannot tell whether the page was fetched by your harness or by you with `curl
 | | |
 |---|---|
 | Language | Python 3.12, standard library only, one file per program |
-| Entry points | `MiniMaxOpening.py`, `MiniMaxGame.py`, `ABOpening.py`, `ABGame.py`, `MiniMaxOpeningBlack.py`, `MiniMaxGameBlack.py`, `MiniMaxOpeningImproved.py`, `MiniMaxGameImproved.py` |
+| Entry points | Part I `MiniMaxOpening.py`, Part II `ABOpening.py`, Part III `MiniMaxOpeningBlack.py`, Part IV `MiniMaxOpeningImproved.py` — one program per part, each the `entry` in that part's `project.json` |
 | Invocation | `python3 <Program>.py <input file> <output file> <depth>` |
 | Input | a file holding one 23-character board of `W`, `B`, `x` |
 | Output file | the chosen board, one line |
@@ -41,11 +49,15 @@ MINIMAX estimate: 0.
 
 ## 4. Tests
 
-Public tests are in `part-<N>/tests/public/`. Run them with:
+Public tests are in each part's `tests/public/`. From the root of the course repository, for Part I:
 
 ```
-python3 tools/run_tests.py --solution <dir> --tests part-I/tests/public --entry MiniMaxOpening.py --timeout 30
+python3 tools/run_tests.py --solution <your dir> \
+  --tests examples/01-morris-type-b/part-I/tests/public \
+  --entry MiniMaxOpening.py --timeout 30
 ```
+
+For another part, swap `part-I` and the `--entry` for that part's entry point from §3.
 
 Hidden categories (names, counts, weights and equivalence policy; cases released after grading):
 
@@ -64,15 +76,20 @@ Hidden categories (names, counts, weights and equivalence policy; cases released
 
 ## 5. The reference harness
 
-Your grade comes from **OpenCode with model `qwen2.5-coder:14b`**, run by the TAs. Develop with whatever you like; optimizing for another tool is pointless.
+Your grade comes from **OpenCode with the model named in each part's `project.json`** (the `base_model` key), run by the TAs. Develop with whatever you like; optimizing for another tool is pointless. <!-- model: from project.json -->
 
-Install guide: `docs/install-opencode-ollama.md`. A shared Ollama server is at `ollama.cs.example.edu:11434` for anyone whose machine cannot run the model.
+Install guide: the [student primer](../../templates/student-primer.md). Read it before the milestone.
 
-Run a specification the way the TAs will:
+If your machine cannot run the model, use the course Ollama server your instructor announces: set `ollama_host` in your own copy of the part's `project.json` to that URL. The runner writes it into the `opencode.json` it generates, verbatim, so it must be an address the machine you are running on can reach. Exporting `OLLAMA_HOST` does not redirect OpenCode.
+
+Run a specification the way the TAs will, from the root of the course repository:
 
 ```
-python3 tools/runner.py --project part-I/project.json --submission <dir> --run-tag practice
+python3 tools/runner.py --project examples/01-morris-type-b/part-I/project.json \
+  --submission <your part-I dir> --practice
 ```
+
+`--practice` needs nothing you do not have: it runs outside the grading sandbox, tags the run `practice`, runs that part's **public** suite, writes `seeds.practice.json` with three seeds of your own (the grading seeds are secret until grades are out), and creates the pinned per-temperature models if your Ollama has none.
 
 ## 6. What to submit
 
@@ -80,28 +97,28 @@ One directory per part, each containing exactly:
 
 | File | Cap |
 |---|---|
-| `SPEC.md` (Parts I and II: one spec per program, named `SPEC-MiniMaxOpening.md` etc.) | 1,500 words each including supporting files |
+| `SPEC.md` — exactly that name, in each part's directory. It is the file the harness is told to read (`spec` in that part's `project.json`) | 1,500 words each including supporting files |
 | `PROCESS.md` | 1 page per part; required, not graded |
 | `WRITTEN.md` | 1 page per part; graded |
-| Part IV only: `MyStaticEstimation.md` | 1 page: your function, two positions where it chooses differently from the baseline, and why it is better |
+| Part IV only: `MyStaticEstimation.txt`, named inside your Part IV `SPEC.md` so the harness receives it | 1 page: your function, two positions where it chooses differently from the baseline, and why it is better |
 
 Do **not** submit generated code. It is not graded.
 
 ## 7. Milestone (end of week 1, 10%)
 
-Your Part I `SPEC-MiniMaxOpening.md` passes the public suite through the reference harness. Submit the runner's JSON record. Auto-graded pass/fail.
+Your Part I `SPEC.md` passes the public suite through the reference harness: the `--practice` command in §5, which runs exactly that suite. Submit the record it writes for the first slot, `runs/<your part-I dir>/practice-k1.json`. Auto-graded pass/fail.
 
 ## 8. Grading
 
 | Component | Weight |
 |---|---|
 | Milestone | 10 |
-| Hidden tests, best of 3 regenerations per program | 70, twist categories carry 35 |
+| Hidden tests, best of 3 regenerations per part | 70, twist categories carry 35 |
 | Written component | 20 |
 
 The 70 hidden-test points are split across parts: **Part I 45%, Part II 35%, Part III 10%, Part IV 10%** of the 70. Each part is graded on its own categories, then combined with those weights.
 
-**Regeneration.** The TAs run each specification through the reference harness three times, at temperatures 0.2, 0.6 and 1.0, with a fixed seed per temperature that is secret until grades are released. Your hidden-test score per program is the best of the three. A run that exceeds 20 minutes or produces a program that does not start scores zero for that run.
+**Regeneration.** The TAs run each specification through the reference harness three times, at temperatures 0.2, 0.6 and 1.0, with a fixed seed per temperature that is secret until grades are released. Your hidden-test score per part is the best of the three. A run that exceeds 20 minutes or produces a program that does not start scores zero for that run.
 
 **Written component** (`WRITTEN.md`, one page per part), 0–3 on each of:
 

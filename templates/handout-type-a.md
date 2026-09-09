@@ -37,10 +37,16 @@ $ echo '{{EXAMPLE_INPUT}}' | python3 {{ENTRY}}
 
 ## 4. Tests
 
-Public tests are in `tests/public/`:
+Public tests are in `tests/public/`. From the root of the course repository:
 
 ```
-python3 tools/run_tests.py --solution . --tests tests/public
+python3 tools/run_tests.py --solution <your dir> --tests tests/public --entry {{ENTRY}}
+```
+
+To read the published resource and sign the ledger from your own machine while practising, start the course's reference server yourself:
+
+```
+python3 tools/ledger_server.py --project project.json --port {{RESOURCE_PORT}}
 ```
 
 Hidden categories (names and counts; cases released after grading):
@@ -51,7 +57,7 @@ Hidden categories (names and counts; cases released after grading):
 
 ## 5. AI use
 
-Use any harness you like. The course provides a free reference setup, **{{HARNESS}} with `{{MODEL}}`**, install guide at {{INSTALL_URL}} and the [student primer](./student-primer.md), shared server at `{{OLLAMA_HOST}}`. Your code is graded, not your tool. You are expected to understand every line you submit; the written component asks you to explain one design decision.
+Use any harness you like. The course provides a free reference setup, **{{HARNESS}} with the model named in `project.json` (`base_model`: `{{MODEL}}`)**; the install guide is the [student primer](./student-primer.md). A shared Ollama server is at `{{OLLAMA_HOST}}` for anyone whose machine cannot run the model: set `ollama_host` in `project.json` (or your own copy) to that URL. Exporting `OLLAMA_HOST` does not redirect OpenCode. Your code is graded, not your tool. You are expected to understand every line you submit; the written component asks you to explain one design decision.
 
 ## 6. What to submit
 
@@ -63,7 +69,7 @@ Use any harness you like. The course provides a free reference setup, **{{HARNES
 
 ## 7. Milestone ({{MILESTONE_DATE}}, 10%)
 
-Your solution passes the public suite. Submit the test runner's JSON output. Auto-graded pass/fail.
+Your solution passes the public suite. Run the §4 command with `--json` added and submit the JSON it prints. Auto-graded pass/fail.
 
 ## 8. Grading
 

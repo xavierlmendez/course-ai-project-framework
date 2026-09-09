@@ -5,3 +5,4 @@ course-ledger.tsv
 __pycache__/
 *.pyc
 .DS_Store
+seeds.practice.json

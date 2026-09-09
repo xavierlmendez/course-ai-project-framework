@@ -5,11 +5,11 @@ Python 3 standard library plus Docker and Ollama. A TA can read every file in on
 | Tool | Role |
 |---|---|
 | `run_tests.py` | Runs interface-contract tests against one solution directory. Used by students (public suite), by the milestone, and by the runner inside the sandbox (hidden suite). |
-| `runner.py` | TA batch runner. Type B: K sandboxed regenerations per submission, then hidden tests. Type A: hidden tests once. Also creates the pinned slot models (`--create-slots`). Resumable. |
+| `runner.py` | TA batch runner. Type B: K sandboxed regenerations per submission, then hidden tests. Type A: hidden tests once. Also creates the pinned slot models (`--create-slots`), and gives students one practice command (`--practice`). Resumable. |
 | `grade.py` | Turns runner records plus `status.csv`, `written.csv`, `milestone.csv` into `gradebook.csv`. Refuses a `status.csv` with no `grad` column, refuses a written dimension outside 0–3, and marks a row `incomplete` rather than emitting a total that silently omits a component. |
 | `combine_parts.py` | Combines per-part gradebooks. Each part contributes only its **hidden** score, weighted; the milestone and written component are course-level and added once. |
 | `prescan.py` | Flags lines in specifications the safety read must look at closely. Not a safety control. |
-| `ledger_server.py` | Serves the published resource and the write-only ledger endpoint. Reference implementation; port the one route into an existing site if you have one. |
+| `ledger_server.py` | Serves the published resource and the write-only ledger endpoint. `--project project.json` takes its resource directory, ledger file, nonce and port from the project, which is the form a handout can give a student. Reference implementation; port the one route into an existing site if you have one. |
 | `sandbox/` | Docker image: Python, a **pinned** OpenCode, curl, and an outbound allowlist of host:port pairs. Hidden tests are staged root-only; the graded solution runs unprivileged. |
 | `../tests/` | `python3 -m unittest discover -s tests`. Every test names the finding it guards. No Docker, model or network needed. |
 | `../scripts/rehearsal.py` | Grades a fixture cohort end to end and prints the arithmetic beside the gradebook, so the totals can be checked by hand. |
@@ -20,6 +20,7 @@ Python 3 standard library plus Docker and Ollama. A TA can read every file in on
 ```
 project.json
 seeds.secret.json           {"seeds": [n1, n2, n3]}   never committed, secret until grades are out
+seeds.practice.json         written by --practice when the secret seeds are absent; never committed
 resource/index.md           the published resource; {{NONCE}}, {{VARIANT}}, {{BASE_URL}} substituted
 tests/public/<cat>/NNN.in.json + NNN.out.json     (or check.py in the category dir)
                             argv-files contract instead: NNN.args ("{in} {out} 3"), NNN.in.txt,
@@ -51,6 +52,11 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
   "resource_host": "host.docker.internal",          // the published resource's host …
   "resource_port": 8080,                            // … and its port. The sandbox allowlist is
                                                     //   host:port pairs, never a bare host
+  "resource_dir": "resource",                       // optional; where ledger_server.py --project
+                                                    //   finds the page. Relative to project.json
+  "ledger_file": "ledger.tsv",                      // optional; same, for ledger_server.py --project
+  "nonce": "…",                                     // optional; ledger_server.py --project uses it,
+                                                    //   else --nonce, else a random practice nonce
   "ollama_host": "http://host.docker.internal:11434",
   "base_model": "qwen2.5-coder:14b",
   "k": 3,
@@ -149,11 +155,15 @@ docker build -t harness-sandbox tools/sandbox/
 python3 tools/runner.py --project project.json --create-slots
 python3 tools/ledger_server.py --resource resource/ --ledger ledger.tsv --nonce <NONCE> --port 8080 \
         --base-url http://host.docker.internal:8080
+python3 tools/ledger_server.py --project project.json --port 8080   # the student practice form
 python3 tools/runner.py --project project.json --verify-slots   # is the schedule reaching the model?
 python3 tools/prescan.py submissions/ --project project.json
 python3 tools/runner.py --project project.json --submissions submissions/ --status status.csv --out runs/
 python3 tools/grade.py --project project.json --runs runs/ --status status.csv --written written.csv \
         --milestone milestone.csv > gradebook.csv
+
+# the one command a student runs: no secret seeds, no prepared slot models, public suite
+python3 tools/runner.py --project project.json --submission <dir> --practice
 
 # multi-part: grade each part (hidden only), then combine once
 python3 tools/grade.py --project part-I/project.json  --runs part-I/runs  --status status.csv > gb-I.csv
