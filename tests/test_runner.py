@@ -95,6 +95,20 @@ class TestSubmissionIsolation(TempCase):
                          "the student's own solve.py was copied into the harness workdir")
         self.assertTrue(os.path.exists(os.path.join(workdir, "SPEC.md")))
 
+    def test_solution_subdirectory_is_not_copied(self):
+        """F-06: the calibration command pointed --submission at reference/, whose
+        solution/ subdirectory holds the professor's own answer. Nothing but the
+        specification and the data files it names may reach the harness workdir."""
+        sub = self.path("submissions/ABC123456")
+        self.write("submissions/ABC123456/SPEC.md", "build it")
+        self.write("submissions/ABC123456/solution/solve.py", "print('the professor answer')")
+        p = runner.load_project(self.path("project.json"))
+        workdir = self.path("work")
+        runner.prepare_workdir(p, sub, workdir)
+        self.assertFalse(os.path.exists(os.path.join(workdir, "solution")),
+                         "a solution/ subdirectory was copied into the harness workdir")
+        self.assertEqual(sorted(os.listdir(workdir)), ["SPEC.md"])
+
     def test_named_data_file_is_copied(self):
         sub = self.path("submissions/ABC123456")
         self.write("submissions/ABC123456/SPEC.md", "Use the table in board.txt when deciding.")
