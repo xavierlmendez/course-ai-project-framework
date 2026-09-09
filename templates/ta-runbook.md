@@ -54,8 +54,9 @@ Check the ledger: every Type B submission you ran should show three entries tagg
 ## Day 3: release
 
 1. Send `gradebook.csv` to the professor.
-2. After the professor releases grades: publish `tests/hidden/` and `seeds.secret.json`.
-3. Appeals: for each granted appeal, `python3 tools/runner.py --project project.json --submission submissions/<id> --run-tag appeal --slot 2 --out runs/` and re-run `grade.py`.
+2. Submit the specifications (Type B) or solutions (Type A) to {{SIMILARITY_TOOL}} per the course's process; the professor handles anything it flags.
+3. After the professor releases grades: publish `tests/hidden/` and `seeds.secret.json`.
+4. Appeals: for each granted appeal, `python3 tools/runner.py --project project.json --submission submissions/<id> --run-tag appeal --slot 2 --out runs/` and re-run `grade.py`.
 
 ## Things not to do
 

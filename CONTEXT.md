@@ -14,8 +14,8 @@ _Avoid_: AI-assisted project, traditional project
 A project where the graded object is a specification the student writes, and correctness is judged by executing that specification through the reference harness.
 _Avoid_: prompt project, prompt-engineering assignment
 
-**Hybrid Project**:
-A project that grades the submitted solution (as Type A) and runs the specification through the reference harness only as a reproducibility gate. The shape of the previous project, made checkable.
+**Hybrid Project** (not implemented; see framework.md §15):
+A project that grades the submitted solution (as Type A) and runs the specification through the reference harness only as a reproducibility gate. The shape of the previous project. The framework does not provide it: no handout, no runner mode, no gate column. A professor who wants it builds the runner mode themselves.
 _Avoid_: prompt-plus-code project
 
 **Part**:

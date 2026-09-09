@@ -14,6 +14,8 @@ A twist is the deliberate deviation from the canonical problem that makes traini
 - [ ] **Every hidden category names its equivalence policy** (`strict`, `estimate`, `ab`, `valid`) and has a `check.py` when it is not `strict`.
 - [ ] **Different from last semester's.**
 
+**The twist-half rule.** In `project.json`, the twist categories' weights sum to exactly half of the non-graduate weights; a part whose categories are all twist categories is allowed and the rule then applies trivially (all of the non-grad weight is twist, so the professor must either add a non-twist category or accept that the part is entirely twist, and say which in the handout). An all-twist part passes `scripts/review_checks.py` only when the project declares `"all_twist": true`.
+
 ## Patterns that work
 
 - Change a movement or adjacency rule on a board or graph.
