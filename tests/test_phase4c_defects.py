@@ -275,3 +275,31 @@ class TestSandboxRunsAsHostUser(TempCase):
     def test_entrypoint_adopts_the_host_uid(self):
         text = open(os.path.join(ROOT, "tools", "sandbox", "entrypoint.sh")).read()
         self.assertIn('usermod -u "$HOST_UID" runner', text)
+
+
+class TestStaleContainerIsRemoved(TempCase):
+    """An interrupted batch can leave a container carrying the name the next run wants;
+    docker then exits 125 with a name conflict (g5.xlarge, 2026-09-09)."""
+
+    def test_regenerate_removes_a_stale_container_of_the_same_name(self):
+        p = {"slot_prefix": "ref-x-slot", "temperatures": [0.2], "ollama_host": "http://host.docker.internal:11434",
+             "resource_host": "host.docker.internal", "resource_port": 8080, "sandbox_image": "harness-sandbox",
+             "regeneration_timeout_s": 60, "entry": "solve.py", "spec": "SPEC.md", "name": "x",
+             "data_files": [], "code_ext": [".py"], "wrapper_prompt": "go {entry} {spec}"}
+        sub = self.path("submissions", "ABC123456", "SPEC.md"); open(sub, "w").write("build it")
+        work = self.path("runs", "ABC123456", "t-k1-work"); os.makedirs(work, exist_ok=True)
+        calls = []
+        real_run = runner.subprocess.run
+
+        def fake_run(cmd, *a, **k):
+            calls.append(cmd)
+            return real_run(["true"], capture_output=True)
+
+        with mock.patch.object(runner, "sh", lambda *a, **k: (1, "", "", 0.1)), \
+             mock.patch.object(runner, "prepare_workdir", lambda *a, **k: None), \
+             mock.patch.object(runner.subprocess, "run", fake_run):
+            try:
+                runner.regenerate(p, os.path.dirname(sub), work, 1, 7, "t", sandbox=True, dry=False)
+            except Exception:
+                pass
+        self.assertTrue(any(c[:3] == ["docker", "rm", "-f"] for c in calls), calls)

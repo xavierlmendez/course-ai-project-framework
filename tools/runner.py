@@ -742,6 +742,11 @@ def regenerate(p, sub_dir, workdir, slot, seed, run_tag, sandbox, dry):
     cname = re.sub(r"[^A-Za-z0-9_.-]", "-", cname)[:100]
     if sandbox:
         cmd = docker_base(p, workdir, extra_env=env, network=True, name=cname) + ["regenerate"]
+        if not dry:
+            # A container of this name may survive an interrupted batch; docker then refuses
+            # to start the new one ("Conflict. The container name ... is already in use",
+            # exit 125). Remove it first; the name is ours by construction.
+            subprocess.run(["docker", "rm", "-f", cname], capture_output=True)
         run_env = None
     else:
         # OpenCode 1.18.29 takes its project directory from the PWD variable, not from the
