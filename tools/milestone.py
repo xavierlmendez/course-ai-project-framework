@@ -13,7 +13,11 @@ Two subcommands.
         **Type A**: `--solution` is the directory holding the code you are submitting.
 
         **Type B**: you do not write the code, so `--solution` is the directory the harness
-        wrote for you. Do a practice run first, then point at its working directory:
+        wrote for you and `--regeneration` is **required**: it must be the runner record of
+        a completed practice run that produced an entry point, and `--solution` must be that
+        record's own work directory (`<tag>-k<N>-work` beside `<tag>-k<N>.json`). Hand-written
+        code, a mistyped path, or a `--dry-run` record is refused. Do a practice run first,
+        then point at its working directory:
 
             python3 tools/runner.py --project project.json --submission ./my-submission \\
                     --run-tag practice --slot 1 --out ./practice --no-sandbox
@@ -28,7 +32,8 @@ Two subcommands.
 
         Run by a **TA**. Validates every submitted record and writes the milestone.csv
         that grade.py reads. A record passes when its digest matches, it names this
-        project, its student is on the roster, and every public test passed.
+        project, its student is on the roster, every public test passed, and — for a Type B
+        project — it carries a harness block from a completed regeneration run.
 
         Records are matched to `status.csv` rows on any **shared member**, so a pair's
         record may name either partner or the pair in any of its forms (`A+B`, `A-B`,
@@ -98,20 +103,83 @@ def run_public_suite(p, project_dir, solution, timeout):
         sys.exit(f"could not read the public-suite result:\n{r.stderr[-1500:]}")
 
 
+def harness_evidence(a, p):
+    """The Type B harness block: proof that the code being measured came out of a run.
+
+    A milestone whose --regeneration was a typo used to be written anyway, so hand-written
+    code could pass the milestone for a project whose whole point is that the student does
+    not write the code. Every way that can go wrong gets its own sentence.
+    """
+    if not a.regeneration:
+        sys.exit("this is a Type B project, so the milestone needs the harness run that "
+                 "produced the code: pass --regeneration runs/<id>/<tag>-k<N>.json from a "
+                 "practice run (see the command in the header of this file).")
+    path = os.path.abspath(a.regeneration)
+    if not os.path.exists(path):
+        sys.exit(f"regeneration record not found: {path}\n"
+                 "Do a practice run first; the runner writes the record beside its work "
+                 "directory under --out.")
+    if path.endswith(".dry.json"):
+        sys.exit(f"{path} is a dry-run record: --dry-run prints the commands and runs nothing. "
+                 "Do a real practice run (drop --dry-run) and use the record it writes.")
+    try:
+        reg = json.load(open(path))
+    except Exception as e:
+        sys.exit(f"{path} is not a runner record ({e}); pass the runner's JSON record, "
+                 "runs/<id>/<tag>-k<N>.json.")
+    if not isinstance(reg, dict) or not isinstance(reg.get("regeneration"), dict) \
+            or not reg.get("run_tag"):
+        sys.exit(f"{path} is not a runner record: it has no 'regeneration' block and "
+                 "'run_tag'. Pass runs/<id>/<tag>-k<N>.json, not the milestone or a "
+                 "test summary.")
+    if reg.get("dry_run") is True:
+        sys.exit(f"{path} is a dry-run record: --dry-run prints the commands and runs nothing. "
+                 "Do a real practice run (drop --dry-run) and use the record it writes.")
+    body = reg["regeneration"]
+    if reg.get("complete") is not True:
+        why = reg.get("incomplete_reason") or body.get("environment_error") \
+            or body.get("harness_error") or "the run did not finish"
+        sys.exit(f"{path} is not a completed run ({why}). Fix that and run the practice "
+                 "command again; a milestone needs a run that finished.")
+    if body.get("entry_present") is not True:
+        sys.exit(f"{path} records a run that produced no {p.get('entry', 'solve.py')}. "
+                 "The harness must write the entry point before there is anything to measure.")
+    # The runner names the work directory after the record's run tag, beside the record.
+    work = os.path.join(os.path.dirname(path), f"{reg['run_tag']}-work")
+    if os.path.realpath(work) != os.path.realpath(os.path.abspath(a.solution)):
+        sys.exit(f"--solution is not the directory that run wrote: expected {work}, "
+                 f"got {os.path.abspath(a.solution)}. The milestone measures the code the "
+                 "harness produced, not code beside it.")
+    return {
+        "model": p.get("base_model"),
+        "run_tag": reg.get("run_tag"),
+        "slot": reg.get("slot"),
+        "harness_exit": body.get("harness_exit"),
+        "wall_s": body.get("wall_s"),
+        "entry_present": True,
+        "complete": True,
+        "record": os.path.basename(path),
+    }
+
+
 def cmd_record(a):
     p = json.load(open(a.project))
     project_dir = os.path.dirname(os.path.abspath(a.project))
+    ptype = p.get("type", "B")
+    if not os.path.isdir(a.solution):
+        sys.exit(f"--solution directory not found: {os.path.abspath(a.solution)}")
+    if ptype == "B":
+        harness = harness_evidence(a, p)
+    else:
+        harness = {"model": p.get("base_model")}
+        if a.regeneration:
+            print("note: Type A projects have no regeneration run; --regeneration ignored",
+                  file=sys.stderr)
     summary = run_public_suite(p, project_dir, a.solution, p.get("test_timeout_s", 10))
     cats = summary.get("categories", {})
     passed = sum(c["pass"] for c in cats.values())
     total = sum(c["total"] for c in cats.values())
 
-    harness = {"model": p.get("base_model")}
-    if a.regeneration and os.path.exists(a.regeneration):
-        reg = json.load(open(a.regeneration))
-        harness["harness_exit"] = reg.get("regeneration", {}).get("harness_exit")
-        harness["wall_s"] = reg.get("regeneration", {}).get("wall_s")
-        harness["run_tag"] = reg.get("run_tag")
     # A pair may type their id in any of the accepted forms (`A+B`, `A-B`, `A,B`, or one
     # partner alone). Normalise to the ledger's `A+B` so the record is self-consistent;
     # `check` matches it to the roster on any shared member either way.
@@ -120,7 +188,7 @@ def cmd_record(a):
         "student_id": "+".join(ids) if ids else a.student_id.strip().upper(),
         "project": p.get("name"),
         "part": p.get("part"),
-        "type": p.get("type", "B"),
+        "type": ptype,
         "harness": harness,
         "public": {"pass": passed, "total": total,
                    "categories": {k: {"pass": v["pass"], "total": v["total"]} for k, v in cats.items()},
@@ -149,6 +217,12 @@ def validate(rec, p):
         bad.append(f"record is for project {rec.get('project')!r}, not {p.get('name')!r}")
     if p.get("part") and rec.get("part") != p.get("part"):
         bad.append(f"record is for part {rec.get('part')!r}, not {p.get('part')!r}")
+    if p.get("type", "B") == "B":
+        h = rec.get("harness") or {}
+        if not isinstance(h, dict) or not h.get("run_tag"):
+            bad.append("no harness evidence (the record names no regeneration run)")
+        elif h.get("entry_present") is not True or h.get("complete") is not True:
+            bad.append("no harness evidence (the regeneration run it names did not complete)")
     pub = rec.get("public") or {}
     if not pub.get("total"):
         bad.append("no public tests were run")
@@ -179,7 +253,7 @@ def cmd_check(a):
     results = {}
     for name in sorted(os.listdir(a.records)):
         path = os.path.join(a.records, name)
-        if not os.path.isfile(path) or not name.endswith(".json"):
+        if not os.path.isfile(path) or not name.endswith(".json") or name.endswith(".dry.json"):
             continue
         try:
             rec = json.load(open(path))
@@ -222,7 +296,9 @@ def main():
     r.add_argument("--project", required=True)
     r.add_argument("--solution", required=True, help="directory holding the entry point")
     r.add_argument("--student-id", required=True)
-    r.add_argument("--regeneration", help="the runner's practice record, for Type B")
+    r.add_argument("--regeneration",
+                   help="the runner's practice record, runs/<id>/<tag>-k<N>.json. Required "
+                        "for Type B: --solution must be that record's work directory")
     r.add_argument("--out", default="milestone.json")
     r.set_defaults(fn=cmd_record)
 

@@ -125,6 +125,8 @@ def main():
         grad = str(st.get("grad", "0")).strip() in ("1", "true", "yes", "grad")
         recs, all_recs = [], []
         for f in sorted(glob.glob(os.path.join(a.runs, sid, "*.json"))):
+            if f.endswith(".dry.json"):
+                continue          # a --dry-run record is a printed command line, not a run
             try:
                 r = json.load(open(f))
             except Exception:

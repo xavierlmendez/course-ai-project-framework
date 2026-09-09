@@ -146,9 +146,16 @@ class TestMilestoneForTypeB(TempCase):
         self.make_project(name="demo")
         self.make_test_suite("tests/public", {"basic": 1})
         work = self.make_solution("runs/ABC123456/practice-k1-work")
+        # Type B also requires the runner record that produced that work directory.
+        self.write_json("runs/ABC123456/practice-k1.json",
+                        {"submission": "ABC123456", "type": "B", "slot": 1,
+                         "run_tag": "practice-k1", "complete": True,
+                         "regeneration": {"harness_exit": 0, "wall_s": 12.0,
+                                          "entry_present": True}})
         code, out, _ = run_tool("milestone.py", "record",
                                 "--project", self.path("project.json"),
                                 "--solution", work, "--student-id", "ABC123456",
+                                "--regeneration", self.path("runs/ABC123456/practice-k1.json"),
                                 "--out", self.path("m.json"))
         self.assertEqual(code, 0, out)
         rec = json.load(open(self.path("m.json")))

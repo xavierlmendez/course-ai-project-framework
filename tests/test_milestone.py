@@ -19,11 +19,24 @@ class MilestoneCase(TempCase):
         self.make_test_suite("tests/public", {"basic": 2})
         os.makedirs(self.path("records"), exist_ok=True)
 
+    def practice_run(self, sid, correct=True, **overrides):
+        """A completed practice run: the work directory the harness wrote, and its record.
+
+        Type B is the default project type, so every milestone record needs one.
+        """
+        work = self.make_solution(f"runs/{sid}/practice-k1-work", correct=correct)
+        rec = {"submission": sid, "type": "B", "slot": 1, "run_tag": "practice-k1",
+               "complete": True,
+               "regeneration": {"harness_exit": 0, "wall_s": 12.0, "entry_present": True}}
+        rec.update(overrides)
+        return work, self.write_json(f"runs/{sid}/practice-k1.json", rec)
+
     def record_for(self, sid, correct=True, out=None):
-        sol = self.make_solution(f"sol-{sid}", correct=correct)
+        work, reg = self.practice_run(sid, correct=correct)
         out = out or self.path(f"records/{sid}.json")
         return run_tool("milestone.py", "record", "--project", self.path("project.json"),
-                        "--solution", sol, "--student-id", sid, "--out", out)
+                        "--solution", work, "--student-id", sid,
+                        "--regeneration", reg, "--out", out)
 
 
 class TestRecord(MilestoneCase):

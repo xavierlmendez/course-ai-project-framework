@@ -5,11 +5,11 @@ Python 3 standard library plus Docker and Ollama. A TA can read every file in on
 | Tool | Role |
 |---|---|
 | `run_tests.py` | Runs interface-contract tests against one solution directory. Used by students (public suite), by the milestone, and by the runner inside the sandbox (hidden suite). Given `--project project.json` it enforces each category's declared equivalence policy and reports it in the summary. |
-| `runner.py` | TA batch runner. Type B: K sandboxed regenerations per submission, then hidden tests. Type A: hidden tests once. Also creates the pinned slot models (`--create-slots`), and gives students one practice command (`--practice`). Resumable. |
+| `runner.py` | TA batch runner. Type B: K sandboxed regenerations per submission, then hidden tests. Type A: hidden tests once. Also creates the pinned slot models (`--create-slots`), and gives students one practice command (`--practice`). Both stop with the URL they tried if the model server is unreachable, and a missing `opencode` or `docker` binary gives a sentence naming what to install, not a traceback. Resumable. |
 | `grade.py` | Turns runner records plus `status.csv`, `written.csv`, `milestone.csv` into `gradebook.csv`. Refuses a `status.csv` with no `grad` column, refuses a written dimension outside 0–3, and marks a row `incomplete` rather than emitting a total that silently omits a component. |
 | `grade_all.py` | Grades a whole project, single-part or multi-part, in one command. Replaces the shell loop, which word-split differently in bash and zsh and silently continued past a part that was never run. |
 | `combine_parts.py` | Combines per-part gradebooks. Each part contributes only its **hidden** score, weighted; the milestone and written component are course-level and added once. |
-| `milestone.py` | `record` (student) runs the public suite and writes a milestone record; `check` (TA) validates submitted records into `milestone.csv`. |
+| `milestone.py` | `record` (student) runs the public suite and writes a milestone record; on a Type B project it requires the runner record of a completed regeneration and embeds it as the record's `harness` block. `check` (TA) validates submitted records into `milestone.csv`, refusing a Type B record with no harness evidence. |
 | `prescan.py` | Flags lines in specifications the safety read must look at closely. Not a safety control. |
 | `ledger_server.py` | Serves the published resource and the write-only ledger endpoint. `--project project.json` takes its resource directory, ledger file, nonce and port from the project, which is the form a handout can give a student. Reference implementation; port the one route into an existing site if you have one. |
 | `sandbox/` | Docker image: Python, a **pinned** OpenCode, curl, and an outbound allowlist of host:port pairs. Hidden tests are staged root-only; the graded solution runs unprivileged. |
@@ -69,12 +69,26 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
   "ledger": "ledger.tsv",                           // optional; same, for ledger_server.py --project.
                                                     //   The server refuses a path inside a repository
                                                     //   unless --allow-in-repo is given
-  "ollama_host": "http://host.docker.internal:11434",   // as the *sandbox* reaches it
+  "ollama_host": "http://host.docker.internal:11434",   // as the *sandbox* reaches it. Used
+                                        //   verbatim only inside the sandbox: the OpenCode
+                                        //   baseURL, the sandbox allowlist, OLLAMA_HOST in
+                                        //   the container
   "ollama_host_local": null,            // optional: as *this machine* reaches it, when the
-                                        //   model server is not on the docker host. A
-                                        //   container-only name is translated to loopback
-                                        //   automatically for host-side checks
+                                        //   model server is not on the docker host (a course
+                                        //   server). A container-only name is translated to
+                                        //   loopback automatically. Everything that runs on
+                                        //   the host uses this address: --create-slots and
+                                        //   every other `ollama` CLI call (OLLAMA_HOST is set
+                                        //   for them), --verify-slots, and the OpenCode
+                                        //   baseURL of a --no-sandbox / --practice run. A
+                                        //   student with a local Ollama therefore edits
+                                        //   nothing; a student on the course server sets this
+                                        //   one key
   "base_model": "qwen2.5-coder:14b",
+  "num_ctx": 32768,                     // context window pinned into every slot Modelfile
+                                        //   (PARAMETER num_ctx). The agent loop's tool
+                                        //   schemas do not fit Ollama's 4096 default;
+                                        //   measured 2026-09-08/09. --verify-slots checks it
   "k": 3,
   "temperatures": [0.2, 0.6, 1.0],
   "seeds_file": "seeds.secret.json",
@@ -171,9 +185,16 @@ ship a finished solution and be graded on it.
 
 ## Records and resume
 
-A grading run writes `runs/<id>/k<N>.json`. Any other run tag writes `runs/<id>/<tag>-k<N>.json`,
-so an **appeal** is a record of its own: it neither collides with the grading record nor is
-mistaken for one already done. `grade.py` considers every complete record and takes the best.
+A grading run writes `runs/<id>/k<N>.json` beside its working directory `runs/<id>/grading-k<N>-work`.
+Any other run tag writes `runs/<id>/<tag>-k<N>.json` beside `runs/<id>/<tag>-k<N>-work`, so an
+**appeal** is a record of its own: it neither collides with the grading record nor is mistaken for
+one already done. `grade.py` considers every complete record and takes the best.
+
+`--dry-run` prints the command lines and runs nothing. Its records are kept — they are the easiest
+way to see exactly what would be executed — but named apart: `runs/<id>/<tag>-k<N>.dry.json` beside
+`runs/<id>/<tag>-k<N>-dry-work`, and carrying `"dry_run": true`. `grade.py` and `milestone.py` skip
+every `*.dry.json`, so a dry run can never be mistaken for a slot that ran, or counted as one that
+never finished.
 
 A slot whose regeneration failed because the **environment** was broken (model server down,
 docker unreachable, disk full) is written with `"complete": false` and an `incomplete_reason`,
@@ -184,7 +205,9 @@ the batch, on the grounds that the machine, not the cohort, is what needs fixing
 
 ```
 docker build -t harness-sandbox tools/sandbox/
-python3 tools/runner.py --project project.json --create-slots
+python3 tools/runner.py --project project.json --create-slots   # OLLAMA_HOST is set from the
+                                                                # project; pins temperature,
+                                                                # seed and num_ctx per slot
 python3 tools/ledger_server.py --project project.json --port 8080 \
         --base-url http://host.docker.internal:8080
 python3 tools/runner.py --project project.json --verify-slots   # is the schedule reaching the model?
@@ -198,8 +221,19 @@ python3 tools/grade_all.py --project . --status status.csv \
         --written written.csv --milestone milestone.csv > gradebook.csv
 
 # the milestone
+# Type A: --solution is the directory holding the code being submitted.
 python3 tools/milestone.py record --project project.json --solution <dir> \
         --student-id ABC123456 --out milestone.json          # student
+# Type B: --regeneration is REQUIRED and --solution must be that record's own work directory.
+# The record must be a completed runner record (not a *.dry.json one) whose regeneration
+# produced the entry point; the milestone embeds its model, run tag, slot, wall time and file
+# name as the `harness` block, and `milestone.py check` refuses a Type B record without one
+# ("no harness evidence"). Anything else — a mistyped path, hand-written code beside a real
+# run, a dry-run record — is refused with a message saying which.
+python3 tools/milestone.py record --project project.json \
+        --solution runs/ABC123456/practice-k1-work \
+        --regeneration runs/ABC123456/practice-k1.json \
+        --student-id ABC123456 --out milestone.json          # student, Type B
 python3 tools/milestone.py check --project project.json --records milestone-records/ \
         --status status.csv > milestone.csv                   # TA
 
