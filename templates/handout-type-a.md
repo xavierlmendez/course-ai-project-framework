@@ -16,6 +16,8 @@ Your harness must fetch that page. It contains a nonce and a ledger instruction.
 
 **Your harness must sign the course ledger with your student ID (and your partner's, if any) and the nonce from the page. A submission with no ledger entry is incomplete and will not be graded until resolved.**
 
+**The ID format is three upper-case letters followed by six digits** — `ABC123456`. That is the only form the ledger accepts; anything else (a lower-case prefix, a different number of digits) is rejected with a message saying so. IDs are upper-cased before they are recorded, so `abc123456` is stored as `ABC123456`. A pair gives both, comma-separated: `ABC123456,DEF654321`.
+
 We cannot tell whether the page was fetched by your harness or by you with `curl`, and we do not try.
 
 ## 3. Interface contract
@@ -44,8 +46,12 @@ python3 tools/run_tests.py --solution <your dir> --tests tests/public --entry {{
 ```
 
 `<your dir>` is the directory holding your submission files, for example `mywork/`; put its path
-wherever `<your dir>` appears below. `run_tests.py` prints a summary either way — `--json` prints
-**only** the JSON summary instead of the human-readable one, for feeding into another program.
+wherever `<your dir>` appears below. `--json` prints **only** the JSON summary; without it the tool
+prints both the human-readable lines and the JSON.
+
+Nothing in this project writes a `runs/` directory: `runs/` belongs to the regeneration runner, which
+a Type A project never uses. The one file the course tools write for you is the milestone record
+(§7), and it lands in the directory you run the command from.
 
 To read the published resource and sign the ledger from your own machine while practising, start the course's reference server yourself:
 
@@ -79,10 +85,12 @@ Your solution passes the public suite. Produce the signed milestone record and s
 
 ```
 python3 tools/milestone.py record --project project.json \
-  --solution <your dir> --student-id <your student ID> --out milestone.json
+  --solution <your dir> --student-id <your student ID>
 ```
 
-Submit `milestone.json`. Auto-graded pass/fail.
+It writes `milestone-{{PROJECT_NAME}}.json` in the directory you ran it from — the name comes from
+the `name` key of `project.json`, so two projects side by side cannot overwrite each other's record.
+Submit that file. Auto-graded pass/fail.
 
 ## 8. Grading
 

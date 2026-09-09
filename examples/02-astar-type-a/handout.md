@@ -22,6 +22,8 @@ Your harness must fetch that page. It contains a nonce and a ledger instruction.
 
 **Your harness must sign the course ledger with your student ID (and your partner's, if any) and the nonce from the page. A submission with no ledger entry is incomplete and will not be graded until resolved.**
 
+**The ID format is three upper-case letters followed by six digits** — `ABC123456`. That is the only form the ledger accepts; anything else (a lower-case prefix, a different number of digits) is rejected with a message saying so. IDs are upper-cased before they are recorded, so `abc123456` is stored as `ABC123456`. A pair gives both, comma-separated: `ABC123456,DEF654321`.
+
 We cannot tell whether the page was fetched by your harness or by you with `curl`, and we do not try.
 
 ## 3. Interface contract
@@ -50,9 +52,9 @@ python3 tools/run_tests.py --solution <your dir> \
   --tests examples/02-astar-type-a/tests/public --entry solve.py --timeout 10
 ```
 
-`<your dir>` is the directory holding your submission files, for example `mywork/`; use its path wherever `<your dir>` appears below. Anything the course tools write goes under `runs/<your dir's name>/`, created beside where you run the command.
+`<your dir>` is the directory holding your submission files, for example `mywork/`; use its path wherever `<your dir>` appears below. Nothing in this project writes a `runs/` directory: `runs/` belongs to the regeneration runner, which a Type A project never uses. The one file the course tools write for you is the milestone record (§7), and it lands in the directory you run the command from.
 
-The summary is printed either way; `--json` prints **only** the JSON summary instead of the human-readable one, for feeding into another program. The milestone (§7) runs this same suite for you and writes a signed record.
+`--json` prints **only** the JSON summary; without it the tool prints both the human-readable lines and the JSON. The milestone (§7) runs this same suite for you and writes a signed record.
 
 Any minimum-cost path is accepted; a checker validates the path and its cost. Hidden categories (names and counts; cases released after grading):
 
@@ -87,10 +89,10 @@ Your solution passes the public suite. Produce the signed milestone record and s
 
 ```
 python3 tools/milestone.py record --project examples/02-astar-type-a/project.json \
-  --solution <your dir> --student-id <your student ID> --out milestone.json
+  --solution <your dir> --student-id <your student ID>
 ```
 
-Submit `milestone.json`. Auto-graded pass/fail.
+It writes `milestone-astar-a.json` in the directory you ran it from — the name comes from the `name` key of that `project.json`, so a record for one project can never overwrite another's. Submit `milestone-astar-a.json`. Auto-graded pass/fail.
 
 ## 8. Grading
 

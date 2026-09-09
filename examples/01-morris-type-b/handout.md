@@ -25,6 +25,8 @@ Your harness must fetch that page. It contains a nonce and a ledger instruction.
 
 **Each specification must tell the harness to sign the course ledger with your student ID (and your partner's, if any) and the nonce from the page.** A specification that does not produce a ledger entry has not specified the task.
 
+**The ID format is three upper-case letters followed by six digits** — `ABC123456`. That is the only form the ledger accepts; anything else (a lower-case prefix, a different number of digits) is rejected with a message saying so. IDs are upper-cased before they are recorded, so `abc123456` is stored as `ABC123456`. A pair gives both, comma-separated: `ABC123456,DEF654321`. Write the ID into every specification in that form.
+
 We cannot tell whether the page was fetched by your harness or by you with `curl`, and we do not try. The ledger entry is what counts.
 
 ## 3. Interface contract
@@ -55,14 +57,15 @@ Each program has its own directory, `part-<N>-opening/` or `part-<N>-game/`, and
 ```
 python3 tools/run_tests.py --solution <your part-I-opening dir> \
   --tests examples/01-morris-type-b/part-I-opening/tests/public \
-  --entry MiniMaxOpening.py --timeout 30
+  --entry MiniMaxOpening.py --timeout 30 \
+  --project examples/01-morris-type-b/part-I-opening/project.json
 ```
 
-For another program, swap `part-I-opening` for that program's directory and the `--entry` for its entry point from §3.
+For another program, swap `part-I-opening` for that program's directory and the `--entry` and `--project` for that program's entry point and `project.json`. `--project` makes your run apply the same equivalence policy per category that grading applies — `estimate`, `ab`, `strict` — instead of comparing every output exactly.
 
-**Two names used throughout this handout.** `<your part-I-opening dir>` — and `<your dir>` generally — is the directory holding your submission files for that program, for example `mywork/part-I-opening/`. `runs/` is where the runner writes: it creates `runs/<your dir's name>/` beside where you run the command, and every record and working directory named below lives inside it.
+**Two names used throughout this handout.** `<your part-I-opening dir>` — and `<your dir>` generally — is the directory holding your submission files for that program, for example `mywork/part-I-opening/`. `runs/` is where the runner writes: it creates `runs/<dir name>/` beside where you run the command, where `<dir name>` is the **last segment** of `<your dir>` — if your directory is `mywork/part-I-opening`, the runner writes `runs/part-I-opening/` — and every record and working directory named below lives inside it.
 
-`run_tests.py` prints a summary either way; `--json` prints **only** the JSON summary instead of the human-readable one, for feeding into another program.
+`--json` prints **only** the JSON summary; without it the tool prints both the human-readable lines and the JSON.
 
 Hidden categories (names, counts, weights and equivalence policy; cases released after grading). The **twist** categories are marked `*`; in every program they carry exactly half the non-graduate weight.
 
@@ -148,14 +151,16 @@ Your `part-I-opening/SPEC.md` passes the public suite through the reference harn
 ```
 python3 tools/milestone.py record \
   --project examples/01-morris-type-b/part-I-opening/project.json \
-  --solution runs/<your part-I-opening dir>/practice-k1-work \
-  --regeneration runs/<your part-I-opening dir>/practice-k1.json \
-  --student-id <your student ID> --out milestone.json
+  --solution runs/<dir name>/practice-k1-work \
+  --regeneration runs/<dir name>/practice-k1.json \
+  --student-id <your student ID>
 ```
+
+`<dir name>` is the last segment of your Part I Opening directory, as §4 says: with `mywork/part-I-opening` the runner wrote `runs/part-I-opening/`, so those two paths are `runs/part-I-opening/practice-k1-work` and `runs/part-I-opening/practice-k1.json`.
 
 This is a Type B project, so `--regeneration` is **required** and `--solution` must be that regeneration's own working directory — the `-work` directory beside the record. A record built from anything else, including a dry-run record (named `*.dry.json`), is rejected.
 
-Submit `milestone.json`. Auto-graded pass/fail.
+It writes `milestone-morris-p1-open-I-opening.json` in the directory you ran it from — the name comes from the `name` and `part` keys of that program's `project.json`, so the records for eight programs cannot overwrite one another. Submit `milestone-morris-p1-open-I-opening.json`. Auto-graded pass/fail.
 
 ## 8. Grading
 

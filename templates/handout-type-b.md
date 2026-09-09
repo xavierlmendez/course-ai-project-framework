@@ -16,6 +16,8 @@ Your harness must fetch that page. It contains a nonce and a ledger instruction.
 
 **Your specification must tell the harness to sign the course ledger with your student ID (and your partner's, if any) and the nonce from the page.** A specification that does not produce a ledger entry has not specified the task.
 
+**The ID format is three upper-case letters followed by six digits** — `ABC123456`. That is the only form the ledger accepts; anything else (a lower-case prefix, a different number of digits) is rejected with a message saying so. IDs are upper-cased before they are recorded, so `abc123456` is stored as `ABC123456`. A pair gives both, comma-separated: `ABC123456,DEF654321`. Write the ID into your specification in that form.
+
 We cannot tell whether the page was fetched by your harness or by you with `curl`, and we do not try. The ledger entry is what counts.
 
 ## 3. Interface contract
@@ -40,16 +42,21 @@ $ echo '{{EXAMPLE_INPUT}}' | python3 {{ENTRY}}
 Public tests are in `tests/public/`. Run them with:
 
 ```
-python3 tools/run_tests.py --solution <your dir> --tests tests/public --entry {{ENTRY}}
+python3 tools/run_tests.py --solution <your dir> --tests tests/public --entry {{ENTRY}} \
+  --project project.json
 ```
+
+`--project` makes your run apply the same equivalence policy per category that grading applies, so a
+category graded on "equal quality, not equal output" is judged that way here too.
 
 **Two names used throughout this handout.** `<your dir>` is the directory holding your submission
 files, for example `mywork/` — put its path wherever `<your dir>` appears. `runs/` is where the
-runner writes: it creates `runs/<your dir's name>/` beside where you run the command, and every
-record and working directory named below lives inside it.
+runner writes: it creates `runs/<dir name>/` beside where you run the command, where `<dir name>` is
+the **last segment** of `<your dir>` — if your directory is `mywork/`, the runner writes `runs/mywork/`
+— and every record and working directory named below lives inside it.
 
-`run_tests.py` prints a summary either way. `--json` prints **only** the JSON summary instead of the
-human-readable one, for feeding into another program.
+`--json` prints **only** the JSON summary; without it the tool prints both the human-readable lines
+and the JSON.
 
 Hidden tests are organized in these categories. You see the names and counts; the cases are released after grading.
 
@@ -110,14 +117,16 @@ Your specification passes the public suite through the reference harness. Do the
 
 ```
 python3 tools/milestone.py record --project project.json \
-  --solution runs/<your dir>/practice-k1-work \
-  --regeneration runs/<your dir>/practice-k1.json \
-  --student-id <your student ID> --out milestone.json
+  --solution runs/<dir name>/practice-k1-work \
+  --regeneration runs/<dir name>/practice-k1.json \
+  --student-id <your student ID>
 ```
 
 On a Type B project `--regeneration` is **required**, and `--solution` must be that regeneration's own working directory (the `-work` directory beside the record). A record built from anything else — your own directory, another slot's working directory, or a dry-run record, which is named `*.dry.json` — is rejected.
 
-Submit `milestone.json`. Auto-graded pass/fail.
+It writes `milestone-{{PROJECT_NAME}}.json` in the directory you ran it from — the name comes from
+the `name` key of `project.json` (plus its `part`, if it sets one), so two projects side by side
+cannot overwrite each other's record. Submit that file. Auto-graded pass/fail.
 
 ## 8. Grading
 

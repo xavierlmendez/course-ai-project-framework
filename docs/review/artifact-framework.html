@@ -125,7 +125,8 @@ html{scroll-behavior:smooth}
     <li><a href="#ledger">The ledger</a></li>
     <li><a href="#grading">Grading</a></li>
     <li><a href="#timeline">Timeline</a></li>
-    <li><a href="#safety">Safety and integrity</a></li>
+    <li><a href="#safety">Safety and the safety read</a></li>
+    <li><a href="#integrity">Integrity</a></li>
     <li><a href="#workflow">Professor's workflow</a></li>
     <li><a href="#effort">TA effort</a></li>
     <li><a href="#options">Options menu</a></li>
@@ -332,18 +333,22 @@ html{scroll-behavior:smooth}
 </section>
 
 <section id="safety">
-  <h2><span class="n">§11</span>Safety and integrity</h2>
+  <h2><span class="n">§11</span>Safety and the safety read</h2>
   <p>Every specification is read by a human before it is executed, to catch instructions planted by the student or injected into the student's workflow from a page their own harness fetched. At one TA per 65 students, three controls make that feasible, and one of them is the actual safety control:</p>
   <ol>
     <li><b>Sandbox, the real control.</b> Every run executes in a Docker container with outbound network allowed only to the resource host and the Ollama server, no secrets mounted, a fresh filesystem per run. A line the reader misses cannot do damage, so the safety read is an integrity and policy check.</li>
     <li><b>Length cap.</b> 1,500 words including supporting files. A read takes three to five minutes.</li>
     <li><b>Pre-scan.</b> A script flags shell commands, URLs outside the allowlist, credential paths, and instruction-override phrasing. The TA reads flagged specifications closely and skims the rest.</li>
   </ol>
-  <p><b>Integrity.</b> The <b>similarity check</b> is the institution's existing checker, named in the handout; the framework ships none of its own. Specifications go to it, treated like code. The twist changes every semester, so cross-semester copying is moot. Per-student variant parameters are an option: each resource URL carries a parameter and hidden tests are generated per parameter, so copying requires understanding to adapt. Example 4 shows what that costs the runner.</p>
+</section>
+
+<section id="integrity">
+  <h2><span class="n">§12</span>Integrity</h2>
+  <p>The <b>similarity check</b> is the institution's existing checker, named in the handout; the framework ships none of its own. Specifications go to it, treated like code. The twist changes every semester, so cross-semester copying is moot. Per-student variant parameters are an option: each resource URL carries a parameter and hidden tests are generated per parameter, so copying requires understanding to adapt. Example 4 shows what that costs the runner.</p>
 </section>
 
 <section id="workflow">
-  <h2><span class="n">§12</span>The professor's workflow</h2>
+  <h2><span class="n">§13</span>The professor's workflow</h2>
   <ol>
     <li><b>Author.</b> Pick the type. Write the twist against the checklist, the published resource, the contract, the public and hidden suites with categories and weights. Fill the handout template.</li>
     <li><b>Calibrate.</b> Write the reference specification. Run the calibration checklist until it clears every hidden test in at least one run. Set the timeout. Lock the seeds.</li>
@@ -356,7 +361,7 @@ html{scroll-behavior:smooth}
 </section>
 
 <section id="effort">
-  <h2><span class="n">§13</span>TA effort at your scale</h2>
+  <h2><span class="n">§14</span>TA effort at your scale</h2>
   <div class="tablewrap"><table>
     <thead><tr><th>Task</th><th>Per submission</th><th>Per TA, 65 students</th></tr></thead>
     <tbody>
@@ -372,7 +377,7 @@ html{scroll-behavior:smooth}
 </section>
 
 <section id="options">
-  <h2><span class="n">§14</span>Options menu</h2>
+  <h2><span class="n">§15</span>Options menu</h2>
   <p>Choices the professor makes per project. Default first.</p>
   <div class="tablewrap"><table>
     <thead><tr><th>Decision</th><th>Default</th><th>Alternatives</th></tr></thead>
@@ -393,7 +398,7 @@ html{scroll-behavior:smooth}
 </section>
 
 <section id="examples">
-  <h2><span class="n">§15</span>Four worked examples</h2>
+  <h2>Four worked examples</h2>
   <p>Each ships with a published resource, a reference solution that passes every hidden test, a canonical solution that scores low on the twist categories, public and hidden suites, a filled handout, and a sample student submission.</p>
   <div class="examples">
     <div class="ex"><span class="eyebrow">01 · Type B · multi-part · the previous project</span><b>Morris variant, minimax and alpha-beta</b><p>The professor's actual Spring 2026 project recast: 23-point board, file-argument CLI, eight programs in four parts at 45/35/10/10, equivalence policies per category, positions-evaluated made order-safe.</p></div>

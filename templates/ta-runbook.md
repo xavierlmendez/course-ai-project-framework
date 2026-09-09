@@ -3,7 +3,12 @@
 You have about 65 submissions and one grading week. Every command below runs as written.
 Nothing here requires reading a harness transcript.
 
-Replace `{{PROJECT}}` with the project directory the professor gave you.
+Replace `{{PROJECT}}` with the grading directory you make in Day 0 step 1 — a **copy** of the
+professor's project, outside any git checkout.
+
+Replace `{{PROJECT_JSON}}` with the project's `project.json`; for a multi-part project, the
+first program's, e.g. `{{PROJECT}}/part-I-opening/project.json` — every program shares the
+nonce, the resource and the ledger, so any of them will do and the first one is the habit.
 
 **Single-part or multi-part.** If `{{PROJECT}}` contains `parts.json`, the project is
 multi-part: each `part-*/` directory is graded on its own and the results are combined once.
@@ -11,8 +16,8 @@ Commands below are marked **[per part]** or **[course]**. Everything student-fac
 course-level: one `status.csv`, one `written.csv`, one `milestone.csv`, one ledger, one
 resource page, one nonce, and one gradebook.
 
-Write the part names to a file, **one per line**, and read that file wherever this runbook
-loops over parts. A file, not a variable: `bash` and `zsh` split a variable differently, and
+The two commands in this preamble are **[course]**. Write the part names to a file, **one per
+line**, and read that file wherever this runbook loops over parts. A file, not a variable: `bash` and `zsh` split a variable differently, and
 `for p in $PARTS` gives one part named `I II` under `zsh`.
 
 ```
@@ -40,11 +45,31 @@ done < parts.txt
 
 ## Day 0 — Setup (about 30 minutes)
 
-**1. Get the project.** Clone or copy the professor's project directory. It contains
-`project.json`, `tests/hidden/`, the reference specification, and the filled handout. It
-does **not** contain `seeds.secret.json`; that arrives on grading day.
+**1. Get the project.** Make `{{PROJECT}}` a **copy** of the professor's project directory,
+placed **outside any git checkout** — not the checkout itself, and not a directory inside one.
+It contains `project.json`, `tests/hidden/`, the reference specification, and the filled
+handout. It does **not** contain `seeds.secret.json`; that arrives on grading day.
 
-**2. Build the sandbox image.**
+```
+cp -R <the professor's project> ~/grading/{{PROJECT}}      # ~/grading is not a git checkout
+```
+
+The grading directory holds the ledger, and ledger entries carry student IDs and client
+addresses. `ledger_server.py` refuses to write a ledger inside a repository working tree for
+that reason and stops with:
+
+```
+refusing to write the ledger inside a repository: <path>
+  the working tree at <repo> contains a .git; ledger entries carry student IDs and
+  client addresses, and one `git add .` would commit them. Point --ledger at a path
+  outside any checkout (or pass --allow-in-repo if you accept the risk).
+```
+
+If you see that on grading day, you are grading inside a checkout: move the copy out rather
+than reaching for the flag. `--allow-in-repo` exists for **rehearsals** on the shipped
+examples, where the ledger is throwaway; never use it on a real cohort.
+
+**2. Build the sandbox image.** [course] One image serves every part.
 
 ```
 docker build -t harness-sandbox tools/sandbox/
@@ -58,7 +83,7 @@ no model and no seeds; skip to step 4.
 
 ```
 MODEL=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1]))["base_model"])' \
-        {{PROJECT}}/project.json)      # multi-part: use {{PROJECT}}/part-I-opening/project.json
+        {{PROJECT_JSON}})
 echo "model: $MODEL"
 ollama list | grep -F "$MODEL" || echo "NOT PRESENT — run: ollama pull $MODEL"
 ```
@@ -75,32 +100,67 @@ timeouts before you suspect the specifications, and stop the batch.
 during every regeneration, so it must be up for the whole batch. One server for the whole
 project, including every part. In its own terminal:
 
+**The port is not yours to pick.** Every project fixes it in `project.json` as
+`resource_port` (example 04 uses 8083). The student handouts and specifications hard-code the
+URL that names it, and the sandbox allowlist is built from the same key, so a server on some
+other port serves a page nobody fetches. Read it, then start the server in the `--project`
+form, which takes the port from the project:
+
 ```
-python3 tools/ledger_server.py --project {{PROJECT}}/project.json \
-  --port 8080 --base-url http://host.docker.internal:8080
+PORT=$(python3 -c 'import json,sys;print(json.load(open(sys.argv[1])).get("resource_port",8080))' \
+       {{PROJECT_JSON}})
+echo "resource_port: $PORT"
+
+python3 tools/ledger_server.py --project {{PROJECT_JSON}} \
+  --base-url http://host.docker.internal:$PORT
 ```
 
-For a multi-part project pass any part's `project.json`; every part shares the resource
-directory, the ledger and the nonce.
+For a multi-part project pass any part's `project.json` (`{{PROJECT_JSON}}` is the first
+program's); every part shares the resource directory, the ledger and the nonce.
+
+If the port is busy the server exits with one sentence rather than a traceback:
+
+```
+port N is already in use: another resource server is probably still running (stop it, or
+pass --port to use another port)
+```
+
+Almost always that is your own server from an earlier attempt. Stop it; do not move the port,
+because the students' URL does not move with you.
+
+**Two projects graded at the same time need two different `resource_port` values**, and the
+professor chooses them **before release** — the port is baked into the handout and the
+resource URL students were given, so it cannot be changed at grading time.
 
 **Check it is actually serving before you go any further**, because a 404 here fails the
 whole cohort for a reason that is yours, not theirs:
 
 ```
-curl -sf http://localhost:8080/ | head -3 || echo "NOT SERVING — check resource_dir in project.json"
+curl -sf http://localhost:$PORT/ | head -3 || echo "NOT SERVING — check resource_dir in project.json"
 ```
 
-The sandbox reaches it at `host.docker.internal:8080`, which is what `resource_host` and
-`resource_port` in `project.json` must name. Grading two projects at once needs two ports
-and matching `resource_port` values.
+The sandbox reaches it at `host.docker.internal:$PORT`, which is what `resource_host` and
+`resource_port` in `project.json` name.
 
-**5. Lay out the submissions.**
+**5. Lay out the submissions.** [course] Everything students hand in goes under **one**
+course-level `{{PROJECT}}/submissions/` directory, in the layout the handout asked for:
 
 ```
 {{PROJECT}}/submissions/<student_id>/                 individual        [single-part]
 {{PROJECT}}/submissions/<id1>-<id2>/                  a pair            [single-part]
-{{PROJECT}}/part-I-opening/submissions/<student_id>/          the same names    [multi-part, per part]
+
+{{PROJECT}}/submissions/<student_id>/                 multi-part: the student layout
+    part-I-opening/SPEC.md                            one directory per program
+    part-I-game/SPEC.md
+    …
+    WRITTEN.md                                        one page for the whole project
+    PROCESS.md                                        one page for the whole project
 ```
+
+The runner works per program, from `{{PROJECT}}/part-<program>/submissions/<id>/`. You do not
+build those directories by hand: `tools/fan_out.py` (Day 1 step 1) copies each program's
+`SPEC.md` into its part directory and copies the one course-level `WRITTEN.md` and `PROCESS.md`
+into every one of them.
 
 The directory name is the key for `status.csv`, `written.csv`, `milestone.csv`, the variant
 roster and the gradebook, and it is the same in every part. A pair is one directory and one
@@ -122,7 +182,7 @@ ledger (step 4 below — grep one partner, never the hyphenated key) and the key
 `status.csv`, `written.csv` and `milestone.csv`, which must equal the directory name exactly.
 `grade.py` and `combine_parts.py` join those files on the literal key.
 
-**6. Type A only: the variant roster.** A Type A project whose `project.json` has a
+**6. Type A only: the variant roster.** [course] A Type A project whose `project.json` has a
 `variants` key generates its hidden tests per student, and `variants.csv` — the file named by
 `variants.roster`, default `variants.csv`, beside `project.json` — says which variant each
 submission gets. **The professor supplies it**; there is no other copy, and the runner marks
@@ -149,22 +209,84 @@ an invented id, **change that id inside the copy too** — the pre-scan compares
 submission against the directory name and reports `spec-id-mismatch` otherwise — and expect
 `milestone 0` for a copy of the `examples/04` sample, which is a candor example and is
 supposed to fail `twist_class`. Add a `variants.csv` and a `status.csv` of your own for the
-invented ids; neither ships with the samples.
+invented ids; neither ships with the samples. A rehearsal is the one place `--allow-in-repo` is
+appropriate: the example ledgers sit inside this checkout and are throwaway.
+
+Six more things a rehearsal needs, each of which cost a cold run:
+
+- **Remove the shipped sample after copying it.** `submissions/ABC123456/` ships with the
+  example. Copy it to your invented ids and then `rm -rf` the original, or it stays an extra
+  row in every pre-scan, gradebook and readiness count.
+- **The ledger gate will report zero entries**, because nobody signed a ledger you started
+  five minutes ago. Sign it yourself, once per invented id, against the server from Day 0
+  step 4 (the nonce is the `nonce` key of `{{PROJECT_JSON}}`; the run tag must be lowercase
+  letters, digits, `-` or `_`, and the gate greps for `grading-k<N>`):
+
+  ```
+  curl -s -X POST http://localhost:$PORT/ledger \
+    -d student_id=<XXXNNNNNN> -d nonce=<nonce from project.json> -d run_tag=grading-k1
+  ```
+
+  The accepted fields are exactly `student_id` (one ID, or two comma-separated, each three
+  upper-case letters and six digits), `nonce`, `run_tag` (optional, default `practice`) and
+  `variant` (optional) — add `-d variant=<variant>` on a variant project. The server replies
+  `ok` or a 400 with a plain reason.
+- **Copy the professor's `variants.csv` aside before writing your own.** An example ships one;
+  overwrite it and you have lost the roster the example's own tests were built against.
+- **`grade_all.py` writes `gb-<program>.csv` files** into the project directory as it goes —
+  one per part — or into `--work <dir>` if you give one. They are intermediate files, not the
+  gradebook; the gradebook is what the command prints on stdout.
+- **`milestone.py record --student-id` accepts a pair in any form**: `A+B`, `A-B`, `A,B`, or
+  just one partner. You do not have to guess which one the sample used.
+- **Expect `milestone 0` for a copy of the `examples/04` sample** — see above; it is a candor
+  example and is supposed to fail `twist_class`.
 
 ---
 
 ## Day 1 morning — Triage and the safety read (about half a day)
 
-**1. Pre-scan.** [per part] The project supplies the allowed hosts, so a conforming specification
-that contains the mandatory ledger line is not flagged.
+**1. Fan the submissions out to the parts.** [course] Multi-part submissions arrive in the
+**student layout** of Day 0 step 5: `submissions/<id>/<program>/SPEC.md` for each program, plus
+one `WRITTEN.md` and one `PROCESS.md` at the top of the student's directory. The runner reads
+per-program directories instead, so fan them out first:
+
+```
+python3 tools/fan_out.py --project {{PROJECT}} --submissions {{PROJECT}}/submissions
+```
+
+It writes `{{PROJECT}}/part-<program>/submissions/<id>/` for every program in `parts.json`,
+copying that program's `SPEC.md` and a copy of the one course-level `WRITTEN.md` and
+`PROCESS.md` into each. It prints one row per student — which programs are present, which are
+missing, and the word count of each `SPEC.md` — and exits 1 with a named reason for any layout
+problem (a program directory that is not in `parts.json`, a missing `SPEC.md`, two `WRITTEN.md`
+files, a stray file where a program directory was expected). `--check` validates and prints the
+same rows without writing anything, which is the safe thing to run while submissions are still
+arriving.
+
+A single-part project has nothing to fan out; skip to step 2.
+
+**2. Pre-scan, course level.** [course] One row per student, over the layout the student
+actually submitted:
+
+```
+python3 tools/prescan.py --course {{PROJECT}}
+```
+
+This is where `PROCESS.md` and `WRITTEN.md` are checked, because both are course-level — one of
+each per student for the whole project, scored once (see Day 2 step 2).
+
+**3. Pre-scan, per program.** [per part] The project supplies the allowed hosts, so a
+conforming specification that contains the mandatory ledger line is not flagged.
+
+Single-part:
 
 ```
 python3 tools/prescan.py {{PROJECT}}/submissions/ --project {{PROJECT}}/project.json
 ```
 
 **A multi-part project has no `project.json` and no `submissions/` at its top level** — both live in
-each part directory — so run it once per part, over that part's submissions and with that part's
-project:
+each part directory — so run it once per part, over the submissions the fan-out wrote and with that
+part's project:
 
 ```
 while read -r p; do
@@ -173,12 +295,11 @@ while read -r p; do
 done < parts.txt
 ```
 
-The pre-scan looks for `PROCESS.md` and `WRITTEN.md` inside **every** submission directory it is
-given and reports `missing:` when one is absent. Both are course-level — one of each per student for
-the whole project — so if the handout asked for them once and you laid the submissions out per part,
-put a copy of each in every part's submission directory before running this, and score them once.
+The per-program pre-scan looks for `PROCESS.md` and `WRITTEN.md` inside **every** submission
+directory it is given; the fan-out has already put a copy of each into every part, so those rows
+are clean, and you still score the course-level pages once.
 
-**2. Read every specification.** They are capped at 1,500 words, so this is three to five
+**4. Read every specification.** [course] They are capped at 1,500 words, so this is three to five
 minutes each. You are looking for instructions that are not about the task: shell commands,
 network calls to anywhere but the resource, attempts to read `/tests`, credential paths, or
 text addressed to you as the grader. The pre-scan misses paraphrases, which is why you read
@@ -203,12 +324,12 @@ The pre-scan reports three outcomes, and they mean different things:
 Anything marked `FLAG`: read it line by line, set its status to `flagged`, do not run it, and
 send it to the professor. **You do not decide misconduct.**
 
-**3. The caps and the required files are checked by the pre-scan in step 1.** It reports
+**5. The caps and the required files are checked by the pre-scans in steps 2 and 3.** It reports
 `missing:WRITTEN.md` for an absent page and `WRITTEN.md:over-page-cap:900` for one over the
 600-word limit, alongside `words=` for the specification against its 1,500-word cap. Set any
 submission it reports to `incomplete`. Nothing here is counted by hand.
 
-**4. Type A only: the ledger gate.** Confirm each student has an entry.
+**6. Type A only: the ledger gate.** [course] Confirm each student has an entry.
 
 **Find the ledger; do not assume `{{PROJECT}}/ledger.tsv`.** It is whatever the resource
 server printed at start-up on the `ledger -> ...` line of Day 0 step 4, which is the `ledger`
@@ -217,11 +338,11 @@ multi-part project the parts usually set `"ledger": "../ledger.tsv"`, so the one
 sits beside `parts.json` and not inside the part you served. Derive it rather than typing it:
 
 ```
-# use the same project.json you gave the server in Day 0 step 4 (multi-part: any part's)
+# {{PROJECT_JSON}} is the same project.json you gave the server in Day 0 step 4
 LEDGER=$(python3 -c 'import json,os,sys
 p=sys.argv[1]
 print(os.path.normpath(os.path.join(os.path.dirname(os.path.abspath(p)),
-      json.load(open(p)).get("ledger","ledger.tsv"))))' {{PROJECT}}/project.json)
+      json.load(open(p)).get("ledger","ledger.tsv"))))' {{PROJECT_JSON}})
 echo "$LEDGER"     # must equal the path the server printed after `ledger ->`
 ```
 
@@ -256,7 +377,7 @@ Ledger entries carry the student ID, a timestamp, a run tag and the client addre
 **not** carry the nonce, so do not try to match one. The nonce is what the resource page
 required in order to write the entry at all.
 
-**5. Write `status.csv`.** This is the file that decides what runs.
+**7. Write `status.csv`.** [course] This is the file that decides what runs.
 
 ```
 student_id,status,grad,note
@@ -285,20 +406,20 @@ seeds and no slot models. Go to step 4 and add `--type A`.
 **1. Get the seeds from the professor** [per part] and put `seeds.secret.json` in each part
 directory. Do not paste them into chat, a ticket, or a commit.
 
-**2. Create the slot models.** They cannot exist before this point, because they are built
-from the seeds.
+**2. Create the slot models.** [per part] They cannot exist before this point, because they
+are built from the seeds.
 
 ```
-python3 tools/runner.py --project {{PROJECT}}/project.json --create-slots
+python3 tools/runner.py --project {{PROJECT_JSON}} --create-slots
 ```
 
 This builds one model per slot from the base model. If the base model is not present it will
 be downloaded first, several gigabytes, which is why step 3 of Day 0 exists.
 
-**3. Confirm the schedule reaches the model.**
+**3. Confirm the schedule reaches the model.** [per part]
 
 ```
-python3 tools/runner.py --project {{PROJECT}}/project.json --verify-slots
+python3 tools/runner.py --project {{PROJECT_JSON}} --verify-slots
 ```
 
 This must print `slot check: ok`. It asks the model server what temperature and seed each
@@ -313,18 +434,24 @@ loopback automatically; if your model server is somewhere else, set `ollama_host
 If it reports a temperature mismatch, re-run `--create-slots`. If that does not fix it, stop
 and tell the professor: grading with a schedule the model is not using would be unfair.
 
-**4. Run the batch.**
+**4. Run the batch.** [per part]
 
 ```
-python3 tools/runner.py --project {{PROJECT}}/project.json \
+python3 tools/runner.py --project {{PROJECT_JSON}} \
   --submissions {{PROJECT}}/submissions/ \
   --status {{PROJECT}}/status.csv \
   --out {{PROJECT}}/runs/
 ```
 
 Type A adds `--type A`; it runs the hidden tests once per submission and takes minutes, not
-hours. Multi-part runs this once per part, with that part's `project.json`, `submissions/`
-and `runs/`.
+hours. Multi-part runs this once per part, with that part's `project.json` and its
+`part-<program>/submissions/` (written by the fan-out) and `part-<program>/runs/`.
+
+**The records it writes**, once, so the names below are not a surprise: a grading run writes
+`runs/<id>/k<N>.json` beside its working directory `runs/<id>/grading-k<N>-work`; a student's
+practice run writes `practice-k<N>.json` beside `practice-k<N>-work`; any other run tag writes
+`<tag>-k<N>.json` beside `<tag>-k<N>-work` (so an appeal is `appeal-k2.json`); and a `--dry-run`
+writes `<tag>-k<N>.dry.json` beside `<tag>-k<N>-dry-work`, which the grading tools skip.
 
 **Read the last lines.** The runner prints a `SKIPPED` summary and exits non-zero if nobody
 was graded. A skipped submission is almost always a `status.csv` key that does not match the
@@ -346,7 +473,7 @@ carries on. When the batch finishes, re-run the same command once. Anything stil
 after that is a real problem to raise, not a grade.
 
 ```
-# slots still to retry, across every part. Prints 0 and succeeds when there are none.
+# [course] slots still to retry, across every part. Prints 0 and succeeds when there are none.
 find {{PROJECT}} -name '*.json' -path '*/runs/*' -exec grep -l '"complete": false' {} + 2>/dev/null | wc -l
 ```
 
@@ -370,8 +497,11 @@ python3 tools/milestone.py check \
 ```
 
 **2. The written component.** [course] One page per student, scored once. In a multi-part
-project the student writes one `WRITTEN.md`; if the professor asked for one per part, score
-the part the handout names and say so to the professor.
+project the student submits **one** `WRITTEN.md` and one `PROCESS.md` at the top of their
+submission directory (`submissions/<id>/`), as the shipped sample does; the fan-out copies both
+into every program directory so the per-program pre-scan finds them, but there is still only
+one of each and you score the course-level one once. If the professor instead asked for one per
+part, score the part the handout names and say so to the professor.
 
 Score with `templates/rubric.md`, which gives a mechanical decision rule per band. Ten
 minutes each; time-box it.
@@ -391,10 +521,11 @@ BBB222222,3,3,2,1
 
 Leave `prediction` empty for undergraduates. Values outside 0–3 are rejected by the tools.
 
-**3. Produce the gradebook.** One command, single-part or multi-part:
+**3. Produce the gradebook.** [course] One command, single-part or multi-part:
 
 ```
 python3 tools/grade_all.py --project {{PROJECT}} \
+  --submissions {{PROJECT}}/submissions \
   --status {{PROJECT}}/status.csv \
   --written {{PROJECT}}/written.csv \
   --milestone {{PROJECT}}/milestone.csv \
@@ -406,21 +537,40 @@ adding the milestone and written component once. Otherwise it grades the project
 There is no shell loop to get wrong, and a part that was never run stops the command with a
 message rather than producing a gradebook with holes in it.
 
-**4. Check before you send it.** A row's `note` says why it is not ready. A note reading
+`--submissions` names the course-level submissions directory of Day 0 step 5, and
+`grade_all.py` runs the fan-out itself before grading, so the per-program directories are
+always current with what the students handed in. Leave it out on a single-part project.
+It also writes one intermediate gradebook per program, `gb-<program>.csv`, into the project
+directory — or into `--work <dir>` if you give one. The gradebook is what it prints on stdout.
+
+**4. Check before you send it.** [course] A row's `note` says why it is not ready. A note reading
 `N slot(s) never completed` means the student was graded on fewer runs than everyone else:
 raise it rather than sending it. Every row should read `graded` with a total. A row marked
 `incomplete` has a `note` saying what is missing. Fix the input and re-run; do not hand-edit
 the gradebook, because the next run overwrites it.
 
+A total is not enough on its own: a row can read `graded` with a total and still carry
+`1 slot(s) never completed` or a `missing:` note. The check below flags those too and prints
+the note, because an earlier cold run read "3 of 3 ready to send" over exactly such a row.
+
 ```
-# rows that are not ready to send: no total, or a note explaining why
+# rows that are not ready to send: no total, or a note that says something is wrong
 python3 - {{PROJECT}}/gradebook.csv <<'PY'
 import csv, sys
 rows = list(csv.DictReader(open(sys.argv[1], newline="")))
-bad = [r for r in rows if r.get("status") != "graded" or not r.get("total")]
+
+
+def not_ready(r):
+    note = (r.get("note") or "").lower()
+    return (r.get("status") != "graded" or not r.get("total")
+            or "never completed" in note or "missing:" in note)
+
+
+bad = [r for r in rows if not_ready(r)]
 print(f"{len(rows) - len(bad)} of {len(rows)} ready to send")
 for r in bad:
-    print(f"  {r['student_id']}: {r.get('status')} {r.get('note','')}")
+    print(f"  {r['student_id']}: {r.get('status')} "
+          f"total={r.get('total') or '-'} note={r.get('note','') or '-'}")
 PY
 ```
 
@@ -432,17 +582,25 @@ PY
 2. Submit the specifications (Type B) or solutions (Type A) to {{SIMILARITY_TOOL}} per the
    course's process; the professor handles anything it flags.
 3. After the professor releases grades, publish `tests/hidden/` and `seeds.secret.json`.
-4. **Appeals.** A student may request one additional run at the middle temperature, and only
-   if they show their work passes the public suite on the reference harness.
+4. **Appeals.** There are two kinds, and only one of them has a milestone precondition.
 
-**What counts as showing their work passes.** The student sends the milestone-record command's
-output for the current state of their submission (`tools/milestone.py record`). If it says
-`FAIL`, the precondition is not met and the appeal is refused; say so and point at the
+**Type B — a re-run appeal.** A student may request one additional run at the middle
+temperature, and only if they show their work passes the public suite on the reference
+harness. **What counts as showing their work passes:** the student sends the milestone-record
+command's output for the current state of their submission (`tools/milestone.py record`). If
+it says `FAIL`, the precondition is not met and the appeal is refused; say so and point at the
 public-suite line. If they have no record, that is also a refusal. You are not judging the
 specification, only whether the stated precondition holds.
 
-**Type B** (the specification is regenerated). An appeal is scoped to **one part**; name that
-part's project, submissions and runs:
+**Type A — no milestone precondition at all.** A Type A appeal is not a re-run (see below),
+so nothing about the public suite gates it. A student disputing the hidden tests, a status
+that was mis-scored, or a written score is entitled to that hearing whether or not their code
+passes the public suite — and on a project like `examples/04`, whose sample deliberately fails
+one public test, requiring a passing milestone would refuse every appeal automatically. Do not
+apply the paragraph above to a Type A appeal.
+
+**Type B** (the specification is regenerated). An appeal is scoped to **one part** [per part];
+name that part's project, submissions and runs:
 
 ```
 # set that student's status to `appeal` in status.csv, then, for the part under appeal:
