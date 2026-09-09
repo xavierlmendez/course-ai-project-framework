@@ -22,29 +22,36 @@
  "written_points": 20,
  "categories": {
   "basic_scalars": {
-   "weight": 1
+   "weight": 1,
+   "policy": "strict"
   },
   "lists": {
-   "weight": 1
+   "weight": 1,
+   "policy": "strict"
   },
   "dicts": {
-   "weight": 1
+   "weight": 1,
+   "policy": "strict"
   },
   "twist_length_prefix": {
    "weight": 1,
-   "twist": true
+   "twist": true,
+   "policy": "strict"
   },
   "twist_key_order": {
    "weight": 1,
-   "twist": true
+   "twist": true,
+   "policy": "strict"
   },
   "twist_bool_null": {
    "weight": 1,
-   "twist": true
+   "twist": true,
+   "policy": "strict"
   },
   "grad_deep_nesting": {
    "weight": 1,
-   "grad_only": true
+   "grad_only": true,
+   "policy": "strict"
   }
  },
  "sandbox_image": "harness-sandbox",

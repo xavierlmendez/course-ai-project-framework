@@ -4,7 +4,7 @@ Python 3 standard library plus Docker and Ollama. A TA can read every file in on
 
 | Tool | Role |
 |---|---|
-| `run_tests.py` | Runs interface-contract tests against one solution directory. Used by students (public suite), by the milestone, and by the runner inside the sandbox (hidden suite). |
+| `run_tests.py` | Runs interface-contract tests against one solution directory. Used by students (public suite), by the milestone, and by the runner inside the sandbox (hidden suite). Given `--project project.json` it enforces each category's declared equivalence policy and reports it in the summary. |
 | `runner.py` | TA batch runner. Type B: K sandboxed regenerations per submission, then hidden tests. Type A: hidden tests once. Also creates the pinned slot models (`--create-slots`). Resumable. |
 | `grade.py` | Turns runner records plus `status.csv`, `written.csv`, `milestone.csv` into `gradebook.csv`. Refuses a `status.csv` with no `grad` column, refuses a written dimension outside 0–3, and marks a row `incomplete` rather than emitting a total that silently omits a component. |
 | `grade_all.py` | Grades a whole project, single-part or multi-part, in one command. Replaces the shell loop, which word-split differently in bash and zsh and silently continued past a part that was never run. |
@@ -27,6 +27,12 @@ tests/public/<cat>/NNN.in.json + NNN.out.json     (or check.py in the category d
                             argv-files contract instead: NNN.args ("{in} {out} 3"), NNN.in.txt,
                             NNN.stdout.txt (+ NNN.outfile.txt); see run_tests.py docstring
 tests/hidden/<cat>/...      one directory per category named in project.json
+                            check.py is REQUIRED in any category whose policy is not
+                            "strict" and must be absent from one that is: the checker is
+                            the only thing that realises a policy, so the declaration and
+                            the directory have to agree. `run_tests.py --project` and
+                            `scripts/review_checks.py` both refuse a category where they
+                            do not
 tests/gen_hidden.py         only for variant projects: --variant X --out DIR writes tests/hidden-shaped dirs
 reference/SPEC.md           Type B reference specification (the calibration gate and appeals key)
 reference/solution/solve.py the professor's own solution, used to produce expected outputs
@@ -79,9 +85,17 @@ submissions/<id>/           SPEC.md (+ supporting files), PROCESS.md, WRITTEN.md
                                         //   is twist, so the professor must either add a non-twist
                                         //   category or accept that the part is entirely twist, and
                                         //   say which in the handout)
-    "basic":        {"weight": 1},
-    "twist_rule":   {"weight": 2, "twist": true},
-    "grad_hard":    {"weight": 1, "grad_only": true}
+                                        // every category also declares its equivalence
+                                        //   policy (framework.md section 9). Required:
+                                        //     "strict"    exact comparison; no check.py
+                                        //     "estimate"  equal quality, not equal output
+                                        //     "ab"        same move/answer as the reference
+                                        //     "valid"     any output the rules admit
+                                        //   Anything but "strict" is realised only by a
+                                        //   check.py in the category directory
+    "basic":        {"weight": 1, "policy": "strict"},
+    "twist_rule":   {"weight": 2, "twist": true, "policy": "strict"},
+    "grad_hard":    {"weight": 1, "grad_only": true, "policy": "valid"}
   },
   "wrapper_prompt": "Read SPEC.md ... {entry} ...",   // optional; identical for every student
   "sandbox_image": "harness-sandbox",

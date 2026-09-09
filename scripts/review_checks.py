@@ -142,9 +142,14 @@ def check_examples():
             cdir = os.path.join(hidden_dir, c) if os.path.isdir(hidden_dir) else None
             has_check = cdir and os.path.exists(os.path.join(cdir, "check.py"))
             if "policy" not in m:
-                row("WARN", f"{label}/{c}: equivalence policy not declared in project.json", "treated as strict" + ("; check.py present" if has_check else ""))
+                row("FAIL", f"{label}/{c}: equivalence policy not declared in project.json",
+                    "every category needs \"policy\": strict|estimate|ab|valid" + ("; check.py present" if has_check else ""))
+            elif pol not in ("strict", "estimate", "ab", "valid"):
+                row("FAIL", f"{label}/{c}: unknown equivalence policy {pol}", "expected strict, estimate, ab or valid")
             elif pol != "strict" and not has_check:
-                row("FAIL", f"{label}/{c}: policy {pol} but no check.py", "")
+                row("FAIL", f"{label}/{c}: policy {pol} but no check.py", "a policy other than strict is realised only by a checker")
+            elif pol == "strict" and has_check:
+                row("FAIL", f"{label}/{c}: policy strict but the category has a check.py", "declare the policy the checker implements, or remove check.py")
         # public tests exist
         pub = os.path.join(pdir, p.get("public_tests", "tests/public"))
         row("PASS" if os.path.isdir(pub) else ("SKIP" if not os.path.isdir(os.path.join(pdir, "tests")) else "FAIL"), f"{label}: public tests present", os.path.relpath(pub, ROOT))

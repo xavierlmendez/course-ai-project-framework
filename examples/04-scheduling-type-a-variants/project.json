@@ -22,22 +22,27 @@
  "written_points": 20,
  "categories": {
   "basic": {
-   "weight": 1
+   "weight": 1,
+   "policy": "valid"
   },
   "overlaps": {
-   "weight": 1
+   "weight": 1,
+   "policy": "valid"
   },
   "twist_cooldown": {
    "weight": 1,
-   "twist": true
+   "twist": true,
+   "policy": "valid"
   },
   "twist_class": {
    "weight": 1,
-   "twist": true
+   "twist": true,
+   "policy": "valid"
   },
   "grad_large": {
    "weight": 1,
-   "grad_only": true
+   "grad_only": true,
+   "policy": "valid"
   }
  },
  "sandbox_image": "harness-sandbox",

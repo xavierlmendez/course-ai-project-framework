@@ -22,25 +22,31 @@
  "written_points": 20,
  "categories": {
   "basic": {
-   "weight": 1
+   "weight": 1,
+   "policy": "valid"
   },
   "walls": {
-   "weight": 1
+   "weight": 1,
+   "policy": "valid"
   },
   "unreachable": {
-   "weight": 1
+   "weight": 1,
+   "policy": "valid"
   },
   "twist_long_run": {
    "weight": 1.5,
-   "twist": true
+   "twist": true,
+   "policy": "valid"
   },
   "twist_detour": {
    "weight": 1.5,
-   "twist": true
+   "twist": true,
+   "policy": "valid"
   },
   "grad_large": {
    "weight": 1,
-   "grad_only": true
+   "grad_only": true,
+   "policy": "valid"
   }
  },
  "sandbox_image": "harness-sandbox",
