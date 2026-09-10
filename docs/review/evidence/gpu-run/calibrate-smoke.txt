@@ -1,0 +1,10 @@
+[16:21:15] === calibration sweep: model=qwen3-coder:30b thinking=default, K=3, sandbox on
+slots ready. Do not commit seeds.secret.json.
+serving /tmp/cal-smoke/course/resource on :8080; ledger -> /tmp/cal-smoke/course/ledger.tsv; nonce 379AEEDCD7E2
+[16:21:19] -- part-I-opening (MiniMaxOpening.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[16:27:57]    wall 398s
+[16:27:57] === smoke done: 1 of 1 programs cleared the gate

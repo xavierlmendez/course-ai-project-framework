@@ -45,3 +45,8 @@ Slice 5.4 split the twist out into `ab_diagonal_mill` (and `ab_game_mill` for th
 positions where a diagonal-spoke mill decides the move — leaving `ab_pruning` as a non-twist
 correctness category, and replaced the straw-man canonical with a competent alpha-beta on the
 standard 24-point lines. The canonical scores 0/6 on both twist categories.
+
+## BL-05 — A self-check that fails should not end the run
+
+Every reference specification ends its self-check with "rewrite the whole file with the write tool and run the checks again. Then stop." On 2026-09-09 a qwen3 run wrote a file with a syntax error, ran it, read the traceback in its own shell output and finished without repairing it. The paragraph should state that the run is not finished until both checks print the expected output, and drop the bare "Then stop". Re-entry: one sentence in each of the eight specifications plus a gate re-run of Part IV Opening. Backlog-only: the program cleared the gate on a later slot, so this is robustness rather than a blocker.
+

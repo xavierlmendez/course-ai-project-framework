@@ -1,0 +1,651 @@
+{
+ "model": "qwen3:14b",
+ "thinking": "off",
+ "programs": {
+  "part-I-game": {
+   "slots": {
+    "calib-k1.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 176.5,
+     "passed": 19,
+     "total": 19,
+     "categories": {
+      "game_hopping": [
+       4,
+       4
+      ],
+      "game_mill": [
+       6,
+       6
+      ],
+      "game_move": [
+       5,
+       5
+      ],
+      "grad_depth3": [
+       4,
+       4
+      ]
+     },
+     "clean": true
+    },
+    "calib-k2.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 760.1,
+     "passed": 0,
+     "total": 19,
+     "categories": {
+      "game_hopping": [
+       0,
+       4
+      ],
+      "game_mill": [
+       0,
+       6
+      ],
+      "game_move": [
+       0,
+       5
+      ],
+      "grad_depth3": [
+       0,
+       4
+      ]
+     },
+     "clean": false
+    },
+    "calib-k3.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 711.1,
+     "passed": 0,
+     "total": 19,
+     "categories": {
+      "game_hopping": [
+       0,
+       4
+      ],
+      "game_mill": [
+       0,
+       6
+      ],
+      "game_move": [
+       0,
+       5
+      ],
+      "grad_depth3": [
+       0,
+       4
+      ]
+     },
+     "clean": false
+    }
+   },
+   "gate": true
+  },
+  "part-I-opening": {
+   "slots": {
+    "calib-k1.json": {
+     "entry": true,
+     "exit": null,
+     "wall_s": 1200.0,
+     "passed": 0,
+     "total": 20,
+     "categories": {
+      "evaluations_count": [
+       0,
+       4
+      ],
+      "grad_depth4": [
+       0,
+       4
+      ],
+      "opening_mill": [
+       0,
+       6
+      ],
+      "opening_move": [
+       0,
+       6
+      ]
+     },
+     "clean": false
+    },
+    "calib-k2.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 106.1,
+     "passed": 20,
+     "total": 20,
+     "categories": {
+      "evaluations_count": [
+       4,
+       4
+      ],
+      "grad_depth4": [
+       4,
+       4
+      ],
+      "opening_mill": [
+       6,
+       6
+      ],
+      "opening_move": [
+       6,
+       6
+      ]
+     },
+     "clean": true
+    },
+    "calib-k3.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 699.6,
+     "passed": 0,
+     "total": 20,
+     "categories": {
+      "evaluations_count": [
+       0,
+       4
+      ],
+      "grad_depth4": [
+       0,
+       4
+      ],
+      "opening_mill": [
+       0,
+       6
+      ],
+      "opening_move": [
+       0,
+       6
+      ]
+     },
+     "clean": false
+    }
+   },
+   "gate": true
+  },
+  "part-II-game": {
+   "slots": {
+    "calib-k1.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 187.6,
+     "passed": 15,
+     "total": 15,
+     "categories": {
+      "ab_game_mill": [
+       6,
+       6
+      ],
+      "ab_game_pruning": [
+       5,
+       5
+      ],
+      "grad_depth3": [
+       4,
+       4
+      ]
+     },
+     "clean": true
+    },
+    "calib-k2.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 178.4,
+     "passed": 15,
+     "total": 15,
+     "categories": {
+      "ab_game_mill": [
+       6,
+       6
+      ],
+      "ab_game_pruning": [
+       5,
+       5
+      ],
+      "grad_depth3": [
+       4,
+       4
+      ]
+     },
+     "clean": true
+    },
+    "calib-k3.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 240.0,
+     "passed": 15,
+     "total": 15,
+     "categories": {
+      "ab_game_mill": [
+       6,
+       6
+      ],
+      "ab_game_pruning": [
+       5,
+       5
+      ],
+      "grad_depth3": [
+       4,
+       4
+      ]
+     },
+     "clean": true
+    }
+   },
+   "gate": true
+  },
+  "part-II-opening": {
+   "slots": {
+    "calib-k1.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 697.0,
+     "passed": 0,
+     "total": 15,
+     "categories": {
+      "ab_diagonal_mill": [
+       0,
+       6
+      ],
+      "ab_pruning": [
+       0,
+       5
+      ],
+      "grad_depth4": [
+       0,
+       4
+      ]
+     },
+     "clean": false
+    },
+    "calib-k2.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 735.8,
+     "passed": 0,
+     "total": 15,
+     "categories": {
+      "ab_diagonal_mill": [
+       0,
+       6
+      ],
+      "ab_pruning": [
+       0,
+       5
+      ],
+      "grad_depth4": [
+       0,
+       4
+      ]
+     },
+     "clean": false
+    },
+    "calib-k3.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 66.7,
+     "passed": 15,
+     "total": 15,
+     "categories": {
+      "ab_diagonal_mill": [
+       6,
+       6
+      ],
+      "ab_pruning": [
+       5,
+       5
+      ],
+      "grad_depth4": [
+       4,
+       4
+      ]
+     },
+     "clean": true
+    }
+   },
+   "gate": true
+  },
+  "part-III-game": {
+   "slots": {
+    "calib-k1.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 188.2,
+     "passed": 19,
+     "total": 19,
+     "categories": {
+      "black_game_mill": [
+       6,
+       6
+      ],
+      "black_game_move": [
+       5,
+       5
+      ],
+      "black_hopping": [
+       4,
+       4
+      ],
+      "grad_depth3": [
+       4,
+       4
+      ]
+     },
+     "clean": true
+    },
+    "calib-k2.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 234.9,
+     "passed": 19,
+     "total": 19,
+     "categories": {
+      "black_game_mill": [
+       6,
+       6
+      ],
+      "black_game_move": [
+       5,
+       5
+      ],
+      "black_hopping": [
+       4,
+       4
+      ],
+      "grad_depth3": [
+       4,
+       4
+      ]
+     },
+     "clean": true
+    },
+    "calib-k3.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 74.1,
+     "passed": 19,
+     "total": 19,
+     "categories": {
+      "black_game_mill": [
+       6,
+       6
+      ],
+      "black_game_move": [
+       5,
+       5
+      ],
+      "black_hopping": [
+       4,
+       4
+      ],
+      "grad_depth3": [
+       4,
+       4
+      ]
+     },
+     "clean": true
+    }
+   },
+   "gate": true
+  },
+  "part-III-opening": {
+   "slots": {
+    "calib-k1.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 746.5,
+     "passed": 0,
+     "total": 17,
+     "categories": {
+      "black_mill": [
+       0,
+       6
+      ],
+      "black_move": [
+       0,
+       4
+      ],
+      "colors_back": [
+       0,
+       3
+      ],
+      "grad_depth4": [
+       0,
+       4
+      ]
+     },
+     "clean": false
+    },
+    "calib-k2.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 60.4,
+     "passed": 17,
+     "total": 17,
+     "categories": {
+      "black_mill": [
+       6,
+       6
+      ],
+      "black_move": [
+       4,
+       4
+      ],
+      "colors_back": [
+       3,
+       3
+      ],
+      "grad_depth4": [
+       4,
+       4
+      ]
+     },
+     "clean": true
+    },
+    "calib-k3.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 96.8,
+     "passed": 17,
+     "total": 17,
+     "categories": {
+      "black_mill": [
+       6,
+       6
+      ],
+      "black_move": [
+       4,
+       4
+      ],
+      "colors_back": [
+       3,
+       3
+      ],
+      "grad_depth4": [
+       4,
+       4
+      ]
+     },
+     "clean": true
+    }
+   },
+   "gate": true
+  },
+  "part-IV-game": {
+   "slots": {
+    "calib-k1.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 77.0,
+     "passed": 15,
+     "total": 15,
+     "categories": {
+      "grad_depth3": [
+       4,
+       4
+      ],
+      "improved_game_better": [
+       6,
+       6
+      ],
+      "improved_game_valid": [
+       5,
+       5
+      ]
+     },
+     "clean": true
+    },
+    "calib-k2.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 76.7,
+     "passed": 15,
+     "total": 15,
+     "categories": {
+      "grad_depth3": [
+       4,
+       4
+      ],
+      "improved_game_better": [
+       6,
+       6
+      ],
+      "improved_game_valid": [
+       5,
+       5
+      ]
+     },
+     "clean": true
+    },
+    "calib-k3.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 653.9,
+     "passed": 0,
+     "total": 15,
+     "categories": {
+      "grad_depth3": [
+       0,
+       4
+      ],
+      "improved_game_better": [
+       0,
+       6
+      ],
+      "improved_game_valid": [
+       0,
+       5
+      ]
+     },
+     "clean": false
+    }
+   },
+   "gate": true
+  },
+  "part-IV-opening": {
+   "slots": {
+    "calib-k1.json": {
+     "entry": true,
+     "exit": null,
+     "wall_s": 1200.0,
+     "passed": 0,
+     "total": 15,
+     "categories": {
+      "grad_depth3": [
+       0,
+       4
+      ],
+      "improved_better": [
+       0,
+       6
+      ],
+      "improved_valid": [
+       0,
+       5
+      ]
+     },
+     "clean": false
+    },
+    "calib-k2.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 348.2,
+     "passed": 0,
+     "total": 15,
+     "categories": {
+      "grad_depth3": [
+       0,
+       4
+      ],
+      "improved_better": [
+       0,
+       6
+      ],
+      "improved_valid": [
+       0,
+       5
+      ]
+     },
+     "clean": false
+    },
+    "calib-k3.json": {
+     "entry": true,
+     "exit": 0,
+     "wall_s": 121.7,
+     "passed": 0,
+     "total": 15,
+     "categories": {
+      "grad_depth3": [
+       0,
+       4
+      ],
+      "improved_better": [
+       0,
+       6
+      ],
+      "improved_valid": [
+       0,
+       5
+      ]
+     },
+     "clean": false
+    }
+   },
+   "gate": false
+  }
+ },
+ "ledger": [
+  "# ledger\tnonce=379AEEDCD7E2\tstarted=2026-09-09",
+  "# utc_timestamp\tstudent_ids\trun_tag\tvariant\tclient",
+  "2026-09-09T16:52:52+00:00\tREF000000\tcalib-k1\t\t172.17.0.2",
+  "2026-09-09T17:03:42+00:00\tREF000000\tcalib-k2\t\t172.17.0.2",
+  "2026-09-09T17:05:31+00:00\tREF000000\tcalib-k3\t\t172.17.0.2",
+  "2026-09-09T17:17:14+00:00\tREF000000\tcalib-k1\t\t172.17.0.2",
+  "2026-09-09T17:20:10+00:00\tREF000000\tcalib-k2\t\t172.17.0.2",
+  "2026-09-09T17:32:53+00:00\tREF000000\tcalib-k3\t\t172.17.0.2",
+  "2026-09-09T17:44:44+00:00\tREF000000\tcalib-k1\t\t172.17.0.2",
+  "2026-09-09T17:56:22+00:00\tREF000000\tcalib-k2\t\t172.17.0.2",
+  "2026-09-09T18:08:38+00:00\tREF000000\tcalib-k3\t\t172.17.0.2",
+  "2026-09-09T18:09:45+00:00\tREF000000\tcalib-k1\t\t172.17.0.2",
+  "2026-09-09T18:12:54+00:00\tREF000000\tcalib-k2\t\t172.17.0.2",
+  "2026-09-09T18:15:50+00:00\tREF000000\tcalib-k3\t\t172.17.0.2",
+  "2026-09-09T18:19:55+00:00\tREF000000\tcalib-k1\t\t172.17.0.2",
+  "2026-09-09T18:32:23+00:00\tREF000000\tcalib-k2\t\t172.17.0.2",
+  "2026-09-09T18:33:25+00:00\tREF000000\tcalib-k3\t\t172.17.0.2",
+  "2026-09-09T18:35:07+00:00\tREF000000\tcalib-k1\t\t172.17.0.2",
+  "2026-09-09T18:38:16+00:00\tREF000000\tcalib-k2\t\t172.17.0.2",
+  "2026-09-09T18:42:13+00:00\tREF000000\tcalib-k3\t\t172.17.0.2",
+  "2026-09-09T18:43:28+00:00\tREF000000\tcalib-k1\t\t172.17.0.2",
+  "2026-09-09T19:03:29+00:00\tREF000000\tcalib-k2\t\t172.17.0.2",
+  "2026-09-09T19:09:20+00:00\tREF000000\tcalib-k3\t\t172.17.0.2",
+  "2026-09-09T19:11:21+00:00\tREF000000\tcalib-k1\t\t172.17.0.2",
+  "2026-09-09T19:12:39+00:00\tREF000000\tcalib-k2\t\t172.17.0.2",
+  "2026-09-09T19:13:54+00:00\tREF000000\tcalib-k3\t\t172.17.0.2"
+ ],
+ "gate_passed": 7
+}

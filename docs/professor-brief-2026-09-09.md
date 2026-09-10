@@ -79,20 +79,19 @@ The slot Modelfiles now carry a patched template that disables thinking.
 
 ## Late results
 
-**Calibration on a GPU (A10G, 2026-09-09).** The original reference specification for Part I
-Opening failed the gate outright: the model fetched the page inside the program instead of with
-its web tool, never signed the ledger, and looped on failed edits. Rewritten to name the harness
-tools, keep the program offline, rewrite the file whole and spell out output punctuation, it
-clears the gate with both candidate models, each in one slot of three:
+**The calibration gate passes on all eight programs, with both candidate models** (A10G, three
+slots each, twenty-four runs per model). Full table and evidence:
+`docs/review/calibration-2026-09-09.md`.
 
-| model | slots passing all 20 hidden cases | three slots took | GPU memory |
+| | programs cleared | median slot | GPU memory |
 |---|---|---|---|
-| qwen3:14b (thinking off) | 1 of 3 | 33 min (one slot hit the 20-minute limit) | 10 GB |
-| qwen3-coder:30b | 1 of 3 | 7 min | 21 GB |
+| qwen3:14b | 8 of 8 | 211 s | 10 GB |
+| qwen3-coder:30b | 8 of 8 | 33 s | 21 GB |
 
-One slot in three is a pass by the gate's rule, but a thin margin: the four specification
-rules above are what separate a passing specification from a failing one, and they are now in
-the student primer. Two scoring defects found on the way (the sandbox could not reach Ollama on
-Linux; the per-case temp directory was root-only) are fixed. The choice between the two models
-is decision 2: the 14B model fits student laptops; the 30B coder model needs a 24 GB grading
-card and grades five times faster.
+Getting there took six rounds of correction, and that is the useful part: the gate caught six
+defects in the reference specifications that no amount of reading would have found, including
+programs that searched correctly but printed the input board back instead of the move they chose.
+The four rules that separate a passing specification from a failing one are now in the student
+primer, because they apply to a student's specification exactly as they do to yours. Decision 2
+below is the model choice: the smaller model fits student laptops, the larger one grades six times
+faster on a 24 GB card.

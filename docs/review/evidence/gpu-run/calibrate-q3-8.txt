@@ -1,0 +1,52 @@
+[16:43:21] === calibration sweep: model=qwen3:14b thinking=off, K=3, sandbox on
+slots ready. Do not commit seeds.secret.json.
+serving /tmp/cal-q3-8/course/resource on :8080; ledger -> /tmp/cal-q3-8/course/ledger.tsv; nonce 379AEEDCD7E2
+[16:43:26] -- part-I-opening (MiniMaxOpening.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[17:16:56]    wall 2010s
+[17:16:56] -- part-I-game (MiniMaxGame.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[17:44:27]    wall 1651s
+[17:44:27] -- part-II-opening (ABOpening.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[18:09:29]    wall 1502s
+[18:09:29] -- part-II-game (ABGame.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[18:19:39]    wall 610s
+[18:19:39] -- part-III-opening (MiniMaxOpeningBlack.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[18:34:51]    wall 912s
+[18:34:51] -- part-III-game (MiniMaxGameBlack.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[18:43:13]    wall 502s
+[18:43:13] -- part-IV-opening (MiniMaxOpeningImproved.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[19:11:05]    wall 1672s
+[19:11:05] -- part-IV-game (MiniMaxGameImproved.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[19:24:36]    wall 811s
+[19:24:36] === q3-8 done: 7 of 8 programs cleared the gate

@@ -1,0 +1,52 @@
+[16:29:42] === calibration sweep: model=qwen3-coder:30b thinking=default, K=3, sandbox on
+slots ready. Do not commit seeds.secret.json.
+serving /tmp/cal-coder8/course/resource on :8080; ledger -> /tmp/cal-coder8/course/ledger.tsv; nonce 379AEEDCD7E2
+[16:29:46] -- part-I-opening (MiniMaxOpening.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[16:31:26]    wall 100s
+[16:31:26] -- part-I-game (MiniMaxGame.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[16:33:11]    wall 105s
+[16:33:11] -- part-II-opening (ABOpening.py)
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k2: INCOMPLETE (the harness exited 0 having made no tool call and produced no file. Either the model is not emitting structured tool calls or the harness itself failed; neither is the student's doing. Run the calibration checklist before grading.)
+  REF000000 k3: temperature=1.0 tag=calib-k3
+NOTHING GRADED: none of the 1 submissions produced a record. Check status.csv keys and, for a variants project, the variant roster.
+[16:34:21]    wall 70s
+[16:34:21] -- part-II-game (ABGame.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[16:36:05]    wall 104s
+[16:36:05] -- part-III-opening (MiniMaxOpeningBlack.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[16:37:52]    wall 107s
+[16:37:52] -- part-III-game (MiniMaxGameBlack.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[16:39:39]    wall 107s
+[16:39:39] -- part-IV-opening (MiniMaxOpeningImproved.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[16:41:21]    wall 102s
+[16:41:21] -- part-IV-game (MiniMaxGameImproved.py)
+  REF000000 k1: temperature=0.2 tag=calib-k1
+  REF000000 k2: temperature=0.6 tag=calib-k2
+  REF000000 k3: temperature=1.0 tag=calib-k3
+done
+[16:43:21]    wall 120s
+[16:43:21] === coder8 done: 6 of 8 programs cleared the gate
